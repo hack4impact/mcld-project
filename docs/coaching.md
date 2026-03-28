@@ -13,6 +13,7 @@ erDiagram
         time start_time
         time end_time
         boolean is_active
+        timestamp created_at
     }
 ```
 
