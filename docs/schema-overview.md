@@ -45,11 +45,8 @@ erDiagram
         text title
         text description
         webinar_tier tier
-        timestamp scheduled_at
         int duration_minutes
         text meeting_url
-        int max_seats
-        int price
         boolean is_active
         timestamp created_at
     }
