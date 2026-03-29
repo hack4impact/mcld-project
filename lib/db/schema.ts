@@ -50,11 +50,9 @@ export const webinars = pgTable("webinars", {
    title: text("title").notNull(),
    description: text("description"),
    tier: webinarTierEnum("tier").notNull().default("free"),
-   scheduledAt: timestamp("scheduled_at").notNull(),
    durationMinutes: integer("duration_minutes").notNull(),
    meetingUrl: text("meeting_url"),
    maxSeats: integer("max_seats"),
-   price: integer("price").notNull().default(0),
    isActive: boolean("is_active").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
 });
