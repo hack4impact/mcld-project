@@ -6,7 +6,6 @@ erDiagram
         uuid id PK
         text first_name
         text last_name
-        text avatar_url
         role role
         timestamp created_at
         timestamp updated_at
@@ -17,10 +16,17 @@ erDiagram
         text title
         text description
         service_type type
-        timestamp scheduled_at
+        uuid scheduling_id
         int duration_minutes
         int price
         boolean is_active
+        timestamp created_at
+    }
+
+    schedules {
+        uuid id PK
+        uuid service_id FK
+        jsonb data
         timestamp created_at
     }
 
@@ -28,9 +34,9 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid service_id FK
-        timestamp scheduled_at
         booking_status status
         text notes
+        boolean is_active
         timestamp created_at
     }
 
@@ -57,6 +63,7 @@ erDiagram
 
     coaching_sessions {
         uuid id PK
+        uuid service_id FK
         uuid coach_id FK
         uuid user_id FK
         timestamp scheduled_at
@@ -64,25 +71,18 @@ erDiagram
         session_status status
         text meeting_url
         text notes
+        time[] selected_time_slots
         timestamp created_at
     }
 
-    coach_availability {
-        uuid id PK
-        uuid coach_id FK
-        int day_of_week
-        time start_time
-        time end_time
-        boolean is_active
-    }
-
+    services ||--o| schedules : "has schedule"
     profiles ||--o{ service_bookings : "books"
-    services ||--o{ service_bookings : "has"
+    services ||--o{ service_bookings : "booked via"
     profiles ||--o{ webinar_registrations : "registers"
     webinars ||--o{ webinar_registrations : "has"
     profiles ||--o{ coaching_sessions : "coaches"
     profiles ||--o{ coaching_sessions : "attends"
-    profiles ||--o{ coach_availability : "sets"
+    services ||--o{ coaching_sessions : "fulfilled by"
 ```
 
 ## Enums
@@ -90,7 +90,7 @@ erDiagram
 | Enum | Values |
 |---|---|
 | `role` | `user`, `admin`, `coach` |
-| `service_type` | `preset`, `user_scheduling` |
+| `service_type` | `coaching_session`, `booking` |
 | `booking_status` | `pending`, `confirmed`, `cancelled` |
 | `webinar_tier` | `free`, `premium` |
 | `session_status` | `pending`, `confirmed`, `cancelled`, `completed` |

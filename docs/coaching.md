@@ -1,47 +1,32 @@
-# Coaching Sessions & Coach Availability Tables
+# Coaching Sessions Table
 
-## Coach Availability
-
-Coaches define their recurring weekly availability. Day 0 = Sunday, Day 6 = Saturday.
-
-```mermaid
-erDiagram
-    coach_availability {
-        uuid id PK
-        uuid coach_id FK
-        int day_of_week "0=Sun … 6=Sat"
-        time start_time
-        time end_time
-        boolean is_active
-        timestamp created_at
-    }
-```
-
-## Coaching Sessions
-
-One-on-one sessions booked between a user and a coach.
+One-on-one sessions booked between a user and a coach. Linked to a `coaching_session`-type entry in `services`.
 
 ```mermaid
 erDiagram
     coaching_sessions {
         uuid id PK
+        uuid service_id FK
         uuid coach_id FK
         uuid user_id FK
-        timestamp scheduled_at
+        timestamp scheduled_at "null until a slot is confirmed"
         int duration_minutes
         session_status status "pending | confirmed | cancelled | completed"
         text meeting_url
         text notes
+        time[] selected_time_slots
         timestamp created_at
     }
 
-    profiles ||--o{ coach_availability : "coach sets"
     profiles ||--o{ coaching_sessions : "coach leads"
     profiles ||--o{ coaching_sessions : "user attends"
+    services ||--o{ coaching_sessions : "fulfilled by"
 ```
 
 ## Notes
 
-- A booking system should check `coach_availability` before inserting a `coaching_session`.
+- `scheduled_at` is null by default — it is set once the user selects a specific slot from `selected_time_slots`.
+- `selected_time_slots` holds the time options offered to the user before a slot is confirmed.
 - `meeting_url` is provided by the coach after confirmation.
 - `status = completed` is set after the session ends.
+- Coach availability is not managed by a separate table — coaches do not set recurring availability.
