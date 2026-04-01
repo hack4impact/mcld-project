@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, time, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, jsonb } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
 export const serviceTypeEnum = pgEnum('service_type', ["coaching_session", "booking"]);
@@ -17,12 +17,14 @@ export const profiles = pgTable("profiles", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
-export const schedules = pgTable("schedules", {
+export const serviceSchedules = pgTable("service_schedules", {
    id: uuid("id").primaryKey().defaultRandom(),
    serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
    data: jsonb("data").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
-})
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 export const services = pgTable("services", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -34,6 +36,7 @@ export const services = pgTable("services", {
    price: integer("price").notNull().default(0),
    isActive: boolean("is_active").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
 export const serviceBookings = pgTable("service_bookings", {
@@ -44,6 +47,7 @@ export const serviceBookings = pgTable("service_bookings", {
    notes: text("notes"),
    isActive: boolean("is_active").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const webinars = pgTable("webinars", {
@@ -52,17 +56,10 @@ export const webinars = pgTable("webinars", {
    description: text("description"),
    tier: webinarTierEnum("tier").notNull().default("free"),
    durationMinutes: integer("duration_minutes").notNull(),
-   meetingUrl: text("meeting_url"),
+   youtubeUrl: text("youtube_url"),
    isActive: boolean("is_active").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-
-export const webinarRegistrations = pgTable("webinar_registrations", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }).notNull(),
-   webinarId: uuid("webinar_id").references(() => webinars.id, { onDelete: "cascade" }).notNull(),
-   registeredAt: timestamp("registered_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const coachingSessions = pgTable("coaching_sessions", {
@@ -75,8 +72,9 @@ export const coachingSessions = pgTable("coaching_sessions", {
    status: sessionStatusEnum("status").notNull().default("pending"),
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
-   selectedTimeSlots: time("selected_time_slots").array().notNull(),
+   selectedTimeSlots: jsonb("selected_time_slots").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const subscriptions = pgTable("subscriptions", {
@@ -101,4 +99,5 @@ export const purchases = pgTable("purchases", {
    amount: integer("amount").notNull(),
    currency: text("currency").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -14,8 +14,9 @@ erDiagram
         session_status status "pending | confirmed | cancelled | completed"
         text meeting_url
         text notes
-        time[] selected_time_slots
+        jsonb selected_time_slots "array of {start, end} objects"
         timestamp created_at
+        timestamp updated_at
     }
 
     profiles ||--o{ coaching_sessions : "coach leads"
@@ -26,6 +27,6 @@ erDiagram
 ## Notes
 
 - `scheduled_at` is null by default — it is set once the user selects a specific slot from `selected_time_slots`.
-- `selected_time_slots` holds the time options offered to the user before a slot is confirmed.
+- `selected_time_slots` is a JSON array of `{ start, end }` objects (ISO 8601 strings) representing the time options offered to the user e.g. `[{ "start": "2026-04-14T14:00:00Z", "end": "2026-04-14T17:00:00Z" }]`.
 - `meeting_url` is provided by the coach after confirmation.
 - `status = completed` is set after the session ends.

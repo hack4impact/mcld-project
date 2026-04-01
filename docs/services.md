@@ -3,7 +3,7 @@
 ## Services
 
 The central catalog of offerings on the platform. Two types:
-- **`booking`** — a bookable service; has an associated `schedules` row (via `scheduling_id`).
+- **`booking`** — a bookable service; has an associated `service_schedules` row (via `scheduling_id`).
 - **`coaching_session`** — a coaching offering; `scheduling_id` is null — the scheduling is handled through the `coaching_sessions` table.
 
 ```mermaid
@@ -21,17 +21,18 @@ erDiagram
     }
 ```
 
-## Schedules
+## Service Schedules
 
 Holds the scheduling data for `booking`-type services. Format of `data` is TBD.
 
 ```mermaid
 erDiagram
-    schedules {
+    service_schedules {
         uuid id PK
         uuid service_id FK
         jsonb data "scheduling format TBD"
         timestamp created_at
+        timestamp updated_at
     }
 ```
 
@@ -51,7 +52,7 @@ erDiagram
         timestamp created_at
     }
 
-    services ||--o| schedules : "has schedule"
+    services ||--o| service_schedules : "has schedule"
     services ||--o{ service_bookings : "booked via"
 ```
 
@@ -59,4 +60,4 @@ erDiagram
 
 - `price` is stored in **cents** (integer) to avoid floating-point issues.
 - `is_active = false` hides a service without deleting historical bookings.
-- `scheduling_id` is a soft reference to `schedules.id` — cascade is handled from `schedules.service_id → services.id`.
+- `scheduling_id` is a soft reference to `service_schedules.id` — cascade is handled from `service_schedules.service_id → services.id`.

@@ -21,13 +21,15 @@ erDiagram
         int price
         boolean is_active
         timestamp created_at
+        timestamp updated_at
     }
 
-    schedules {
+    service_schedules {
         uuid id PK
         uuid service_id FK
         jsonb data
         timestamp created_at
+        timestamp updated_at
     }
 
     service_bookings {
@@ -38,6 +40,7 @@ erDiagram
         text notes
         boolean is_active
         timestamp created_at
+        timestamp updated_at
     }
 
     webinars {
@@ -46,16 +49,10 @@ erDiagram
         text description
         webinar_tier tier
         int duration_minutes
-        text meeting_url
+        text youtube_url
         boolean is_active
         timestamp created_at
-    }
-
-    webinar_registrations {
-        uuid id PK
-        uuid user_id FK
-        uuid webinar_id FK
-        timestamp registered_at
+        timestamp updated_at
     }
 
     coaching_sessions {
@@ -68,15 +65,14 @@ erDiagram
         session_status status
         text meeting_url
         text notes
-        time[] selected_time_slots
+        jsonb selected_time_slots "array of {start, end} objects"
         timestamp created_at
+        timestamp updated_at
     }
 
-    services ||--o| schedules : "has schedule"
+    services ||--o| service_schedules : "has schedule"
     profiles ||--o{ service_bookings : "books"
     services ||--o{ service_bookings : "booked via"
-    profiles ||--o{ webinar_registrations : "registers"
-    webinars ||--o{ webinar_registrations : "has"
     profiles ||--o{ coaching_sessions : "coaches"
     profiles ||--o{ coaching_sessions : "attends"
     services ||--o{ coaching_sessions : "fulfilled by"

@@ -1,10 +1,8 @@
-# Webinars & Webinar Registrations Tables
+# Webinars Table
 
-## Webinars
-
-Online events that platform members can register for. Two tiers:
-- **`free`** — open to all users.
-- **`premium`** — restricted access.
+Online video content hosted on the platform. Two tiers:
+- **`free`** — accessible to all users.
+- **`premium`** — accessible to active subscribers only.
 
 ```mermaid
 erDiagram
@@ -14,22 +12,15 @@ erDiagram
         text description
         webinar_tier tier "free | premium"
         int duration_minutes
-        text meeting_url
+        text youtube_url
         boolean is_active
         timestamp created_at
+        timestamp updated_at
     }
-
-    webinar_registrations {
-        uuid id PK
-        uuid user_id FK
-        uuid webinar_id FK
-        timestamp registered_at
-    }
-
-    webinars ||--o{ webinar_registrations : "has registrations"
 ```
 
 ## Notes
 
-- `meeting_url` can be a Zoom/Google Meet link, added before the event starts.
-- `is_active = false` hides a webinar without losing registration history.
+- Access is determined by the user's subscription status, not registration — there is no sign-up flow.
+- `youtube_url` is the link to the YouTube video.
+- `is_active = false` hides a webinar without deleting it.
