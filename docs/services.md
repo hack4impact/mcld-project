@@ -1,10 +1,10 @@
-# Services, Schedules & Service Bookings Tables
+# Services & Service Bookings Tables
 
 ## Services
 
 The central catalog of offerings on the platform. Two types:
-- **`booking`** — a bookable service; has an associated `service_schedules` row (via `scheduling_id`).
-- **`coaching_session`** — a coaching offering; `scheduling_id` is null — the scheduling is handled through the `coaching_sessions` table.
+- **`booking`** — a fixed event with predetermined time slots set by the admin. Users buy it like a product with no input on timing. `scheduled_at` holds the time slots as a JSON array.
+- **`coaching_session`** — a coaching offering where the user proposes availability. `scheduled_at` is null — timing is handled through the `coaching_sessions` table.
 
 ```mermaid
 erDiagram
@@ -13,24 +13,10 @@ erDiagram
         text title
         text description
         service_type type "coaching_session | booking"
-        uuid scheduling_id "null for coaching_session"
+        jsonb scheduled_at "array of {start, end} objects — null for coaching_session"
         int duration_minutes
         int price "in cents"
         boolean is_active
-        timestamp created_at
-    }
-```
-
-## Service Schedules
-
-Holds the scheduling data for `booking`-type services. Format of `data` is TBD.
-
-```mermaid
-erDiagram
-    service_schedules {
-        uuid id PK
-        uuid service_id FK
-        jsonb data "scheduling format TBD"
         timestamp created_at
         timestamp updated_at
     }
@@ -38,7 +24,7 @@ erDiagram
 
 ## Service Bookings
 
-A user's booking of a service.
+A user's purchase of a booking-type service.
 
 ```mermaid
 erDiagram
@@ -50,9 +36,9 @@ erDiagram
         text notes
         boolean is_active
         timestamp created_at
+        timestamp updated_at
     }
 
-    services ||--o| service_schedules : "has schedule"
     services ||--o{ service_bookings : "booked via"
 ```
 
@@ -60,4 +46,4 @@ erDiagram
 
 - `price` is stored in **cents** (integer) to avoid floating-point issues.
 - `is_active = false` hides a service without deleting historical bookings.
-- `scheduling_id` is a soft reference to `service_schedules.id` — cascade is handled from `service_schedules.service_id → services.id`.
+- `scheduled_at` is a JSON array of `{ start, end }` ISO 8601 objects e.g. `[{ "start": "2026-04-15T14:00:00Z", "end": "2026-04-15T16:00:00Z" }]`.

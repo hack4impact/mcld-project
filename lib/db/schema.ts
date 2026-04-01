@@ -17,21 +17,12 @@ export const profiles = pgTable("profiles", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
-export const serviceSchedules = pgTable("service_schedules", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
-   data: jsonb("data").notNull(),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-
 export const services = pgTable("services", {
    id: uuid("id").primaryKey().defaultRandom(),
    title: text("title").notNull(),
    description: text("description"),
    type: serviceTypeEnum("type").notNull(),
-   schedulingId: uuid("scheduling_id"),
+   scheduledAt: jsonb("scheduled_at"),
    durationMinutes: integer("duration_minutes").notNull(),
    price: integer("price").notNull().default(0),
    isActive: boolean("is_active").notNull().default(true),

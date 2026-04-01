@@ -16,18 +16,10 @@ erDiagram
         text title
         text description
         service_type type
-        uuid scheduling_id
+        jsonb scheduled_at "null for coaching_session"
         int duration_minutes
         int price
         boolean is_active
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    service_schedules {
-        uuid id PK
-        uuid service_id FK
-        jsonb data
         timestamp created_at
         timestamp updated_at
     }
@@ -70,7 +62,6 @@ erDiagram
         timestamp updated_at
     }
 
-    services ||--o| service_schedules : "has schedule"
     profiles ||--o{ service_bookings : "books"
     services ||--o{ service_bookings : "booked via"
     profiles ||--o{ coaching_sessions : "coaches"
