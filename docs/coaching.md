@@ -29,4 +29,3 @@ erDiagram
 - `selected_time_slots` holds the time options offered to the user before a slot is confirmed.
 - `meeting_url` is provided by the coach after confirmation.
 - `status = completed` is set after the session ends.
-- Coach availability is not managed by a separate table — coaches do not set recurring availability.

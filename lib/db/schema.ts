@@ -12,6 +12,7 @@ export const profiles = pgTable("profiles", {
    firstName: text("first_name").notNull(),
    lastName: text("last_name").notNull(),
    role: roleEnum("role").notNull().default("user"),
+   stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
@@ -75,5 +76,29 @@ export const coachingSessions = pgTable("coaching_sessions", {
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
    selectedTimeSlots: time("selected_time_slots").array().notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }).notNull().unique(),
+   stripeSubscriptionId: text("stripe_subscription_id").unique(),
+   status: text("status").notNull().default("none"),
+   stripePriceId: text("stripe_price_id"),
+   cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+   paymentMethodBrand: text("payment_method_brand"),
+   paymentMethodLast4: text("payment_method_last4"),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const purchases = pgTable("purchases", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }).notNull(),
+   stripePriceId: text("stripe_price_id").notNull(),
+   stripeSessionId: text("stripe_session_id").notNull().unique(),
+   productName: text("product_name").notNull(),
+   amount: integer("amount").notNull(),
+   currency: text("currency").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
 });
