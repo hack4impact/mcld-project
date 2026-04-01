@@ -2,7 +2,7 @@
 
 import { login, signup } from "./actions";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,14 +18,19 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
   const error = searchParams.get("error");
+  const [mode, setMode] = useState<"login" | "signup">("login");
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Welcome</CardTitle>
+          <CardTitle className="text-2xl">
+            {mode === "login" ? "Welcome back" : "Create an account"}
+          </CardTitle>
           <CardDescription>
-            Sign in to your account or create a new one
+            {mode === "login"
+              ? "Sign in to your account"
+              : "Fill in your details to get started"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -41,6 +46,30 @@ function LoginForm() {
           )}
 
           <form className="space-y-4">
+            {mode === "signup" && (
+              <div className="flex gap-3">
+                <div className="space-y-2 flex-1">
+                  <Label htmlFor="first_name">First name</Label>
+                  <Input
+                    id="first_name"
+                    name="first_name"
+                    type="text"
+                    required
+                    placeholder="Jane"
+                  />
+                </div>
+                <div className="space-y-2 flex-1">
+                  <Label htmlFor="last_name">Last name</Label>
+                  <Input
+                    id="last_name"
+                    name="last_name"
+                    type="text"
+                    required
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -62,13 +91,30 @@ function LoginForm() {
                 placeholder="••••••••"
               />
             </div>
-            <div className="flex gap-2 pt-2">
-              <Button formAction={login} className="flex-1">
-                Log in
-              </Button>
-              <Button formAction={signup} variant="outline" className="flex-1">
-                Sign up
-              </Button>
+            <div className="flex flex-col gap-2 pt-2">
+              {mode === "login" ? (
+                <>
+                  <Button formAction={login}>Log in</Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMode("signup")}
+                  >
+                    Create an account
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button formAction={signup}>Sign up</Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMode("login")}
+                  >
+                    Already have an account? Log in
+                  </Button>
+                </>
+              )}
             </div>
           </form>
         </CardContent>
