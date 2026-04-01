@@ -58,3 +58,5 @@ drizzle/meta/
 
 
 .agents/
+.playwright-mcp/
+.mcp.json

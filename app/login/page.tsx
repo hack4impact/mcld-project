@@ -1,8 +1,8 @@
 "use client";
 
-import { login, signup } from "./actions";
+import { useActionState, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { login, signup, type ActionState } from "./actions";
 import {
   Card,
   CardContent,
@@ -14,11 +14,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
+function FieldError({ errors }: { errors?: string[] }) {
+  if (!errors?.length) return null;
+  return <p className="text-sm text-destructive">{errors[0]}</p>;
+}
+
 function LoginForm() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
-  const error = searchParams.get("error");
   const [mode, setMode] = useState<"login" | "signup">("login");
+
+  const [loginState, loginAction] = useActionState<ActionState, FormData>(
+    login,
+    null
+  );
+  const [signupState, signupAction] = useActionState<ActionState, FormData>(
+    signup,
+    null
+  );
+
+  const state = mode === "login" ? loginState : signupState;
+  const action = mode === "login" ? loginAction : signupAction;
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
@@ -34,67 +50,61 @@ function LoginForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {error && (
-            <div className="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
           {message && (
             <div className="mb-4 rounded-md bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
               {message}
             </div>
           )}
 
-          <form className="space-y-4">
+          <form action={action} className="space-y-4" noValidate>
             {mode === "signup" && (
               <div className="flex gap-3">
-                <div className="space-y-2 flex-1">
+                <div className="space-y-1 flex-1">
                   <Label htmlFor="first_name">First name</Label>
                   <Input
                     id="first_name"
                     name="first_name"
                     type="text"
-                    required
                     placeholder="Jane"
                   />
+                  <FieldError errors={signupState?.errors?.firstName} />
                 </div>
-                <div className="space-y-2 flex-1">
+                <div className="space-y-1 flex-1">
                   <Label htmlFor="last_name">Last name</Label>
                   <Input
                     id="last_name"
                     name="last_name"
                     type="text"
-                    required
                     placeholder="Doe"
                   />
+                  <FieldError errors={signupState?.errors?.lastName} />
                 </div>
               </div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                required
                 placeholder="you@example.com"
               />
+              <FieldError errors={state?.errors?.email} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                required
-                minLength={6}
                 placeholder="••••••••"
               />
+              <FieldError errors={state?.errors?.password} />
             </div>
             <div className="flex flex-col gap-2 pt-2">
               {mode === "login" ? (
                 <>
-                  <Button formAction={login}>Log in</Button>
+                  <Button type="submit">Log in</Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -105,7 +115,7 @@ function LoginForm() {
                 </>
               ) : (
                 <>
-                  <Button formAction={signup}>Sign up</Button>
+                  <Button type="submit">Sign up</Button>
                   <Button
                     type="button"
                     variant="outline"
