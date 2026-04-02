@@ -6,7 +6,6 @@ export const profiles = pgTable("profiles", {
    id: uuid("id").primaryKey(),
    firstName: text("first_name"),
    lastName: text("last_name"),
-   avatarUrl: text("avatar_url"),
    stripeCustomerId: text("stripe_customer_id"),
    role: userRoleEnum("role").default("user").notNull(),
    createdAt: timestamp("created_at").defaultNow(),
