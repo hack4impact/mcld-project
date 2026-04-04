@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { ROLES } from "@/lib/roles";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -42,6 +43,17 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
+  }
+
+  // Protect /dashboard/* — admin only
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const role = claimsData?.claims?.user_role;
+    if (role !== ROLES.ADMIN) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

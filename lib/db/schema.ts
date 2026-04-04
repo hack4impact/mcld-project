@@ -1,11 +1,31 @@
-import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import {
+   pgTable,
+   text,
+   timestamp,
+   uuid,
+   pgEnum,
+   integer,
+   boolean,
+   jsonb,
+} from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
-export const serviceTypeEnum = pgEnum('service_type', ["coaching_session", "booking"]);
-export const bookingStatusEnum = pgEnum('booking_status', ["pending", "confirmed", "cancelled"]);
-export const webinarTierEnum = pgEnum('webinar_tier', ["free", "premium"]);
-export const sessionStatusEnum = pgEnum("session_status", ["pending", "confirmed", "cancelled", "completed"]);
-
+export const serviceTypeEnum = pgEnum("service_type", [
+   "coaching_session",
+   "booking",
+]);
+export const bookingStatusEnum = pgEnum("booking_status", [
+   "pending",
+   "confirmed",
+   "cancelled",
+]);
+export const webinarTierEnum = pgEnum("webinar_tier", ["free", "premium"]);
+export const sessionStatusEnum = pgEnum("session_status", [
+   "pending",
+   "confirmed",
+   "cancelled",
+   "completed",
+]);
 
 export const profiles = pgTable("profiles", {
    id: uuid("id").primaryKey(),
@@ -15,7 +35,7 @@ export const profiles = pgTable("profiles", {
    stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
+});
 
 export const services = pgTable("services", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -28,12 +48,16 @@ export const services = pgTable("services", {
    isActive: boolean("is_active").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
+});
 
 export const serviceBookings = pgTable("service_bookings", {
    id: uuid("id").primaryKey().defaultRandom(),
-   userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }).notNull(),
-   serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
+   userId: uuid("user_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
+   serviceId: uuid("service_id")
+      .references(() => services.id, { onDelete: "cascade" })
+      .notNull(),
    status: bookingStatusEnum("status").notNull().default("pending"),
    notes: text("notes"),
    isActive: boolean("is_active").notNull().default(true),
@@ -55,9 +79,15 @@ export const webinars = pgTable("webinars", {
 
 export const coachingSessions = pgTable("coaching_sessions", {
    id: uuid("id").primaryKey().defaultRandom(),
-   serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
-   coachId: uuid("coach_id").references(() => profiles.id, { onDelete: "cascade" }).notNull(),
-   userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }).notNull(),
+   serviceId: uuid("service_id")
+      .references(() => services.id, { onDelete: "cascade" })
+      .notNull(),
+   coachId: uuid("coach_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
+   userId: uuid("user_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
    scheduledAt: timestamp("scheduled_at"),
    durationMinutes: integer("duration_minutes").notNull().default(60),
    status: sessionStatusEnum("status").notNull().default("pending"),
@@ -70,7 +100,10 @@ export const coachingSessions = pgTable("coaching_sessions", {
 
 export const subscriptions = pgTable("subscriptions", {
    id: uuid("id").primaryKey().defaultRandom(),
-   userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }).notNull().unique(),
+   userId: uuid("user_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull()
+      .unique(),
    stripeSubscriptionId: text("stripe_subscription_id").unique(),
    status: text("status").notNull().default("none"),
    stripePriceId: text("stripe_price_id"),
@@ -83,7 +116,9 @@ export const subscriptions = pgTable("subscriptions", {
 
 export const purchases = pgTable("purchases", {
    id: uuid("id").primaryKey().defaultRandom(),
-   userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }).notNull(),
+   userId: uuid("user_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
    stripePriceId: text("stripe_price_id").notNull(),
    stripeSessionId: text("stripe_session_id").notNull().unique(),
    productName: text("product_name").notNull(),
