@@ -69,12 +69,8 @@ export async function syncStripeData(stripeCustomerId: string) {
    }
 
    const sub = stripeSubscriptions.data[0];
-   console.log("sub", sub);
    const paymentMethod =
-      sub.default_payment_method &&
-      typeof sub.default_payment_method !== "string"
-         ? sub.default_payment_method
-         : null;
+      sub.default_payment_method as Stripe.PaymentMethod | null;
 
    const subData = {
       stripeSubscriptionId: sub.id,
