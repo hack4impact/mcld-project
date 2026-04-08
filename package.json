@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "docs:schema": "tsx scripts/generate-schema-overview.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

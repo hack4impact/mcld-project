@@ -1,0 +1,17 @@
+{
+  "relationshipLines": [
+    "profiles ||--o{ service_bookings : \"user\"",
+    "services ||--o{ service_bookings : \"service\"",
+    "profiles ||--o{ coaching_sessions : \"coach\"",
+    "profiles ||--o{ coaching_sessions : \"user\"",
+    "services ||--o{ coaching_sessions : \"service\"",
+    "profiles ||--o| subscriptions : \"0..1\"",
+    "profiles ||--o{ purchases : \"user\"",
+    "profiles ||--o{ profile_service_discounts : \"user\"",
+    "services ||--o{ profile_service_discounts : \"service\""
+  ],
+  "columnQuotes": {
+    "services.scheduled_at": "null for coaching_session",
+    "coaching_sessions.selected_time_slots": "array of {start, end} objects"
+  }
+}
