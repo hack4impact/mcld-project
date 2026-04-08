@@ -19,6 +19,8 @@ erDiagram
         jsonb scheduled_at "null for coaching_session"
         int duration_minutes
         int price
+        text stripe_product_id
+        text stripe_default_price_id
         boolean is_active
         timestamp created_at
         timestamp updated_at
@@ -62,11 +64,25 @@ erDiagram
         timestamp updated_at
     }
 
+    subscriptions {
+        uuid id PK
+        uuid user_id FK
+        text stripe_subscription_id
+        text status
+        text stripe_price_id
+        boolean cancel_at_period_end
+        text payment_method_brand
+        text payment_method_last4
+        timestamp created_at
+        timestamp updated_at
+    }
+
     profiles ||--o{ service_bookings : "books"
     services ||--o{ service_bookings : "booked via"
     profiles ||--o{ coaching_sessions : "coaches"
     profiles ||--o{ coaching_sessions : "attends"
     services ||--o{ coaching_sessions : "fulfilled by"
+    profiles ||--o| subscriptions : "at most one"
 ```
 
 ## Enums
