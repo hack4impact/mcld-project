@@ -7,6 +7,7 @@ import {
    integer,
    boolean,
    jsonb,
+   unique,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
@@ -45,6 +46,8 @@ export const services = pgTable("services", {
    scheduledAt: jsonb("scheduled_at"),
    durationMinutes: integer("duration_minutes").notNull(),
    price: integer("price").notNull().default(0),
+   stripeProductId: text("stripe_product_id"),
+   stripeDefaultPriceId: text("stripe_default_price_id"),
    isActive: boolean("is_active").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -127,3 +130,27 @@ export const purchases = pgTable("purchases", {
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const profileServiceDiscounts = pgTable(
+   "profile_service_discounts",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      userId: uuid("user_id")
+         .references(() => profiles.id, { onDelete: "cascade" })
+         .notNull(),
+      serviceId: uuid("service_id")
+         .references(() => services.id, { onDelete: "cascade" })
+         .notNull(),
+      stripeCouponId: text("stripe_coupon_id").notNull(),
+      maxUses: integer("max_uses"),
+      useCount: integer("use_count").notNull().default(0),
+      expiresAt: timestamp("expires_at"),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+   },
+   (table) => [
+      unique("profile_service_discounts_user_service_unique").on(
+         table.userId,
+         table.serviceId,
+      ),
+   ],
+);
