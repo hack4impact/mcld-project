@@ -26,6 +26,11 @@ export const sessionStatusEnum = pgEnum("session_status", [
    "cancelled",
    "completed",
 ]);
+export const serviceStatusEnum = pgEnum("service_status", [
+   "active",
+   "archived",
+   "deleted",
+]);
 
 export const profiles = pgTable("profiles", {
    id: uuid("id").primaryKey(),
@@ -44,8 +49,9 @@ export const services = pgTable("services", {
    type: serviceTypeEnum("type").notNull(),
    scheduledAt: jsonb("scheduled_at"),
    durationMinutes: integer("duration_minutes").notNull(),
-   price: integer("price").notNull().default(0),
-   isActive: boolean("is_active").notNull().default(true),
+   stripeProductId: text("stripe_product_id").notNull(),
+   status: serviceStatusEnum("status").notNull().default("active"),
+   isOffered: boolean("is_offered").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -110,20 +116,6 @@ export const subscriptions = pgTable("subscriptions", {
    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
    paymentMethodBrand: text("payment_method_brand"),
    paymentMethodLast4: text("payment_method_last4"),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const purchases = pgTable("purchases", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   userId: uuid("user_id")
-      .references(() => profiles.id, { onDelete: "cascade" })
-      .notNull(),
-   stripePriceId: text("stripe_price_id").notNull(),
-   stripeSessionId: text("stripe_session_id").notNull().unique(),
-   productName: text("product_name").notNull(),
-   amount: integer("amount").notNull(),
-   currency: text("currency").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
