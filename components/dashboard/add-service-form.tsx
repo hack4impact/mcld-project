@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
    createService,
    type ServiceActionState,
 } from "@/app/dashboard/services/actions";
+import { ScheduledSlotsField } from "@/components/dashboard/scheduled-slots-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,9 @@ type AddServiceFormProps = {
 };
 
 export function AddServiceForm({ onCreated }: AddServiceFormProps) {
+   const [serviceType, setServiceType] = useState<
+      "coaching_session" | "booking"
+   >("coaching_session");
    const [state, formAction, pending] = useActionState(
       createService,
       null as ServiceActionState
@@ -79,6 +83,12 @@ export function AddServiceForm({ onCreated }: AddServiceFormProps) {
                   id="new-type"
                   name="type"
                   required
+                  value={serviceType}
+                  onChange={(e) =>
+                     setServiceType(
+                        e.target.value as "coaching_session" | "booking"
+                     )
+                  }
                   className={controlClass}
                >
                   <option value="coaching_session">Coaching session</option>
@@ -120,26 +130,16 @@ export function AddServiceForm({ onCreated }: AddServiceFormProps) {
                ) : null}
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-               <Label htmlFor="new-scheduled">
-                  Scheduled slots (JSON array, booking type only)
-               </Label>
-               <textarea
-                  id="new-scheduled"
-                  name="scheduled_at"
-                  rows={4}
-                  placeholder='[{"start":"2026-04-15T14:00:00Z","end":"2026-04-15T16:00:00Z"}]'
-                  className={cn(
-                     controlClass,
-                     "min-h-[100px] resize-y font-mono text-xs"
-                  )}
-               />
-               {state?.errors?.scheduled_at?.[0] ? (
-                  <p className="text-destructive text-xs">
-                     {state.errors.scheduled_at[0]}
-                  </p>
-               ) : null}
-            </div>
+            <ScheduledSlotsField
+               idPrefix="new"
+               initialValue={null}
+               active={serviceType === "booking"}
+            />
+            {state?.errors?.scheduled_at?.[0] ? (
+               <p className="text-destructive col-span-full text-xs">
+                  {state.errors.scheduled_at[0]}
+               </p>
+            ) : null}
          </div>
 
          <Button type="submit" disabled={pending}>
