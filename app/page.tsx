@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { CheckoutButton } from "@/components/subscribe-button";
 
 const SUBSCRIPTION_PRICE_ID = process.env.STRIPE_PRICE_ID!;
-const PRODUCT_PRICE_ID = "price_1TG8j9Gd63MwEwUwevR5SjNa";
+const PRODUCT_PRICE_ID = process.env.STRIPE_PRODUCT_PRICE_ID!;
 
 export default async function Page() {
    const supabase = await createClient();
