@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
-import { profiles, purchases } from "@/lib/db/schema";
+import {
+   coachingSessions,
+   profiles,
+   purchases,
+   serviceBookings,
+} from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import Stripe from "stripe";
 
@@ -43,6 +48,23 @@ export async function POST(request: NextRequest) {
 
    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata ?? {};
+
+      if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
+         await db
+            .update(coachingSessions)
+            .set({ status: "pending", stripeOrderId: session.id })
+            .where(eq(coachingSessions.id, metadata.coachingSessionId));
+         return NextResponse.json({ received: true });
+      }
+
+      if (metadata.type === "program" && metadata.bookingId) {
+         await db
+            .update(serviceBookings)
+            .set({ status: "confirmed", stripeOrderId: session.id })
+            .where(eq(serviceBookings.id, metadata.bookingId));
+         return NextResponse.json({ received: true });
+      }
 
       if (session.mode === "payment" && session.customer) {
          const customerId = session.customer as string;

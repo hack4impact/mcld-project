@@ -18,12 +18,14 @@ export const serviceTypeEnum = pgEnum("service_type", [
    "programs",
 ]);
 export const bookingStatusEnum = pgEnum("booking_status", [
+   "awaiting_payment",
    "pending",
    "confirmed",
    "cancelled",
 ]);
 export const webinarTierEnum = pgEnum("webinar_tier", ["free", "premium"]);
 export const sessionStatusEnum = pgEnum("session_status", [
+   "awaiting_payment",
    "pending",
    "confirmed",
    "cancelled",
