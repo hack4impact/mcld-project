@@ -55,6 +55,9 @@ export const services = pgTable("services", {
    durationMinutes: integer("duration_minutes").notNull(),
    stripeProductId: text("stripe_product_id").notNull(),
    status: serviceStatusEnum("status").notNull().default("active"),
+   coachId: uuid("coach_id").references(() => profiles.id, {
+      onDelete: "set null",
+   }),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -70,6 +73,7 @@ export const serviceBookings = pgTable("service_bookings", {
    status: bookingStatusEnum("status").notNull().default("pending"),
    notes: text("notes"),
    isActive: boolean("is_active").notNull().default(true),
+   stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -103,6 +107,7 @@ export const coachingSessions = pgTable("coaching_sessions", {
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
    selectedTimeSlots: jsonb("selected_time_slots").notNull(),
+   stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
