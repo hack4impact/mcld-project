@@ -8,6 +8,7 @@ import {
    Users,
    CreditCard,
    MonitorSmartphone,
+   Settings,
 } from "lucide-react";
 import {
    Sidebar,
@@ -83,7 +84,16 @@ export function AppSidebar({
                </SidebarGroupContent>
             </SidebarGroup>
          </SidebarContent>
-         <SidebarFooter></SidebarFooter>
+         <SidebarFooter>
+            <SidebarMenuButton asChild isActive={pathname === "/settings"}>
+               <Link href="/settings">
+                  <Settings className="h-4 w-4" />
+                  <span className="text-sm font-medium tracking-wide">
+                     Settings
+                  </span>
+               </Link>
+            </SidebarMenuButton>
+         </SidebarFooter>
       </Sidebar>
    );
 }
