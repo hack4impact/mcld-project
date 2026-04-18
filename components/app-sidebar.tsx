@@ -29,7 +29,7 @@ const navItems = [
    { title: "OVERVIEW", href: "/", icon: LayoutGrid },
    { title: "SERVICES", href: "/services", icon: BookOpen },
    { title: "USERS", href: "/users", icon: Users },
-   { title: "PAYMENTS", href: "/payments", icon: CreditCard },
+   { title: "FINANCE", href: "/finance", icon: CreditCard },
    { title: "MEMBERSHIPS", href: "/memberships", icon: MonitorSmartphone },
 ];
 
