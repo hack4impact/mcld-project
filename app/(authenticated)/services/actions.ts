@@ -45,7 +45,7 @@ const slotSchema = z.object({
 
 const baseFields = z.object({
    title: z.string().min(1, "Title is required").max(500),
-   description: z.string().min(1, "Description is required").max(5000),
+   description: z.string().min(1, "Description is required").max(1000),
    type: serviceTypeSchema,
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60),
    price_cad: z.string().min(1, "Price is required"),
@@ -215,7 +215,7 @@ export async function createService(
 const updateFields = z.object({
    service_id: z.string().uuid(),
    title: z.string().min(1, "Title cannot be empty").max(500).optional(),
-   description: z.string().min(1, "Description cannot be empty").max(5000).optional(),
+   description: z.string().min(1, "Description cannot be empty").max(1000).optional(),
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60).optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
 });
