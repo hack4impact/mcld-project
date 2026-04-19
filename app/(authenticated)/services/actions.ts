@@ -30,18 +30,24 @@ export type ProgramSchedule = {
    slots: ProgramSlot[];
 };
 
-const SERVICES_PATH = "/dashboard/services";
+const SERVICES_PATH = "/services";
 const SERVICES_TAG = "services";
 
 const serviceTypeSchema = z.enum(["private_lessons", "programs"]);
 const statusSchema = z.enum(["active", "disabled", "archived", "deleted"]);
+
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date");
+
+const slotSchema = z.object({
+   dayOfWeek: z.number().int().min(0).max(6),
+   time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time"),
+});
 
 const baseFields = z.object({
    title: z.string().min(1, "Title is required").max(500),
    description: z.string().min(1, "Description is required").max(5000),
    type: serviceTypeSchema,
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60),
-   scheduled_at: z.string().optional(),
    price_cad: z.string().min(1, "Price is required"),
 });
 
@@ -60,6 +66,70 @@ function bustServicesCache() {
    revalidatePath(SERVICES_PATH);
 }
 
+function field(formData: FormData, name: string): string | undefined {
+   const v = formData.get(name);
+   return v === null ? undefined : v.toString();
+}
+
+type ParseResult<T> =
+   | { ok: true; value: T }
+   | { ok: false; errors: Record<string, string[]> };
+
+function parseProgramSchedule(formData: FormData): ParseResult<ProgramSchedule> {
+   const startRaw = field(formData, "start_date");
+   const endRaw = field(formData, "end_date");
+   const slotsRaw = field(formData, "slots");
+   const errors: Record<string, string[]> = {};
+
+   const start = startRaw ? isoDateSchema.safeParse(startRaw) : null;
+   const end = endRaw ? isoDateSchema.safeParse(endRaw) : null;
+
+   if (!startRaw) errors.start_date = ["Start date is required"];
+   else if (start && !start.success) errors.start_date = ["Invalid start date"];
+
+   if (!endRaw) errors.end_date = ["End date is required"];
+   else if (end && !end.success) errors.end_date = ["Invalid end date"];
+
+   let slots: ProgramSlot[] = [];
+   if (!slotsRaw) {
+      errors.slots = ["At least one slot is required"];
+   } else {
+      try {
+         const parsed = JSON.parse(slotsRaw);
+         const result = z.array(slotSchema).min(1).safeParse(parsed);
+         if (!result.success) {
+            errors.slots = ["At least one valid slot is required"];
+         } else {
+            slots = result.data;
+         }
+      } catch {
+         errors.slots = ["Invalid slot format"];
+      }
+   }
+
+   if (startRaw && endRaw && start?.success && end?.success) {
+      if (startRaw > endRaw) {
+         errors.end_date = ["End date must be on or after start date"];
+      }
+   }
+
+   if (Object.keys(errors).length > 0) return { ok: false, errors };
+   return {
+      ok: true,
+      value: { startDate: startRaw!, endDate: endRaw!, slots },
+   };
+}
+
+function parseCoachId(formData: FormData): ParseResult<string> {
+   const raw = field(formData, "coach_id");
+   if (!raw) return { ok: false, errors: { coach_id: ["Select a coach"] } };
+   const result = z.string().uuid().safeParse(raw);
+   if (!result.success) {
+      return { ok: false, errors: { coach_id: ["Invalid coach"] } };
+   }
+   return { ok: true, value: result.data };
+}
+
 export async function createService(
    _prev: ServiceActionState,
    formData: FormData,
@@ -75,15 +145,13 @@ export async function createService(
       description: formData.get("description") ?? "",
       type: formData.get("type"),
       duration_minutes: formData.get("duration_minutes"),
-      scheduled_at: formData.get("scheduled_at")?.toString(),
       price_cad: formData.get("price_cad"),
    });
    if (!parsed.success) {
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const { title, type, duration_minutes, scheduled_at, price_cad } =
-      parsed.data;
+   const { title, type, duration_minutes, price_cad } = parsed.data;
    const description = parsed.data.description.trim();
 
    const cents = cadStringToCents(price_cad);
@@ -91,16 +159,15 @@ export async function createService(
       return { errors: { price_cad: ["Enter a valid price in CAD"] } };
    }
 
-   let scheduledAtValue: unknown = null;
+   let scheduledAtValue: ProgramSchedule | null = null;
    if (type === "programs") {
-      if (!scheduled_at || !scheduled_at.trim()) {
-         return { errors: { scheduled_at: ["Bookings require a JSON array of dates"] } };
-      }
-      const result = parseScheduledAt(scheduled_at);
-      if (!result.ok) {
-         return { errors: { scheduled_at: [result.error] } };
-      }
+      const result = parseProgramSchedule(formData);
+      if (!result.ok) return { errors: result.errors };
       scheduledAtValue = result.value;
+   } else {
+      // private_lessons: require a coach, but no schema column yet to persist.
+      const coach = parseCoachId(formData);
+      if (!coach.ok) return { errors: coach.errors };
    }
 
    let createdProductId: string | null = null;
@@ -120,7 +187,6 @@ export async function createService(
          stripeProductId: productId,
          status: "active",
       });
-      // true product deletion in stripe requires archiving the price so letting the product as inactive is fine 
    } catch (e) {
       if (createdProductId) {
          try {
@@ -151,18 +217,8 @@ const updateFields = z.object({
    title: z.string().min(1, "Title cannot be empty").max(500).optional(),
    description: z.string().min(1, "Description cannot be empty").max(5000).optional(),
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60).optional(),
-   scheduled_at: z.string().optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
 });
-
-/**
- * Read a FormData entry as a string, returning undefined when the key is
- * missing entirely. Empty strings are preserved (e.g. clearing description).
- */
-function field(formData: FormData, name: string): string | undefined {
-   const v = formData.get(name);
-   return v === null ? undefined : v.toString();
-}
 
 export async function updateService(
    _prev: ServiceActionState,
@@ -179,21 +235,14 @@ export async function updateService(
       title: field(formData, "title") || undefined,
       description: field(formData, "description") || undefined,
       duration_minutes: field(formData, "duration_minutes") || undefined,
-      scheduled_at: field(formData, "scheduled_at") || undefined,
       price_cad: field(formData, "price_cad") || undefined,
    });
    if (!parsed.success) {
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const {
-      service_id,
-      title,
-      description,
-      duration_minutes,
-      scheduled_at,
-      price_cad,
-   } = parsed.data;
+   const { service_id, title, description, duration_minutes, price_cad } =
+      parsed.data;
 
    let cents: number | undefined;
    if (price_cad !== undefined) {
@@ -203,12 +252,6 @@ export async function updateService(
       }
       cents = parsedCents;
    }
-
-   const result = parseScheduledAt(scheduled_at);
-   if (!result.ok){
-      return {errors:{scheduled_at: [result.error]}}
-   }
-   const scheduledAtValue = result.value;
 
    const [row] = await db
       .select()
@@ -222,6 +265,13 @@ export async function updateService(
       return {
          errors: { _form: ["Only active or disabled services can be edited"] },
       };
+   }
+
+   let scheduledAtValue: ProgramSchedule | undefined;
+   if (row.type === "programs" && formData.has("start_date")) {
+      const result = parseProgramSchedule(formData);
+      if (!result.ok) return { errors: result.errors };
+      scheduledAtValue = result.value;
    }
 
    try {
@@ -239,7 +289,7 @@ export async function updateService(
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
       if (duration_minutes !== undefined) dbPatch.durationMinutes = duration_minutes;
-      if (scheduled_at !== undefined) dbPatch.scheduledAt = scheduledAtValue;
+      if (scheduledAtValue !== undefined) dbPatch.scheduledAt = scheduledAtValue;
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();
@@ -332,17 +382,3 @@ export async function setServiceStatus(
    bustServicesCache();
    return { message: "Service status updated." };
 }
-
-
-function parseScheduledAt(raw: string | undefined):  {ok: true; value:unknown} | {ok:false, error:string} 
-   {
-      if (!raw || !raw.trim()) return {ok:true,value: null};
-      try {
-         const json = JSON.parse(raw.trim());
-         if (!Array.isArray(json)) return {ok:false, error: "Must be a JSON array"};
-         return {ok: true, value: json};
-
-      }catch {
-         return {ok: false, error: "Must be valid JSON"};
-      }
-   }

@@ -255,7 +255,7 @@ export function ServiceDialog(props: Props) {
    const [type, setType] = React.useState<"programs" | "private_lessons">(
       service?.type ?? "programs",
    );
-   const [coachId, setCoachId] = React.useState<string>(service?.coachId ?? "");
+   const [coachId, setCoachId] = React.useState<string>("");
    const [state, formAction, pending] = useActionState<
       ServiceActionState,
       FormData
@@ -264,7 +264,7 @@ export function ServiceDialog(props: Props) {
    React.useEffect(() => {
       if (service) {
          setType(service.type);
-         setCoachId(service.coachId ?? "");
+         setCoachId("");
       }
    }, [service]);
 
