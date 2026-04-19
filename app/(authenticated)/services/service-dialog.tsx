@@ -174,7 +174,7 @@ function ProgramScheduleFields({
    const endDate = range?.to ? toISODate(range.to) : "";
 
    return (
-      <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+      <div className="flex max-h-52 flex-col gap-3 overflow-y-auto rounded-md border border-border p-3">
          <p className="text-xs font-medium text-muted-foreground">
             Weekly schedule
          </p>
@@ -352,6 +352,7 @@ export function ServiceDialog(props: Props) {
                         name="description"
                         maxLength={5000}
                         defaultValue={service?.description ?? ""}
+                        className="max-h-40 overflow-y-auto"
                      />
                      <FieldError messages={errors?.description} />
                   </div>
