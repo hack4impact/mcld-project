@@ -3,10 +3,11 @@
 import * as React from "react";
 import { useActionState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, X } from "lucide-react";
+import { CalendarIcon, DollarSign, Plus, X } from "lucide-react";
 import { type DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
 import {
    Dialog,
@@ -33,7 +34,7 @@ import {
    SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { centsToCadString } from "@/lib/money";
+import { centsToMoneyString } from "@/lib/money";
 
 import {
    createService,
@@ -395,14 +396,22 @@ export function ServiceDialog(props: Props) {
 
                   <div className="flex flex-col gap-1.5">
                      <Label htmlFor="price_cad">Price (CAD)</Label>
-                     <Input
-                        id="price_cad"
-                        name="price_cad"
-                        inputMode="decimal"
-                        placeholder="50.00"
-                        required
-                        defaultValue={centsToCadString(service?.priceCents)}
-                     />
+                     <ButtonGroup className="w-full">
+                        <ButtonGroupText aria-hidden="true">
+                           <DollarSign />
+                        </ButtonGroupText>
+                        <Input
+                           id="price_cad"
+                           name="price_cad"
+                           type="number"
+                           min={0}
+                           max={10000}
+                           required
+                           defaultValue={centsToMoneyString(
+                              service?.priceCents,
+                           )}
+                        />
+                     </ButtonGroup>
                      <FieldError messages={errors?.price_cad} />
                   </div>
 
