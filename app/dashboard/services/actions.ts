@@ -193,12 +193,11 @@ export async function updateService(
       cents = parsedCents;
    }
 
-   let scheduledAtValue: unknown;
    const result = parseScheduledAt(scheduled_at);
    if (!result.ok){
       return {errors:{scheduled_at: [result.error]}}
    }
-   scheduledAtValue = result.value;
+   const scheduledAtValue = result.value;
 
    const [row] = await db
       .select()
