@@ -57,7 +57,7 @@ const ALLOWED_TRANSITIONS: Record<
 > = {
    active: ["disabled", "archived"],
    disabled: ["active", "archived"],
-   archived: ["deleted"],
+   archived: ["active", "deleted"],
    deleted: [],
 };
 
