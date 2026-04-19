@@ -7,7 +7,7 @@ import { getStripeServiceData } from "@/lib/stripe";
 const SERVICES_TAG = "services";
 
 export type ServiceStatus = "active" | "disabled" | "archived" | "deleted";
-export type ServiceType = "coaching_session" | "booking";
+export type ServiceType = "private_lessons" | "programs";
 
 export type ServiceView = {
    id: string;

@@ -11,8 +11,8 @@ import {
 
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
 export const serviceTypeEnum = pgEnum("service_type", [
-   "coaching_session",
-   "booking",
+   "private_lessons",
+   "programs",
 ]);
 export const bookingStatusEnum = pgEnum("booking_status", [
    "pending",

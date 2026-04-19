@@ -22,7 +22,7 @@ export type ServiceActionState = {
 const SERVICES_PATH = "/dashboard/services";
 const SERVICES_TAG = "services";
 
-const serviceTypeSchema = z.enum(["coaching_session", "booking"]);
+const serviceTypeSchema = z.enum(["private_lessons", "programs"]);
 const statusSchema = z.enum(["active", "disabled", "archived", "deleted"]);
 
 const baseFields = z.object({
@@ -81,7 +81,7 @@ export async function createService(
    }
 
    let scheduledAtValue: unknown = null;
-   if (type === "booking") {
+   if (type === "programs") {
       if (!scheduled_at || !scheduled_at.trim()) {
          return { errors: { scheduled_at: ["Bookings require a JSON array of dates"] } };
       }

@@ -82,8 +82,8 @@ function CreateServiceCard() {
               name="type"
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="coaching_session">Coaching Session</option>
-              <option value="booking">Booking</option>
+              <option value="private_lessons">Private Lessons</option>
+              <option value="programs">Programs</option>
             </select>
           </div>
 
