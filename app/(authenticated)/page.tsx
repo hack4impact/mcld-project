@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { signout } from "@/app/login/actions";
 import { getSubscriptionDetails } from "@/lib/stripe";
@@ -14,7 +15,15 @@ import { CheckoutButton } from "@/components/subscribe-button";
 const SUBSCRIPTION_PRICE_ID = process.env.STRIPE_PRICE_ID!;
 const PRODUCT_PRICE_ID = process.env.STRIPE_PRODUCT_PRICE_ID!;
 
-export default async function Page() {
+export default function Page() {
+   return (
+      <Suspense>
+         <HomeContent />
+      </Suspense>
+   );
+}
+
+async function HomeContent() {
    const supabase = await createClient();
    const {
       data: { user },
