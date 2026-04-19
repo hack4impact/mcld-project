@@ -140,6 +140,8 @@ export async function createService(
       return { errors: { _form: ["Unauthorized"] } };
    }
 
+   const errors: Record<string, string[]> = {};
+
    const parsed = baseFields.safeParse({
       title: formData.get("title"),
       description: formData.get("description") ?? "",
@@ -148,27 +150,44 @@ export async function createService(
       price_cad: formData.get("price_cad"),
    });
    if (!parsed.success) {
-      return { errors: parsed.error.flatten().fieldErrors };
+      Object.assign(errors, parsed.error.flatten().fieldErrors);
    }
 
-   const { title, type, duration_minutes, price_cad } = parsed.data;
-   const description = parsed.data.description.trim();
-
-   const cents = cadStringToCents(price_cad);
-   if (cents === null) {
-      return { errors: { price_cad: ["Enter a valid price in CAD"] } };
+   // Validate price format independently so its error reports alongside
+   // schedule/coach errors instead of in a separate round-trip.
+   const priceRaw = formData.get("price_cad")?.toString() ?? "";
+   let cents: number | null = null;
+   if (priceRaw && !errors.price_cad) {
+      cents = cadStringToCents(priceRaw);
+      if (cents === null) {
+         errors.price_cad = ["Enter a valid price in CAD"];
+      }
    }
 
+   // Schedule / coach checks key off the submitted type, not parsed.data,
+   // so they still run when baseFields fails on unrelated fields.
+   const typeRaw = formData.get("type")?.toString();
    let scheduledAtValue: ProgramSchedule | null = null;
-   if (type === "programs") {
+   if (typeRaw === "programs") {
       const result = parseProgramSchedule(formData);
-      if (!result.ok) return { errors: result.errors };
-      scheduledAtValue = result.value;
-   } else {
-      // private_lessons: require a coach, but no schema column yet to persist.
+      if (!result.ok) {
+         Object.assign(errors, result.errors);
+      } else {
+         scheduledAtValue = result.value;
+      }
+   } else if (typeRaw === "private_lessons") {
       const coach = parseCoachId(formData);
-      if (!coach.ok) return { errors: coach.errors };
+      if (!coach.ok) Object.assign(errors, coach.errors);
    }
+
+   if (Object.keys(errors).length > 0) {
+      return { errors };
+   }
+
+   // Safe: we only reach here if baseFields parsed AND price validated.
+   const { title, type, duration_minutes } = parsed.data!;
+   const description = parsed.data!.description.trim();
+   const priceCents = cents as number;
 
    let createdProductId: string | null = null;
    try {
@@ -178,7 +197,7 @@ export async function createService(
       });
       createdProductId = productId;
 
-      await createPrice(productId, cents);
+      await createPrice(productId, priceCents);
 
       await db.insert(services).values({
          type,
@@ -230,6 +249,8 @@ export async function updateService(
       return { errors: { _form: ["Unauthorized"] } };
    }
 
+   const errors: Record<string, string[]> = {};
+
    const parsed = updateFields.safeParse({
       service_id: field(formData, "service_id"),
       title: field(formData, "title") || undefined,
@@ -238,41 +259,61 @@ export async function updateService(
       price_cad: field(formData, "price_cad") || undefined,
    });
    if (!parsed.success) {
-      return { errors: parsed.error.flatten().fieldErrors };
+      Object.assign(errors, parsed.error.flatten().fieldErrors);
    }
 
-   const { service_id, title, description, duration_minutes, price_cad } =
-      parsed.data;
-
+   // Validate price format independently from baseFields so its error
+   // surfaces alongside any schedule errors in a single round-trip.
+   const priceRaw = field(formData, "price_cad");
    let cents: number | undefined;
-   if (price_cad !== undefined) {
-      const parsedCents = cadStringToCents(price_cad);
+   if (priceRaw && !errors.price_cad) {
+      const parsedCents = cadStringToCents(priceRaw);
       if (parsedCents === null) {
-         return { errors: { price_cad: ["Enter a valid price in CAD"] } };
+         errors.price_cad = ["Enter a valid price in CAD"];
+      } else {
+         cents = parsedCents;
       }
-      cents = parsedCents;
+   }
+
+   // service_id is required for the lookup; bail if it's missing/invalid.
+   const serviceId = parsed.success ? parsed.data.service_id : undefined;
+   if (!serviceId) {
+      return { errors };
    }
 
    const [row] = await db
       .select()
       .from(services)
-      .where(eq(services.id, service_id))
+      .where(eq(services.id, serviceId))
       .limit(1);
    if (!row) {
-      return { errors: { _form: ["Service not found"] } };
+      return { errors: { ...errors, _form: ["Service not found"] } };
    }
    if (row.status !== "active" && row.status !== "disabled") {
       return {
-         errors: { _form: ["Only active or disabled services can be edited"] },
+         errors: {
+            ...errors,
+            _form: ["Only active or disabled services can be edited"],
+         },
       };
    }
 
    let scheduledAtValue: ProgramSchedule | undefined;
    if (row.type === "programs" && formData.has("start_date")) {
       const result = parseProgramSchedule(formData);
-      if (!result.ok) return { errors: result.errors };
-      scheduledAtValue = result.value;
+      if (!result.ok) {
+         Object.assign(errors, result.errors);
+      } else {
+         scheduledAtValue = result.value;
+      }
    }
+
+   if (Object.keys(errors).length > 0) {
+      return { errors };
+   }
+
+   const { title, description, duration_minutes } = parsed.data!;
+   const service_id = serviceId;
 
    try {
       await updateProduct(row.stripeProductId, {

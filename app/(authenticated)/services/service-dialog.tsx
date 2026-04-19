@@ -70,7 +70,13 @@ const DAY_NAMES = [
 
 function FieldError({ messages }: { messages?: string[] }) {
    if (!messages?.length) return null;
-   return <p className="text-xs text-destructive">{messages[0]}</p>;
+   return (
+      <ul className="flex flex-col gap-0.5 text-xs text-destructive">
+         {messages.map((m, i) => (
+            <li key={i}>{m}</li>
+         ))}
+      </ul>
+   );
 }
 
 function toISODate(date: Date): string {
@@ -256,6 +262,16 @@ export function ServiceDialog(props: Props) {
       service?.type ?? "programs",
    );
    const [coachId, setCoachId] = React.useState<string>("");
+   const [title, setTitle] = React.useState<string>(service?.title ?? "");
+   const [description, setDescription] = React.useState<string>(
+      service?.description ?? "",
+   );
+   const [durationMinutes, setDurationMinutes] = React.useState<string>(
+      String(service?.durationMinutes ?? 60),
+   );
+   const [priceCad, setPriceCad] = React.useState<string>(
+      centsToMoneyString(service?.priceCents ?? null),
+   );
    const [state, formAction, pending] = useActionState<
       ServiceActionState,
       FormData
@@ -265,6 +281,10 @@ export function ServiceDialog(props: Props) {
       if (service) {
          setType(service.type);
          setCoachId("");
+         setTitle(service.title ?? "");
+         setDescription(service.description ?? "");
+         setDurationMinutes(String(service.durationMinutes ?? 60));
+         setPriceCad(centsToMoneyString(service.priceCents));
       }
    }, [service]);
 
@@ -280,6 +300,10 @@ export function ServiceDialog(props: Props) {
             closeRef.current?.click();
             setType("programs");
             setCoachId("");
+            setTitle("");
+            setDescription("");
+            setDurationMinutes("60");
+            setPriceCad("");
          }
       }
    }, [state, isEdit, props]);
@@ -340,7 +364,8 @@ export function ServiceDialog(props: Props) {
                         name="title"
                         required
                         maxLength={500}
-                        defaultValue={service?.title ?? ""}
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
                      />
                      <FieldError messages={errors?.title} />
                   </div>
@@ -351,7 +376,8 @@ export function ServiceDialog(props: Props) {
                         id="description"
                         name="description"
                         maxLength={5000}
-                        defaultValue={service?.description ?? ""}
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
                         className="max-h-40 overflow-y-auto"
                      />
                      <FieldError messages={errors?.description} />
@@ -389,7 +415,8 @@ export function ServiceDialog(props: Props) {
                            min={1}
                            max={1440}
                            required
-                           defaultValue={service?.durationMinutes ?? 60}
+                           value={durationMinutes}
+                           onChange={(e) => setDurationMinutes(e.target.value)}
                         />
                         <FieldError messages={errors?.duration_minutes} />
                      </div>
@@ -408,9 +435,8 @@ export function ServiceDialog(props: Props) {
                            min={0}
                            max={10000}
                            required
-                           defaultValue={centsToMoneyString(
-                              service?.priceCents,
-                           )}
+                           value={priceCad}
+                           onChange={(e) => setPriceCad(e.target.value)}
                         />
                      </ButtonGroup>
                      <FieldError messages={errors?.price_cad} />
