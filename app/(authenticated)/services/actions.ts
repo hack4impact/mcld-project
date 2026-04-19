@@ -19,6 +19,17 @@ export type ServiceActionState = {
    message?: string;
 } | null;
 
+export type ProgramSlot = {
+   dayOfWeek: number;
+   time: string;
+};
+
+export type ProgramSchedule = {
+   startDate: string;
+   endDate: string;
+   slots: ProgramSlot[];
+};
+
 const SERVICES_PATH = "/dashboard/services";
 const SERVICES_TAG = "services";
 

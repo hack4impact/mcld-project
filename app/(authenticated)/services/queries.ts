@@ -1,10 +1,11 @@
 import { cacheTag } from "next/cache";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { services } from "@/lib/db/schema";
+import { profiles, services } from "@/lib/db/schema";
 import { getStripeServiceData } from "@/lib/stripe";
 
 const SERVICES_TAG = "services";
+const COACHES_TAG = "coaches";
 
 export type ServiceStatus = "active" | "disabled" | "archived" | "deleted";
 export type ServiceType = "private_lessons" | "programs";
@@ -87,4 +88,31 @@ export async function getService(id: string): Promise<ServiceView | null> {
       .limit(1);
    if (!row) return null;
    return buildServiceView(row);
+}
+
+export type CoachOption = {
+   id: string;
+   firstName: string;
+   lastName: string;
+};
+
+/**
+ * List all profiles with the `coach` role, ordered by name.
+ *
+ * Cached via Next Cache Components; bust via the `coaches` tag when
+ * coach assignments change.
+ */
+export async function listCoaches(): Promise<CoachOption[]> {
+   "use cache";
+   cacheTag(COACHES_TAG);
+
+   return db
+      .select({
+         id: profiles.id,
+         firstName: profiles.firstName,
+         lastName: profiles.lastName,
+      })
+      .from(profiles)
+      .where(eq(profiles.role, "coach"))
+      .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 }
