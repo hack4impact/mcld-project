@@ -27,7 +27,7 @@ const statusSchema = z.enum(["active", "disabled", "archived", "deleted"]);
 
 const baseFields = z.object({
    title: z.string().min(1, "Title is required").max(500),
-   description: z.string().max(5000).default(""),
+   description: z.string().min(1, "Description is required").max(5000),
    type: serviceTypeSchema,
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60),
    scheduled_at: z.string().optional(),
@@ -40,7 +40,7 @@ const ALLOWED_TRANSITIONS: Record<
 > = {
    active: ["disabled", "archived"],
    disabled: ["active", "archived"],
-   archived: ["active", "deleted"],
+   archived: ["deleted"],
    deleted: [],
 };
 
@@ -81,7 +81,10 @@ export async function createService(
    }
 
    let scheduledAtValue: unknown = null;
-   if (type === "booking" && scheduled_at) {
+   if (type === "booking") {
+      if (!scheduled_at || !scheduled_at.trim()) {
+         return { errors: { scheduled_at: ["Bookings require a JSON array of dates"] } };
+      }
       const result = parseScheduledAt(scheduled_at);
       if (!result.ok) {
          return { errors: { scheduled_at: [result.error] } };
@@ -135,7 +138,7 @@ export async function createService(
 const updateFields = z.object({
    service_id: z.string().uuid(),
    title: z.string().min(1, "Title cannot be empty").max(500).optional(),
-   description: z.string().max(5000).optional(),
+   description: z.string().min(1, "Description cannot be empty").max(5000).optional(),
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60).optional(),
    scheduled_at: z.string().optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
@@ -162,11 +165,11 @@ export async function updateService(
 
    const parsed = updateFields.safeParse({
       service_id: field(formData, "service_id"),
-      title: field(formData, "title"),
-      description: field(formData, "description"),
-      duration_minutes: field(formData, "duration_minutes"),
-      scheduled_at: field(formData, "scheduled_at"),
-      price_cad: field(formData, "price_cad"),
+      title: field(formData, "title") || undefined,
+      description: field(formData, "description") || undefined,
+      duration_minutes: field(formData, "duration_minutes") || undefined,
+      scheduled_at: field(formData, "scheduled_at") || undefined,
+      price_cad: field(formData, "price_cad") || undefined,
    });
    if (!parsed.success) {
       return { errors: parsed.error.flatten().fieldErrors };
