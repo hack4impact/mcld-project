@@ -81,16 +81,12 @@ export async function createService(
    }
 
    let scheduledAtValue: unknown = null;
-   if (type === "booking" && scheduled_at && scheduled_at.trim()) {
-      try {
-         const json = JSON.parse(scheduled_at);
-         if (!Array.isArray(json)) {
-            return { errors: { scheduled_at: ["Must be a JSON array"] } };
-         }
-         scheduledAtValue = json;
-      } catch {
-         return { errors: { scheduled_at: ["Must be valid JSON"] } };
+   if (type === "booking" && scheduled_at) {
+      const result = parseScheduledAt(scheduled_at);
+      if (!result.ok) {
+         return { errors: { scheduled_at: [result.error] } };
       }
+      scheduledAtValue = result.value;
    }
 
    let createdProductId: string | null = null;
@@ -110,6 +106,7 @@ export async function createService(
          stripeProductId: productId,
          status: "active",
       });
+      // true product deletion in stripe requires archiving the price so letting the product as inactive is fine 
    } catch (e) {
       if (createdProductId) {
          try {
@@ -139,7 +136,6 @@ const updateFields = z.object({
    service_id: z.string().uuid(),
    title: z.string().min(1, "Title cannot be empty").max(500).optional(),
    description: z.string().max(5000).optional(),
-   type: serviceTypeSchema.optional(),
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60).optional(),
    scheduled_at: z.string().optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
@@ -168,7 +164,6 @@ export async function updateService(
       service_id: field(formData, "service_id"),
       title: field(formData, "title"),
       description: field(formData, "description"),
-      type: field(formData, "type"),
       duration_minutes: field(formData, "duration_minutes"),
       scheduled_at: field(formData, "scheduled_at"),
       price_cad: field(formData, "price_cad"),
@@ -181,7 +176,6 @@ export async function updateService(
       service_id,
       title,
       description,
-      type,
       duration_minutes,
       scheduled_at,
       price_cad,
@@ -197,22 +191,11 @@ export async function updateService(
    }
 
    let scheduledAtValue: unknown;
-   if (scheduled_at !== undefined) {
-      const trimmed = scheduled_at.trim();
-      if (trimmed === "") {
-         scheduledAtValue = null;
-      } else {
-         try {
-            const json = JSON.parse(trimmed);
-            if (!Array.isArray(json)) {
-               return { errors: { scheduled_at: ["Must be a JSON array"] } };
-            }
-            scheduledAtValue = json;
-         } catch {
-            return { errors: { scheduled_at: ["Must be valid JSON"] } };
-         }
-      }
+   const result = parseScheduledAt(scheduled_at);
+   if (!result.ok){
+      return {errors:{scheduled_at: [result.error]}}
    }
+   scheduledAtValue = result.value;
 
    const [row] = await db
       .select()
@@ -242,7 +225,6 @@ export async function updateService(
       }
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
-      if (type !== undefined) dbPatch.type = type;
       if (duration_minutes !== undefined) dbPatch.durationMinutes = duration_minutes;
       if (scheduled_at !== undefined) dbPatch.scheduledAt = scheduledAtValue;
 
@@ -337,3 +319,17 @@ export async function setServiceStatus(
    bustServicesCache();
    return { message: "Service status updated." };
 }
+
+
+function parseScheduledAt(raw: string | undefined):  {ok: true; value:unknown} | {ok:false, error:string} 
+   {
+      if (!raw || !raw.trim()) return {ok:true,value: null};
+      try {
+         const json = JSON.parse(raw.trim());
+         if (!Array.isArray(json)) return {ok:false, error: "Must be a JSON array"};
+         return {ok: true, value: json};
+
+      }catch {
+         return {ok: false, error: "Must be valid JSON"};
+      }
+   }
