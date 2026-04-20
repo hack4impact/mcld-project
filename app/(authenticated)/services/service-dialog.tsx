@@ -93,19 +93,6 @@ function fromISODate(value: string | undefined): Date | undefined {
    return new Date(y, m - 1, d);
 }
 
-function isProgramSchedule(value: unknown): value is ProgramSchedule {
-   if (!value || typeof value !== "object") return false;
-   const v = value as Partial<ProgramSchedule>;
-   return (
-      typeof v.startDate === "string" &&
-      typeof v.endDate === "string" &&
-      Array.isArray(v.slots) &&
-      v.slots.every(
-         (s) => typeof s?.dayOfWeek === "number" && typeof s?.time === "string",
-      )
-   );
-}
-
 function DateRangePicker({
    value,
    onChange,
@@ -316,10 +303,7 @@ export function ServiceDialog(props: Props) {
 
    const showForm = !isEdit || service !== null;
 
-   const initialSchedule =
-      service && isProgramSchedule(service.scheduledAt)
-         ? service.scheduledAt
-         : null;
+   const initialSchedule = service?.scheduledAt ?? null;
 
    return (
       <Dialog {...dialogControl}>

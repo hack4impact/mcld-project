@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { profiles, services } from "@/lib/db/schema";
 import { getStripeServiceData } from "@/lib/stripe";
+import type { ProgramSchedule } from "@/app/(authenticated)/services/actions";
 
 const SERVICES_TAG = "services";
 const COACHES_TAG = "coaches";
@@ -13,7 +14,7 @@ export type ServiceType = "private_lessons" | "programs";
 export type ServiceView = {
    id: string;
    type: ServiceType;
-   scheduledAt: unknown;
+   scheduledAt: ProgramSchedule | null;
    durationMinutes: number;
    status: ServiceStatus;
    stripeProductId: string;
@@ -25,12 +26,23 @@ export type ServiceView = {
    priceCurrency: string | null;
 };
 
+function rowToSchedule(
+   row: typeof services.$inferSelect,
+): ProgramSchedule | null {
+   if (!row.startDate || !row.endDate) return null;
+   return {
+      startDate: row.startDate,
+      endDate: row.endDate,
+      slots: row.slots ?? [],
+   };
+}
+
 async function buildServiceView(row: typeof services.$inferSelect): Promise<ServiceView> {
    const stripeData = await getStripeServiceData(row.stripeProductId);
    return {
       id: row.id,
       type: row.type,
-      scheduledAt: row.scheduledAt,
+      scheduledAt: rowToSchedule(row),
       durationMinutes: row.durationMinutes,
       status: row.status,
       stripeProductId: row.stripeProductId,

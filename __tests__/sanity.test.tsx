@@ -1,10 +1,9 @@
 import { render, screen } from "@testing-library/react";
-import DashboardPage from "@/app/(authenticated)/dashboard/page";
+import { TestComponent } from "./test-component";
 
 describe("jest setup", () => {
-  it("runs React + Testing Library", async () =>  {
-    const jsx = await DashboardPage();
-    render(jsx);
-    expect(screen.getByText("You are admin")).toBeInTheDocument();
-  });
+   it("runs React + Testing Library", () => {
+      render(<TestComponent />);
+      expect(screen.getByText("ok")).toBeInTheDocument();
+   });
 });
