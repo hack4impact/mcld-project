@@ -7,7 +7,10 @@ import {
    integer,
    boolean,
    jsonb,
+   date,
 } from "drizzle-orm/pg-core";
+
+export type ProgramSlot = { dayOfWeek: number; time: string };
 
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
 export const serviceTypeEnum = pgEnum("service_type", [
@@ -46,7 +49,9 @@ export const profiles = pgTable("profiles", {
 export const services = pgTable("services", {
    id: uuid("id").primaryKey().defaultRandom(),
    type: serviceTypeEnum("type").notNull(),
-   scheduledAt: jsonb("scheduled_at"),
+   startDate: date("start_date", { mode: "string" }),
+   endDate: date("end_date", { mode: "string" }),
+   slots: jsonb("slots").$type<ProgramSlot[]>(),
    durationMinutes: integer("duration_minutes").notNull(),
    stripeProductId: text("stripe_product_id").notNull(),
    status: serviceStatusEnum("status").notNull().default("active"),

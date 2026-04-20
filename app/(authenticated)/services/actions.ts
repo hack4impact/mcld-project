@@ -4,7 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { services } from "@/lib/db/schema";
+import { services, type ProgramSlot as DbProgramSlot } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { cadStringToCents } from "@/lib/money";
 import {
@@ -19,10 +19,7 @@ export type ServiceActionState = {
    message?: string;
 } | null;
 
-export type ProgramSlot = {
-   dayOfWeek: number;
-   time: string;
-};
+export type ProgramSlot = DbProgramSlot;
 
 export type ProgramSchedule = {
    startDate: string;
@@ -201,7 +198,9 @@ export async function createService(
 
       await db.insert(services).values({
          type,
-         scheduledAt: scheduledAtValue,
+         startDate: scheduledAtValue?.startDate ?? null,
+         endDate: scheduledAtValue?.endDate ?? null,
+         slots: scheduledAtValue?.slots ?? null,
          durationMinutes: duration_minutes,
          stripeProductId: productId,
          status: "active",
@@ -330,7 +329,11 @@ export async function updateService(
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
       if (duration_minutes !== undefined) dbPatch.durationMinutes = duration_minutes;
-      if (scheduledAtValue !== undefined) dbPatch.scheduledAt = scheduledAtValue;
+      if (scheduledAtValue !== undefined) {
+         dbPatch.startDate = scheduledAtValue.startDate;
+         dbPatch.endDate = scheduledAtValue.endDate;
+         dbPatch.slots = scheduledAtValue.slots;
+      }
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();

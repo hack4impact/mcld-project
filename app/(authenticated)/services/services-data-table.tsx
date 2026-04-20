@@ -14,16 +14,8 @@ import { DataTable } from "@/components/data-table";
 import { formatDate } from "@/lib/format";
 import { statusBadgeClass } from "@/lib/service-status";
 
-import {
-   setServiceStatus,
-   type ProgramSchedule,
-} from "@/app/(authenticated)/services/actions";
+import { setServiceStatus } from "@/app/(authenticated)/services/actions";
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
-
-function programSchedule(value: ServiceView["scheduledAt"]): ProgramSchedule | null {
-   if (!value) return null;
-   return value;
-}
 
 export function ServicesDataTable({
    services,
@@ -73,7 +65,7 @@ export function ServicesDataTable({
             id: "startDate",
             header: "Start Date",
             cell: ({ row }) => {
-               const s = programSchedule(row.original.scheduledAt);
+               const s = row.original.scheduledAt;
                return s ? formatDate(s.startDate) : "—";
             },
          },
@@ -81,7 +73,7 @@ export function ServicesDataTable({
             id: "endDate",
             header: "End Date",
             cell: ({ row }) => {
-               const s = programSchedule(row.original.scheduledAt);
+               const s = row.original.scheduledAt;
                return s ? formatDate(s.endDate) : "—";
             },
          },
