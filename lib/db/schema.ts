@@ -7,12 +7,15 @@ import {
    integer,
    boolean,
    jsonb,
+   date,
 } from "drizzle-orm/pg-core";
+
+export type ProgramSlot = { dayOfWeek: number; time: string };
 
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
 export const serviceTypeEnum = pgEnum("service_type", [
-   "coaching_session",
-   "booking",
+   "private_lessons",
+   "programs",
 ]);
 export const bookingStatusEnum = pgEnum("booking_status", [
    "pending",
@@ -25,6 +28,12 @@ export const sessionStatusEnum = pgEnum("session_status", [
    "confirmed",
    "cancelled",
    "completed",
+]);
+export const serviceStatusEnum = pgEnum("service_status", [
+   "active",
+   "archived",
+   "deleted",
+   "disabled",
 ]);
 
 export const profiles = pgTable("profiles", {
@@ -39,13 +48,13 @@ export const profiles = pgTable("profiles", {
 
 export const services = pgTable("services", {
    id: uuid("id").primaryKey().defaultRandom(),
-   title: text("title").notNull(),
-   description: text("description"),
    type: serviceTypeEnum("type").notNull(),
-   scheduledAt: jsonb("scheduled_at"),
+   startDate: date("start_date", { mode: "string" }),
+   endDate: date("end_date", { mode: "string" }),
+   slots: jsonb("slots").$type<ProgramSlot[]>(),
    durationMinutes: integer("duration_minutes").notNull(),
-   price: integer("price").notNull().default(0),
-   isActive: boolean("is_active").notNull().default(true),
+   stripeProductId: text("stripe_product_id").notNull(),
+   status: serviceStatusEnum("status").notNull().default("active"),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

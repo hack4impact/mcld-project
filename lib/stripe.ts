@@ -137,3 +137,78 @@ export async function getSubscriptionDetails(
       paymentMethodLast4: subscription.paymentMethodLast4,
    };
 }
+
+export async function createProduct(params: {
+   name: string;
+   description: string;
+}): Promise<{ productId: string }> {
+   const product = await stripe.products.create({
+      name: params.name,
+      description: params.description,
+   });
+   return { productId: product.id };
+}
+
+export async function updateProduct(
+   productId: string,
+   params: { name?: string; description?: string; active?: boolean },
+): Promise<void> {
+   const patch: Stripe.ProductUpdateParams = {};
+   if (params.name !== undefined) patch.name = params.name;
+   if (params.description !== undefined) patch.description = params.description;
+   if (params.active !== undefined) patch.active = params.active;
+   if (Object.keys(patch).length === 0) return;
+   await stripe.products.update(productId, patch);
+}
+
+export async function createPrice(
+   productId: string,
+   amountCents: number,
+): Promise<{ priceId: string }> {
+   const price = await stripe.prices.create({
+      product: productId,
+      unit_amount: amountCents,
+      currency: "cad",
+   });
+   return { priceId: price.id };
+}
+
+export async function deactivateActivePricesForProduct(
+   productId: string,
+): Promise<void> {
+   const prices = await stripe.prices.list({
+      product: productId,
+      active: true,
+      limit: 100,
+   });
+   for (const p of prices.data) {
+      await stripe.prices.update(p.id, { active: false });
+   }
+}
+
+export type StripeServiceData = {
+   title: string;
+   description: string;
+   priceCents: number | null;
+   priceCurrency: string | null;
+};
+
+export async function getStripeServiceData(
+   productId: string,
+): Promise<StripeServiceData | null> {
+   const [product, prices] = await Promise.all([
+      stripe.products.retrieve(productId),
+      stripe.prices.list({ product: productId, active: true, limit: 100 }),
+   ]);
+
+   const latestPrice = prices.data.sort(
+      (a, b) => b.created - a.created,
+   )[0];
+
+   return {
+      title: product.name,
+      description: product.description ?? "",
+      priceCents: latestPrice?.unit_amount ?? null,
+      priceCurrency: latestPrice?.currency ?? null,
+   };
+}
