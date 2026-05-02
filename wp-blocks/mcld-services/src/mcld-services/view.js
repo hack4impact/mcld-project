@@ -1,25 +1,35 @@
-/**
- * Use this file for JavaScript code that you want to run in the front-end
- * on posts/pages that contain this block.
- *
- * When this file is defined as the value of the `viewScript` property
- * in `block.json` it will be enqueued on the front end of the site.
- *
- * Example:
- *
- * ```js
- * {
- *   "viewScript": "file:./view.js"
- * }
- * ```
- *
- * If you're not making any changes to this file because your project doesn't need any
- * JavaScript running in the front-end, then you should delete this file and remove
- * the `viewScript` property from `block.json`.
- *
- * @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-metadata/#view-script
- */
+document.addEventListener( 'DOMContentLoaded', () => {
+	document
+		.querySelectorAll( '.wp-block-mcld-mcld-services' )
+		.forEach( ( block ) => {
+			const apiUrl = block.dataset.apiUrl;
+			if ( ! apiUrl ) return;
 
-/* eslint-disable no-console */
-console.log( 'Hello World! (from mcld-mcld-services block)' );
-/* eslint-enable no-console */
+			fetch( `${ apiUrl.replace( /\/$/, '' ) }/api/public/services` )
+				.then( ( r ) => r.json() )
+				.then( ( services ) => {
+					if ( ! services.length ) {
+						block.innerHTML = '<p>No active services available.</p>';
+						return;
+					}
+					block.innerHTML = `
+						<div class="mcld-services-grid">
+							${ services
+								.map(
+									( s ) => `
+								<div class="mcld-service-card">
+									<h3>${ s.title ?? '' }</h3>
+									${ s.description ? `<p>${ s.description }</p>` : '' }
+									${ s.priceCents != null ? `<p class="mcld-service-price">${ ( s.priceCents / 100 ).toFixed( 2 ) } ${ ( s.priceCurrency ?? '' ).toUpperCase() }</p>` : '' }
+								</div>
+							`
+								)
+								.join( '' ) }
+						</div>
+					`;
+				} )
+				.catch( () => {
+					block.innerHTML = '<p>Could not load services.</p>';
+				} );
+		} );
+} );

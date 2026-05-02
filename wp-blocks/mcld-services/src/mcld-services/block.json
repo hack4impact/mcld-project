@@ -6,10 +6,16 @@
 	"title": "Mcld Services",
 	"category": "widgets",
 	"icon": "smiley",
-	"description": "Example block scaffolded with Create Block tool.",
+	"description": "Displays active services from the MCLD dashboard.",
 	"example": {},
 	"supports": {
 		"html": false
+	},
+	"attributes": {
+		"apiUrl": {
+			"type": "string",
+			"default": ""
+		}
 	},
 	"textdomain": "mcld-services",
 	"editorScript": "file:./index.js",
