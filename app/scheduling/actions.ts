@@ -121,7 +121,16 @@ export async function selectAvailabilities(
       return result.state;
    }
 
-   // 4. Update the session
+   // 4. Only pending sessions can have their availabilities changed
+   if (result.session.status !== "pending") {
+      return {
+         errors: {
+            _form: ["Availabilities can only be set for pending sessions"],
+         },
+      };
+   }
+
+   // 5. Update the session
    try {
       await db
          .update(coachingSessions)
@@ -184,7 +193,16 @@ export async function selectTimeSlot(
 
    const { session } = result;
 
-   // 4. Verify the slot exists in the session's available time slots
+   // 4. Only pending sessions can be confirmed
+   if (session.status !== "pending") {
+      return {
+         errors: {
+            _form: ["Only pending sessions can be confirmed"],
+         },
+      };
+   }
+
+   // 5. Verify the slot exists in the session's available time slots
    const slots = session.selectedTimeSlots as TimeSlot[] | null;
    if (!slots || !Array.isArray(slots)) {
       return {
