@@ -2,41 +2,71 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { services } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { getStripeServiceData } from "@/lib/stripe";
-
-const CORS_HEADERS = {
-   "Access-Control-Allow-Origin": "*",
-   "Access-Control-Allow-Methods": "GET, OPTIONS",
-   "Access-Control-Allow-Headers": "Content-Type",
-};
-
-export async function OPTIONS() {
-   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
-}
+import { stripe } from "@/lib/stripe";
 
 export async function GET() {
+   // Fetch active services from the database
    const rows = await db
-      .select()
+      .select({
+         id: services.id,
+         type: services.type,
+         stripeProductId: services.stripeProductId,
+         durationMinutes: services.durationMinutes,
+         startDate: services.startDate,
+         endDate: services.endDate,
+         slots: services.slots,
+      })
       .from(services)
       .where(eq(services.status, "active"));
 
-   const body = await Promise.all(
-      rows.map(async (row) => {
-         const stripe = await getStripeServiceData(row.stripeProductId);
+   if (rows.length === 0) {
+      return NextResponse.json([]);
+   }
+
+   // Fetch product and price details from Stripe for each service
+   try {
+      const productIds = rows.map((r) => r.stripeProductId);
+
+      const [products, prices] = await Promise.all([
+         stripe.products.list({ ids: productIds, limit: 100 }),
+         stripe.prices.list({ active: true, limit: 100 }),
+      ]);
+
+      const productMap = new Map(products.data.map((p) => [p.id, p]));
+
+      // Group prices by product ID for easy lookup
+      const pricesByProduct = new Map<string, typeof prices.data>();
+      for (const price of prices.data) {
+         const productId = price.product as string;
+         const existing = pricesByProduct.get(productId) ?? [];
+         pricesByProduct.set(productId, [...existing, price]);
+      }
+
+      // Combine data into the desired response format
+      const body = rows.map((row) => {
+         const product = productMap.get(row.stripeProductId);
+         const latestPrice = (pricesByProduct.get(row.stripeProductId) ?? [])
+            .sort((a, b) => b.created - a.created)[0];
+
          return {
             id: row.id,
             type: row.type,
-            title: stripe?.title,
-            description: stripe?.description,
-            priceCents: stripe?.priceCents,
-            priceCurrency: stripe?.priceCurrency,
+            title: product?.name ?? null,
+            description: product?.description ?? null,
+            priceCents: latestPrice?.unit_amount ?? null,
+            priceCurrency: latestPrice?.currency ?? null,
             durationMinutes: row.durationMinutes,
             startDate: row.startDate,
             endDate: row.endDate,
             slots: row.slots,
          };
-      }),
-   );
+      });
 
-   return NextResponse.json(body, { headers: CORS_HEADERS });
+      return NextResponse.json(body);
+   } catch {
+      return NextResponse.json(
+         { error: "Impossible to fetch stripe services or no stripe services." },
+         { status: 500 },
+      );
+   }
 }
