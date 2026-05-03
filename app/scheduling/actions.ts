@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq,and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { coachingSessions } from "@/lib/db/schema";
@@ -13,7 +13,7 @@ export type SchedulingActionState = {
    message?: string;
 } | null;
 
-const iso8601 = z.string().datetime({ message: "Must be an ISO 8601 datetime" });
+const iso8601 = z.string().datetime({offset: true, message: "Must be an ISO 8601 datetime with timezone"});
 
 const timeSlotSchema = z
    .object({
@@ -28,7 +28,8 @@ const selectAvailabilitiesSchema = z.object({
    session_id: z.string().uuid("Invalid session ID"),
    time_slots: z
       .array(timeSlotSchema)
-      .min(1, "At least one time slot is required"),
+      .min(1, "At least one time slot is required")
+      .max(20,"You can select up to 20 time slots")
 });
 
 const selectTimeSlotSchema = z.object({
@@ -79,10 +80,28 @@ async function getAuthorizedSession(
    return { ok: true, session };
 }
 
+
+function parseJsonField<T>(formData: FormData, key:string): T | null {
+   const value = formData.get(key);
+   if (typeof value !== "string") return null;
+   try {
+      return JSON.parse(value) as T;
+   } catch {
+      return null
+   }
+}
+
+function normalizeSlots(slot: TimeSlot): TimeSlot {
+   return {
+      start: new Date(slot.start).toISOString(),
+      end: new Date(slot.end).toISOString()
+   }
+}
+
+
 /**
  * Set (or replace) the available time slots on an existing coaching session.
  *
- * Both the assigned coach and the session user can call this action.
  * The payload is an array of `{ start, end }` ISO 8601 strings.
  */
 export async function selectAvailabilities(
@@ -96,29 +115,35 @@ export async function selectAvailabilities(
    }
 
    // 2. Parse & validate input
-   let sessionId: string;
-   let timeSlots: TimeSlot[];
-   try {
-      const rawSlots = formData.get("time_slots")?.toString() ?? "";
-      const parsed = selectAvailabilitiesSchema.safeParse({
-         session_id: formData.get("session_id")?.toString(),
-         time_slots: JSON.parse(rawSlots),
-      });
-
-      if (!parsed.success) {
-         return { errors: parsed.error.flatten().fieldErrors };
-      }
-
-      sessionId = parsed.data.session_id;
-      timeSlots = parsed.data.time_slots as TimeSlot[];
-   } catch {
-      return { errors: { time_slots: ["Invalid time slots format"] } };
+   const rawTimeSlots = parseJsonField<TimeSlot[]>(formData, "time_slots");
+   if (!rawTimeSlots) {
+      return {errors: {time_slots: ["Invalid time slots format"]}};
    }
+
+   const parsed = selectAvailabilitiesSchema.safeParse({
+      session_id: formData.get("session_id")?.toString(),
+      time_slots: rawTimeSlots
+   })
+
+   if (!parsed.success) {
+      return {errors: parsed.error.flatten().fieldErrors}
+   }
+
+   const sessionId = parsed.data.session_id;
+   const timeSlots = parsed.data.time_slots.map(normalizeSlots)
 
    // 3. Authorization: caller must be the coach or user on this session
    const result = await getAuthorizedSession(sessionId, callerId);
    if (!result.ok) {
       return result.state;
+   }
+
+   if (result.session.coachId !== callerId) {
+      return {
+         errors: {
+            _form: ["Only the coach can set availabilities"]
+         }
+      }
    }
 
    // 4. Only pending sessions can have their availabilities changed
@@ -140,14 +165,10 @@ export async function selectAvailabilities(
          })
          .where(eq(coachingSessions.id, sessionId));
    } catch (e) {
-      console.error(e);
+      console.error("[SELECT_AVAILABILITIES]", e);
       return {
          errors: {
-            _form: [
-               e instanceof Error
-                  ? e.message
-                  : "Could not update availabilities",
-            ],
+            _form: ["Could not update availabilities"],
          },
       };
    }
@@ -183,7 +204,8 @@ export async function selectTimeSlot(
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const { session_id, start, end } = parsed.data;
+   const { session_id} = parsed.data;
+   const {start, end} = normalizeSlots({start: parsed.data.start, end: parsed.data.end})
 
    // 3. Authorization
    const result = await getAuthorizedSession(session_id, callerId);
@@ -192,6 +214,14 @@ export async function selectTimeSlot(
    }
 
    const { session } = result;
+
+   if (session.userId !== callerId) {
+      return {
+         errors:{
+            _form: ["Only the user can select a time slot"]
+         }
+      }
+   }
 
    // 4. Only pending sessions can be confirmed
    if (session.status !== "pending") {
@@ -227,23 +257,33 @@ export async function selectTimeSlot(
 
    // 5. Confirm the session with the chosen slot
    try {
-      await db
+      const updatedRows = await db
          .update(coachingSessions)
          .set({
             scheduledAt: new Date(start),
             status: "confirmed",
             updatedAt: new Date(),
          })
-         .where(eq(coachingSessions.id, session_id));
+         .where(
+            and(
+               eq(coachingSessions.id, session_id),
+               eq(coachingSessions.status, "pending"),
+            ),
+         )
+         .returning({ id: coachingSessions.id });
+
+      if (updatedRows.length === 0) {
+         return {
+            errors: {
+               _form: ["This session is no longer available for confirmation"],
+            },
+         };
+      }
    } catch (e) {
-      console.error(e);
+      console.error("[SELECT_TIME_SLOT]", e);
       return {
          errors: {
-            _form: [
-               e instanceof Error
-                  ? e.message
-                  : "Could not confirm the time slot",
-            ],
+            _form: ["Could not confirm the time slot"],
          },
       };
    }
