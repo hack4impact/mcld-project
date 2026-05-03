@@ -35,6 +35,13 @@ export const serviceStatusEnum = pgEnum("service_status", [
    "deleted",
    "disabled",
 ]);
+export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
+export const extraQuestionTypeEnum = pgEnum("extra_question_type", [
+   "text",
+   "multiple_choices",
+   "checkboxes",
+   "user_agreement",
+]);
 
 export const profiles = pgTable("profiles", {
    id: uuid("id").primaryKey(),
@@ -133,6 +140,46 @@ export const purchases = pgTable("purchases", {
    productName: text("product_name").notNull(),
    amount: integer("amount").notNull(),
    currency: text("currency").notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const children = pgTable("children", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   parentId: uuid("parent_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
+   gender: genderEnum("gender").notNull(),
+   firstName: text("first_name").notNull(),
+   lastName: text("last_name").notNull(),
+   dob: date("dob", { mode: "string" }).notNull(),
+   allergies: text("allergies"),
+   medicalConditions: text("medical_conditions"),
+   medications: text("medications"),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const emergencyContacts = pgTable("emergency_contacts", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   childId: uuid("child_id")
+      .references(() => children.id, { onDelete: "cascade" })
+      .notNull(),
+   fullName: text("full_name").notNull(),
+   emailAddress: text("email_address").notNull(),
+   phoneNumber: text("phone_number").notNull(),
+   relationship: text("relationship").notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const extraQuestions = pgTable("extra_questions", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   serviceId: uuid("service_id")
+      .references(() => services.id, { onDelete: "cascade" })
+      .notNull(),
+   type: extraQuestionTypeEnum("type").notNull(),
+   content: text("content").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
