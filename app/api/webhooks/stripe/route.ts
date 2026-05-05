@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, syncStripeData } from "@/lib/stripe";
+import { deleteCouponIfExhausted, stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { profiles, purchases } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -43,6 +43,14 @@ export async function POST(request: NextRequest) {
 
    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+
+      for (const d of session.discounts ?? []) {
+         const couponId =
+            typeof d.coupon === "string" ? d.coupon : d.coupon?.id;
+         if (couponId) {
+            await deleteCouponIfExhausted(couponId);
+         }
+      }
 
       if (session.mode === "payment" && session.customer) {
          const customerId = session.customer as string;
