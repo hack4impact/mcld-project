@@ -193,6 +193,10 @@ export type StripeServiceData = {
    priceCurrency: string | null;
 };
 
+type ManagedProductDiscount = {
+   couponId: string;
+};
+
 export async function getStripeServiceData(
    productId: string,
 ): Promise<StripeServiceData | null> {
@@ -211,4 +215,120 @@ export async function getStripeServiceData(
       priceCents: latestPrice?.unit_amount ?? null,
       priceCurrency: latestPrice?.currency ?? null,
    };
+}
+
+async function getManagedDiscountForCustomerProduct(
+   customerId: string,
+   productId: string,
+): Promise<ManagedProductDiscount | null> {
+   const coupons = await stripe.coupons.list({
+      limit: 100,
+   });
+
+   for (const coupon of coupons.data) {
+      const metadata = coupon.metadata ?? {};
+      if (metadata.customerId !== customerId) continue;
+      if (!coupon.valid) continue;
+
+      const appliesToProducts = coupon.applies_to?.products ?? [];
+      if (!appliesToProducts.includes(productId)) continue;
+
+      return {
+         couponId: coupon.id,
+      };
+   }
+
+   return null;
+}
+
+export type ProductDiscountConfig =
+   | {
+        percentOff: number;
+        amountOffCents?: never;
+        currency?: string;
+     }
+   | {
+        percentOff?: never;
+        amountOffCents: number;
+        currency: string;
+     };
+
+export async function applyProductDiscountToCustomer(input: {
+   productId: string;
+   customerId: string;
+   usageLimit: number;
+   discount: ProductDiscountConfig;
+}): Promise<{
+   couponId: string;
+}> {
+   const existing = await getManagedDiscountForCustomerProduct(
+      input.customerId,
+      input.productId,
+   );
+   if (existing) {
+      throw new Error(
+         "A discount is already active for this customer and product. Remove it before applying a new one.",
+      );
+   }
+
+   const couponParams: Stripe.CouponCreateParams = {
+      duration: "forever",
+      applies_to: { products: [input.productId] },
+      max_redemptions: input.usageLimit,
+      metadata: {
+         productId: input.productId,
+         customerId: input.customerId,
+      },
+   };
+
+   if (input.discount.percentOff !== undefined) {
+      couponParams.percent_off = input.discount.percentOff;
+   } else {
+      couponParams.amount_off = input.discount.amountOffCents;
+      couponParams.currency = input.discount.currency;
+   }
+
+   const coupon = await stripe.coupons.create(couponParams);
+
+   return {
+      couponId: coupon.id,
+   };
+}
+
+export async function getActiveCouponForCustomerProduct(input: {
+   customerId: string;
+   productId: string;
+}): Promise<string | null> {
+   const managed = await getManagedDiscountForCustomerProduct(
+      input.customerId,
+      input.productId,
+   );
+   return managed?.couponId ?? null;
+}
+
+export async function removeProductDiscountFromCustomer(input: {
+   productId: string;
+   customerId: string;
+}): Promise<{ removed: number }> {
+   const managed = await getManagedDiscountForCustomerProduct(
+      input.customerId,
+      input.productId,
+   );
+   if (!managed) {
+      return { removed: 0 };
+   }
+
+   await stripe.coupons.del(managed.couponId);
+   return { removed: 1 };
+}
+
+export async function deleteCouponIfExhausted(couponId: string): Promise<void> {
+   try {
+      const coupon = await stripe.coupons.retrieve(couponId);
+      if (!coupon.valid) {
+         await stripe.coupons.del(couponId);
+      }
+   } catch (err) {
+      console.error(`[STRIPE] Coupon cleanup failed for ${couponId}:`, err);
+   }
 }
