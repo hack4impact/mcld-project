@@ -29,7 +29,7 @@ const selectAvailabilitiesSchema = z.object({
    time_slots: z
       .array(timeSlotSchema)
       .min(1, "At least one time slot is required")
-      .max(20,"You can select up to 20 time slots")
+      .max(50,"You can select up to 50 time slots")
 });
 
 const selectTimeSlotSchema = z.object({
@@ -138,14 +138,6 @@ export async function selectAvailabilities(
       return result.state;
    }
 
-   if (result.session.coachId !== callerId) {
-      return {
-         errors: {
-            _form: ["Only the coach can set availabilities"]
-         }
-      }
-   }
-
    // 4. Only pending sessions can have their availabilities changed
    if (result.session.status !== "pending") {
       return {
@@ -214,14 +206,6 @@ export async function selectTimeSlot(
    }
 
    const { session } = result;
-
-   if (session.userId !== callerId) {
-      return {
-         errors:{
-            _form: ["Only the user can select a time slot"]
-         }
-      }
-   }
 
    // 4. Only pending sessions can be confirmed
    if (session.status !== "pending") {
