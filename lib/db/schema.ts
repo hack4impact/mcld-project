@@ -12,6 +12,12 @@ import {
 
 export type ProgramSlot = { dayOfWeek: number; time: string };
 
+export type ExtraQuestionOption = {
+   id: string;
+   title: string;
+   description?: string;
+};
+
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
 export const serviceTypeEnum = pgEnum("service_type", [
    "private_lessons",
@@ -179,7 +185,21 @@ export const extraQuestions = pgTable("extra_questions", {
       .references(() => services.id, { onDelete: "cascade" })
       .notNull(),
    type: extraQuestionTypeEnum("type").notNull(),
-   content: text("content").notNull(),
+   prompt: text("prompt").notNull(),
+   options: jsonb("options").$type<ExtraQuestionOption[]>(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const extraQuestionAnswers = pgTable("extra_question_answers", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   extraQuestionId: uuid("extra_question_id")
+      .references(() => extraQuestions.id, { onDelete: "cascade" })
+      .notNull(),
+   childId: uuid("child_id")
+      .references(() => children.id, { onDelete: "cascade" })
+      .notNull(),
+   answer: text("answer").array().notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
