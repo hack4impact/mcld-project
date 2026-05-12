@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, getOrCreateStripeCustomer } from "@/lib/stripe";
+import {
+  getActiveCouponForCustomerProduct,
+  getOrCreateStripeCustomer,
+  stripe,
+} from "@/lib/stripe";
 import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -26,11 +30,22 @@ export async function POST(request: NextRequest) {
     user.email!,
   );
 
+  const price = await stripe.prices.retrieve(priceId);
+  const stripeProductId = price.product as string;
+
+  const couponId = await getActiveCouponForCustomerProduct({
+    customerId: stripeCustomerId,
+    productId: stripeProductId,
+  });
+
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
     mode: mode as "subscription" | "payment",
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
+    ...(couponId
+      ? { discounts: [{ coupon: couponId }] }
+      : {}),
     success_url: `${request.nextUrl.origin}/checkout/success`,
     cancel_url: `${request.nextUrl.origin}/checkout/cancel`,
   });
