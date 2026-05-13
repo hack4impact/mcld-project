@@ -19,14 +19,23 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import { USERS_TABLE_HEADER_BG } from "../_lib/users-table-header";
-import { USERS_TABLE_PAGE_SIZE } from "../_lib/users-table-scroll";
+import {
+   USERS_TABLE_HEADER_BG,
+   USERS_TABLE_PAGE_SIZE,
+} from "../_lib/users-table-header";
 
 type UsersColumnMeta = {
    colWidth?: string;
    thClassName?: string;
    tdClassName?: string;
 };
+
+function pageWindowIndices(pageIndex: number, pageCount: number): number[] {
+   const candidates = [pageIndex - 1, pageIndex, pageIndex + 1].filter(
+      (i) => i >= 0 && i < pageCount,
+   );
+   return [...new Set(candidates)].sort((a, b) => a - b);
+}
 
 interface UsersDataTableProps<TData, TValue> {
    columns: ColumnDef<TData, TValue>[];
@@ -69,13 +78,7 @@ export function UsersDataTable<TData, TValue>({
          ? `No ${noun}`
          : `Showing ${rangeStart}–${rangeEnd} of ${total} ${noun}`;
 
-   const pageWindowIndices = (() => {
-      const idx = pageIndex;
-      const candidates = [idx - 1, idx, idx + 1].filter(
-         (i) => i >= 0 && i < pageCount,
-      );
-      return [...new Set(candidates)].sort((a, b) => a - b);
-   })();
+   const pageButtons = pageWindowIndices(pageIndex, pageCount);
 
    return (
       <div className="flex min-h-0 w-full min-w-0 max-h-full flex-1 flex-col">
@@ -101,12 +104,8 @@ export function UsersDataTable<TData, TValue>({
                      </colgroup>
                   ) : null}
                   <TableHeader
-                     className={cn(
-                        "sticky top-0 z-10 border-b border-border shadow-sm [&_th]:text-foreground",
-                     )}
-                     style={{
-                        backgroundColor: USERS_TABLE_HEADER_BG,
-                     }}
+                     className="sticky top-0 z-10 border-b border-border shadow-sm [&_th]:text-foreground"
+                     style={{ backgroundColor: USERS_TABLE_HEADER_BG }}
                   >
                      {table.getHeaderGroups().map((hg) => (
                         <TableRow
@@ -189,14 +188,10 @@ export function UsersDataTable<TData, TValue>({
                >
                   Previous
                </Button>
-               {pageWindowIndices.map((i) => (
+               {pageButtons.map((i) => (
                   <Button
                      key={i}
-                     variant={
-                        table.getState().pagination.pageIndex === i
-                           ? "outline"
-                           : "ghost"
-                     }
+                     variant={pageIndex === i ? "outline" : "ghost"}
                      size="sm"
                      className="w-8"
                      onClick={() => table.setPageIndex(i)}

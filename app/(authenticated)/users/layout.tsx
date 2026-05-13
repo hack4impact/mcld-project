@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 
-/**
- * Caps the /users subtree height in the flex chain so content scrolls inside the
- * table, not the whole page (requires flex-1/min-h-0 on ancestors).
- */
+/** Bounded height for /users so the table can scroll inside the column. */
 export default function UsersLayout({
    children,
 }: {
