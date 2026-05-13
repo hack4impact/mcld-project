@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
    Select,
@@ -12,37 +12,32 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowDownAZ, ArrowUpZA, Search } from "lucide-react";
-import { DataTable } from "@/components/data-table";
+import { UsersDataTable } from "./users-data-table";
 import { usersColumns, type UserRow } from "./users-columns";
+import {
+   USER_SUBSCRIPTION_VIEW_TABS,
+   type UserSubscriptionViewTab,
+} from "../_lib/subscription-view-tabs";
 
-type StatusTab = "all" | "active" | "inactive";
-type RoleFilter = "all" | "user" | "admin" | "coach";
 type SortDir = "asc" | "desc";
+
+export interface RoleFilterOption {
+   value: string;
+   label: string;
+}
 
 interface UsersClientProps {
    users: UserRow[];
+   roleFilterOptions: RoleFilterOption[];
 }
 
-const STATUS_TABS: { value: StatusTab; label: string }[] = [
-   { value: "all", label: "All Users" },
-   { value: "active", label: "Active" },
-   { value: "inactive", label: "Inactive" },
-];
+export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
+   const [tab, setTab] = useState<UserSubscriptionViewTab>("all");
+   const [roleFilter, setRoleFilter] = useState<string>("all");
+   const [nameQuery, setNameQuery] = useState("");
+   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
-   { value: "all", label: "All Roles" },
-   { value: "user", label: "User" },
-   { value: "admin", label: "Admin" },
-   { value: "coach", label: "Coach" },
-];
-
-export function UsersClient({ users }: UsersClientProps) {
-   const [tab, setTab] = React.useState<StatusTab>("all");
-   const [roleFilter, setRoleFilter] = React.useState<RoleFilter>("all");
-   const [nameQuery, setNameQuery] = React.useState("");
-   const [sortDir, setSortDir] = React.useState<SortDir>("asc");
-
-   const filtered = React.useMemo(() => {
+   const filtered = useMemo(() => {
       const query = nameQuery.trim().toLowerCase();
 
       return users
@@ -52,7 +47,8 @@ export function UsersClient({ users }: UsersClientProps) {
          })
          .filter((u) => {
             if (tab === "all") return true;
-            return tab === "active" ? u.isActive : !u.isActive;
+            if (tab === "active") return u.isActive;
+            return !u.isActive;
          })
          .filter((u) => {
             if (roleFilter === "all") return true;
@@ -70,65 +66,74 @@ export function UsersClient({ users }: UsersClientProps) {
    return (
       <Tabs
          value={tab}
-         onValueChange={(v) => setTab(v as StatusTab)}
-         className="w-full"
+         onValueChange={(v) => setTab(v as UserSubscriptionViewTab)}
+         className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
       >
-         {/* Single toolbar row: search → status tabs → role select → sort icon */}
-         <div className="flex items-center gap-3">
-            <div className="relative">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-               <Input
-                  id="users-search"
-                  placeholder="Search by name..."
-                  value={nameQuery}
-                  onChange={(e) => setNameQuery(e.target.value)}
-                  className="pl-9 w-56"
-               />
+         <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
+               <div className="relative min-w-[min(100%,10rem)] max-w-full grow sm:max-w-xs sm:grow-0 sm:basis-56">
+                  <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <Input
+                     id="users-search"
+                     placeholder="Search by name..."
+                     value={nameQuery}
+                     onChange={(e) => setNameQuery(e.target.value)}
+                     className="w-full min-w-0 pl-9"
+                  />
+               </div>
+
+               <TabsList className="h-auto min-h-8 max-w-full min-w-0 flex-wrap justify-start border border-border">
+                  {USER_SUBSCRIPTION_VIEW_TABS.map(({ value, label }) => (
+                     <TabsTrigger key={value} value={value}>
+                        {label}
+                     </TabsTrigger>
+                  ))}
+               </TabsList>
             </div>
 
-            <TabsList className="border border-border">
-               {STATUS_TABS.map(({ value, label }) => (
-                  <TabsTrigger key={value} value={value}>
-                     {label}
-                  </TabsTrigger>
-               ))}
-            </TabsList>
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
+               <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger
+                     id="users-role-filter"
+                     className="w-[min(100%,11rem)] min-w-[8.5rem] sm:w-[140px]"
+                  >
+                     <SelectValue placeholder="All Roles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     {roleFilterOptions.map(({ value, label }) => (
+                        <SelectItem key={value} value={value}>
+                           {label}
+                        </SelectItem>
+                     ))}
+                  </SelectContent>
+               </Select>
 
-            <Select
-               value={roleFilter}
-               onValueChange={(v) => setRoleFilter(v as RoleFilter)}
-            >
-               <SelectTrigger id="users-role-filter" className="w-[140px]">
-                  <SelectValue placeholder="All Roles" />
-               </SelectTrigger>
-               <SelectContent>
-                  {ROLE_OPTIONS.map(({ value, label }) => (
-                     <SelectItem key={value} value={value}>
-                        {label}
-                     </SelectItem>
-                  ))}
-               </SelectContent>
-            </Select>
-
-            <Button
-               id="users-sort-toggle"
-               variant="outline"
-               size="icon"
-               onClick={() =>
-                  setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
-               }
-               aria-label={sortDir === "asc" ? "Sort Z to A" : "Sort A to Z"}
-            >
-               {sortDir === "asc" ? (
-                  <ArrowDownAZ className="h-4 w-4" />
-               ) : (
-                  <ArrowUpZA className="h-4 w-4" />
-               )}
-            </Button>
+               <Button
+                  id="users-sort-toggle"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() =>
+                     setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
+                  aria-label={
+                     sortDir === "asc" ? "Sort Z to A" : "Sort A to Z"
+                  }
+               >
+                  {sortDir === "asc" ? (
+                     <ArrowDownAZ className="h-4 w-4" />
+                  ) : (
+                     <ArrowUpZA className="h-4 w-4" />
+                  )}
+               </Button>
+            </div>
          </div>
 
-         <TabsContent value={tab}>
-            <DataTable
+         <TabsContent
+            value={tab}
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
+         >
+            <UsersDataTable
                columns={usersColumns}
                data={filtered}
                emptyMessage="No users match the current filters."

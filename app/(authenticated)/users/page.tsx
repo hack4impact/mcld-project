@@ -4,6 +4,9 @@ import { profiles, subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { UsersClient } from "./_components/users-client";
 import type { UserRow } from "./_components/users-columns";
+import { USERS_SUBSCRIPTION_STATUS_ACTIVE } from "./_lib/subscription-constants";
+import { listDistinctProfileRoles } from "./queries";
+import { profileRoleLabel } from "./_lib/role-labels";
 
 async function fetchUsers(): Promise<UserRow[]> {
    const rows = await db
@@ -24,8 +27,7 @@ async function fetchUsers(): Promise<UserRow[]> {
       lastName: row.lastName,
       role: row.role,
       createdAt: row.createdAt,
-      // A user is "active" when they have an active Stripe subscription
-      isActive: row.subscriptionStatus === "active",
+      isActive: row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_ACTIVE,
    }));
 }
 
@@ -38,19 +40,31 @@ export default function UsersPage() {
 }
 
 async function UsersContent() {
-   const users = await fetchUsers();
+   const [users, distinctRoles] = await Promise.all([
+      fetchUsers(),
+      listDistinctProfileRoles(),
+   ]);
+
+   const roleFilterOptions: { value: string; label: string }[] = [
+      { value: "all", label: "All Roles" },
+      ...distinctRoles.map((role) => ({
+         value: role,
+         label: profileRoleLabel(role),
+      })),
+   ];
+
    return (
-      <main className="flex min-h-screen flex-col gap-6 p-8">
-         <h1 className="text-3xl font-bold">Users</h1>
-         <UsersClient users={users} />
+      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-6 overflow-hidden p-8">
+         <h1 className="shrink-0 text-3xl font-bold">Users</h1>
+         <UsersClient users={users} roleFilterOptions={roleFilterOptions} />
       </main>
    );
 }
 
 function UsersPageSkeleton() {
    return (
-      <main className="flex min-h-screen flex-col gap-6 p-8">
-         <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />
+      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-6 overflow-hidden p-8">
+         <div className="h-9 w-24 shrink-0 rounded-md bg-muted animate-pulse" />
          <div className="flex items-center justify-between gap-4">
             <div className="h-9 w-64 rounded-md bg-muted animate-pulse" />
             <div className="h-9 w-40 rounded-md bg-muted animate-pulse" />
