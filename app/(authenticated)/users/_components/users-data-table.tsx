@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import {
    ColumnDef,
    flexRender,
@@ -21,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { USERS_TABLE_HEADER_BG } from "../_lib/users-table-header";
-import { USERS_TABLE_PAGE_SIZE, usersTableScrollMaxHeight } from "../_lib/users-table-scroll";
+import { USERS_TABLE_PAGE_SIZE } from "../_lib/users-table-scroll";
 
 type UsersColumnMeta = {
    colWidth?: string;
@@ -70,10 +69,6 @@ export function UsersDataTable<TData, TValue>({
          ? `No ${noun}`
          : `Showing ${rangeStart}–${rangeEnd} of ${total} ${noun}`;
 
-   const scrollStyle: CSSProperties = {
-      maxHeight: usersTableScrollMaxHeight(),
-   };
-
    const pageWindowIndices = (() => {
       const idx = pageIndex;
       const candidates = [idx - 1, idx, idx + 1].filter(
@@ -83,12 +78,9 @@ export function UsersDataTable<TData, TValue>({
    })();
 
    return (
-      <div className="flex w-full min-w-0 min-h-0 max-h-full flex-1 flex-col">
-         <div className="flex w-full max-w-full min-w-0 flex-col self-start overflow-hidden rounded-lg border border-border">
-            <div
-               className="w-full min-w-0 overflow-auto"
-               style={scrollStyle}
-            >
+      <div className="flex min-h-0 w-full min-w-0 max-h-full flex-1 flex-col">
+         <div className="flex max-h-full min-h-0 w-full max-w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border">
+            <div className="max-h-full min-h-0 w-full min-w-0 overflow-auto">
                <Table className="table-fixed">
                   {headerGroup ? (
                      <colgroup>
@@ -186,7 +178,7 @@ export function UsersDataTable<TData, TValue>({
                </Table>
             </div>
          </div>
-         <div className="mt-auto flex shrink-0 min-w-0 flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+         <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 min-w-0 flex-col gap-3 border-t border-border bg-background py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <div className="text-sm text-muted-foreground">{rangeLabel}</div>
             <div className="flex min-w-0 flex-wrap items-center justify-center gap-1 sm:justify-end">
                <Button
