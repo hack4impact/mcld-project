@@ -85,29 +85,52 @@ export function DataTable<TData, TValue>({
                </TableBody>
             </Table>
          </div>
-         <div className="flex items-center justify-between py-4">
-            <div className="text-sm text-muted-foreground">
-               {rowLabel(data.length)}
-            </div>
-            <div className="flex items-center gap-2">
-               <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-               >
-                  Previous
-               </Button>
-               <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-               >
-                  Next
-               </Button>
-            </div>
-         </div>
-      </div>
-   );
+          <div className="flex items-center justify-between py-4">
+             <div className="text-sm text-muted-foreground">
+                {(() => {
+                   const pageRows = table.getRowModel().rows.length;
+                   const total = data.length;
+                   // Strip leading number from rowLabel to get the noun ("users", "services", …)
+                   const noun = rowLabel(total).replace(/^\d+\s*/, "");
+                   return `Showing ${pageRows} of ${total} ${noun}`;
+                })()}
+             </div>
+             <div className="flex items-center gap-1">
+                <Button
+                   variant="ghost"
+                   size="sm"
+                   onClick={() => table.previousPage()}
+                   disabled={!table.getCanPreviousPage()}
+                >
+                   Previous
+                </Button>
+                {Array.from({ length: table.getPageCount() }, (_, i) => i).map(
+                   (pageIndex) => (
+                      <Button
+                         key={pageIndex}
+                         variant={
+                            table.getState().pagination.pageIndex === pageIndex
+                               ? "outline"
+                               : "ghost"
+                         }
+                         size="sm"
+                         className="w-8"
+                         onClick={() => table.setPageIndex(pageIndex)}
+                      >
+                         {pageIndex + 1}
+                      </Button>
+                   ),
+                )}
+                <Button
+                   variant="ghost"
+                   size="sm"
+                   onClick={() => table.nextPage()}
+                   disabled={!table.getCanNextPage()}
+                >
+                   Next
+                </Button>
+             </div>
+          </div>
+       </div>
+    );
 }
