@@ -19,10 +19,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import {
-   USERS_TABLE_HEADER_BG,
-   USERS_TABLE_PAGE_SIZE,
-} from "../_lib/users-table-header";
+const USERS_TABLE_HEADER_BG = "#EDF4FD";
+const USERS_TABLE_PAGE_SIZE = 10;
 
 type UsersColumnMeta = {
    colWidth?: string;

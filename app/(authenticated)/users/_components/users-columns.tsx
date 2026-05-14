@@ -8,16 +8,8 @@ import {
    TooltipContent,
    TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { profileRoleLabel } from "../_lib/role-labels";
 
-export type UserRow = {
-   id: string;
-   firstName: string;
-   lastName: string;
-   role: string;
-   isActive: boolean;
-   createdAt: Date;
-};
+import { profileRoleLabel, type UserRow } from "../profile-role-label";
 
 function AvatarCircle({ name }: { name: string }) {
    const [first = "", last = ""] = name.trim().split(" ");

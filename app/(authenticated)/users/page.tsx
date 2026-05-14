@@ -3,10 +3,10 @@ import { db } from "@/lib/db";
 import { profiles, subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { UsersClient } from "./_components/users-client";
-import type { UserRow } from "./_components/users-columns";
-import { USERS_SUBSCRIPTION_STATUS_ACTIVE } from "./_lib/subscription-constants";
+import { profileRoleLabel, type UserRow } from "./profile-role-label";
 import { listDistinctProfileRoles } from "./queries";
-import { profileRoleLabel } from "./_lib/role-labels";
+
+const USERS_SUBSCRIPTION_STATUS_ACTIVE = "active" as const;
 
 async function fetchUsers(): Promise<UserRow[]> {
    const rows = await db

@@ -13,11 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowDownAZ, ArrowUpZA, Search } from "lucide-react";
 import { UsersDataTable } from "./users-data-table";
-import { usersColumns, type UserRow } from "./users-columns";
-import {
-   USER_SUBSCRIPTION_VIEW_TABS,
-   type UserSubscriptionViewTab,
-} from "../_lib/subscription-view-tabs";
+import { usersColumns } from "./users-columns";
+import type { UserRow } from "../profile-role-label";
+
+const USER_SUBSCRIPTION_VIEW_TABS = [
+   { value: "all", label: "All Users" },
+   { value: "active", label: "Active" },
+   { value: "inactive", label: "Inactive" },
+] as const;
+
+export type UserSubscriptionViewTab =
+   (typeof USER_SUBSCRIPTION_VIEW_TABS)[number]["value"];
 
 type SortDir = "asc" | "desc";
 
