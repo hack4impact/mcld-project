@@ -54,16 +54,18 @@ async function UsersContent() {
    ];
 
    return (
-      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-6 overflow-hidden p-8">
-         <h1 className="sticky top-0 z-20 shrink-0 bg-background pb-2 text-3xl font-bold">Users</h1>
-         <UsersClient users={users} roleFilterOptions={roleFilterOptions} />
+      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
+         <h1 className="shrink-0 text-3xl font-bold">Users</h1>
+         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <UsersClient users={users} roleFilterOptions={roleFilterOptions} />
+         </div>
       </main>
    );
 }
 
 function UsersPageSkeleton() {
    return (
-      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-6 overflow-hidden p-8">
+      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
          <div className="h-9 w-24 shrink-0 rounded-md bg-muted animate-pulse" />
          <div className="flex items-center justify-between gap-4">
             <div className="h-9 w-64 rounded-md bg-muted animate-pulse" />

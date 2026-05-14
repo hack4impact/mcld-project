@@ -70,11 +70,12 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
    }, [users, nameQuery, tab, roleFilter, sortDir]);
 
    return (
-      <Tabs
-         value={tab}
-         onValueChange={(v) => setTab(v as UserSubscriptionViewTab)}
-         className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
-      >
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+         <Tabs
+            value={tab}
+            onValueChange={(v) => setTab(v as UserSubscriptionViewTab)}
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
+         >
          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
                <div className="relative min-w-[min(100%,10rem)] max-w-full grow sm:max-w-xs sm:grow-0 sm:basis-56">
@@ -147,5 +148,6 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
             />
          </TabsContent>
       </Tabs>
+      </div>
    );
 }

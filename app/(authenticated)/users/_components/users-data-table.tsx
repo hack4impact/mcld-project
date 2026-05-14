@@ -1,6 +1,14 @@
 "use client";
 
 import {
+   useCallback,
+   useEffect,
+   useLayoutEffect,
+   useRef,
+   useState,
+} from "react";
+import type { PaginationState, Updater } from "@tanstack/react-table";
+import {
    ColumnDef,
    flexRender,
    getCoreRowModel,
@@ -19,8 +27,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-const USERS_TABLE_HEADER_BG = "#EDF4FD";
-const USERS_TABLE_PAGE_SIZE = 10;
+const FALLBACK_PAGE_SIZE = 12;
+const MIN_PAGE_SIZE = 1;
 
 type UsersColumnMeta = {
    colWidth?: string;
@@ -33,6 +41,29 @@ function pageWindowIndices(pageIndex: number, pageCount: number): number[] {
       (i) => i >= 0 && i < pageCount,
    );
    return [...new Set(candidates)].sort((a, b) => a - b);
+}
+
+function readBodyRowHeight(scrollEl: HTMLElement): number {
+   const row = scrollEl.querySelector("tbody tr");
+   if (!row) return 52;
+   const h = row.getBoundingClientRect().height;
+   return h > 8 ? h : 52;
+}
+
+function readTheadHeight(scrollEl: HTMLElement): number {
+   const thead = scrollEl.querySelector("thead");
+   if (!thead) return 41;
+   const h = thead.getBoundingClientRect().height;
+   return h > 4 ? h : 41;
+}
+
+function computePageSize(scrollEl: HTMLElement): number {
+   const ch = scrollEl.clientHeight;
+   if (ch < 24) return MIN_PAGE_SIZE;
+   const theadH = readTheadHeight(scrollEl);
+   const rowH = readBodyRowHeight(scrollEl);
+   const usable = ch - theadH - 2;
+   return Math.max(MIN_PAGE_SIZE, Math.floor(usable / rowH));
 }
 
 interface UsersDataTableProps<TData, TValue> {
@@ -48,18 +79,54 @@ export function UsersDataTable<TData, TValue>({
    emptyMessage = "No results.",
    rowLabel = (n) => `${n} row${n === 1 ? "" : "s"}`,
 }: UsersDataTableProps<TData, TValue>) {
+   const scrollRef = useRef<HTMLDivElement>(null);
+   const [pagination, setPagination] = useState<PaginationState>({
+      pageIndex: 0,
+      pageSize: FALLBACK_PAGE_SIZE,
+   });
+
+   const onPaginationChange = useCallback((updater: Updater<PaginationState>) => {
+      setPagination((prev) =>
+         typeof updater === "function" ? updater(prev) : updater,
+      );
+   }, []);
+
    const table = useReactTable({
       data,
       columns,
       getCoreRowModel: getCoreRowModel(),
       getPaginationRowModel: getPaginationRowModel(),
       autoResetPageIndex: true,
-      initialState: {
-         pagination: {
-            pageSize: USERS_TABLE_PAGE_SIZE,
-         },
-      },
+      state: { pagination },
+      onPaginationChange,
    });
+
+   const applyMeasuredPageSize = useCallback(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const nextSize = computePageSize(el);
+      setPagination((prev) => {
+         if (nextSize === prev.pageSize) return prev;
+         const total = data.length;
+         const pageCount = Math.max(1, Math.ceil(total / nextSize));
+         const nextIndex = Math.min(prev.pageIndex, pageCount - 1);
+         return { pageIndex: Math.max(0, nextIndex), pageSize: nextSize };
+      });
+   }, [data.length]);
+
+   useLayoutEffect(() => {
+      requestAnimationFrame(() => applyMeasuredPageSize());
+   }, [data, applyMeasuredPageSize]);
+
+   useEffect(() => {
+      const el = scrollRef.current;
+      if (!el || typeof ResizeObserver === "undefined") return;
+      const ro = new ResizeObserver(() => {
+         requestAnimationFrame(() => applyMeasuredPageSize());
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+   }, [applyMeasuredPageSize]);
 
    const headerGroup = table.getHeaderGroups()[0];
    const { pageIndex } = table.getState().pagination;
@@ -79,9 +146,12 @@ export function UsersDataTable<TData, TValue>({
    const pageButtons = pageWindowIndices(pageIndex, pageCount);
 
    return (
-      <div className="flex min-h-0 w-full min-w-0 max-h-full flex-1 flex-col">
-         <div className="flex max-h-full min-h-0 w-full max-w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border">
-            <div className="max-h-full min-h-0 w-full min-w-0 overflow-auto">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+         <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
+            <div
+               ref={scrollRef}
+               className="min-h-0 w-full min-w-0 flex-1 overflow-auto"
+            >
                <Table className="table-fixed">
                   {headerGroup ? (
                      <colgroup>
@@ -101,29 +171,16 @@ export function UsersDataTable<TData, TValue>({
                         })}
                      </colgroup>
                   ) : null}
-                  <TableHeader
-                     className="sticky top-0 z-10 border-b border-border shadow-sm [&_th]:text-foreground"
-                     style={{ backgroundColor: USERS_TABLE_HEADER_BG }}
-                  >
+                  <TableHeader className="sticky top-0 z-10 bg-primary/30">
                      {table.getHeaderGroups().map((hg) => (
-                        <TableRow
-                           key={hg.id}
-                           className="border-b border-border hover:bg-[#E4EEF9]"
-                           style={{ backgroundColor: USERS_TABLE_HEADER_BG }}
-                        >
+                        <TableRow key={hg.id}>
                            {hg.headers.map((h) => {
                               const meta = h.column.columnDef
                                  .meta as UsersColumnMeta | undefined;
                               return (
                                  <TableHead
                                     key={h.id}
-                                    className={cn(
-                                       "min-w-0 overflow-hidden text-ellipsis text-foreground",
-                                       meta?.thClassName,
-                                    )}
-                                    style={{
-                                       backgroundColor: USERS_TABLE_HEADER_BG,
-                                    }}
+                                    className={cn(meta?.thClassName)}
                                  >
                                     {h.isPlaceholder
                                        ? null
@@ -175,7 +232,7 @@ export function UsersDataTable<TData, TValue>({
                </Table>
             </div>
          </div>
-         <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 min-w-0 flex-col gap-3 border-t border-border bg-background py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+         <div className="flex shrink-0 min-w-0 flex-col gap-3 border-t border-border bg-background py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <div className="text-sm text-muted-foreground">{rangeLabel}</div>
             <div className="flex min-w-0 flex-wrap items-center justify-center gap-1 sm:justify-end">
                <Button
