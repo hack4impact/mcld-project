@@ -147,11 +147,9 @@ export function UsersDataTable<TData, TValue>({
 
    return (
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
-         <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
-            <div
-               ref={scrollRef}
-               className="min-h-0 w-full min-w-0 flex-1 overflow-auto"
-            >
+         <div ref={scrollRef} className="min-h-0 w-full min-w-0 flex-1">
+            <div className="overflow-hidden rounded-lg border border-border">
+               <div className="w-full min-w-0 overflow-auto">
                <Table className="table-fixed">
                   {headerGroup ? (
                      <colgroup>
@@ -230,6 +228,7 @@ export function UsersDataTable<TData, TValue>({
                      )}
                   </TableBody>
                </Table>
+               </div>
             </div>
          </div>
          <div className="flex shrink-0 min-w-0 flex-col gap-3 border-t border-border bg-background py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
