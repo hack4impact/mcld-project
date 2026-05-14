@@ -78,7 +78,7 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
          >
          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
-               <div className="relative min-w-[min(100%,10rem)] max-w-full grow sm:max-w-xs sm:grow-0 sm:basis-56">
+               <div className="relative p-0.5 min-w-[min(100%,10rem)] max-w-full grow sm:max-w-xs sm:grow-0 sm:basis-56">
                   <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <Input
                      id="users-search"
@@ -137,7 +137,7 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
          </div>
 
          <TabsContent
-            value={tab}
+            value={tab} 
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
          >
             <UsersDataTable

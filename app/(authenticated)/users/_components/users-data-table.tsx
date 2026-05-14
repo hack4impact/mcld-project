@@ -247,7 +247,7 @@ export function UsersDataTable<TData, TValue>({
                      key={i}
                      variant={pageIndex === i ? "outline" : "ghost"}
                      size="sm"
-                     className="w-8"
+                     className="w-8 hover:bg-primary/20 hover:text-primary"
                      onClick={() => table.setPageIndex(i)}
                   >
                      {i + 1}
