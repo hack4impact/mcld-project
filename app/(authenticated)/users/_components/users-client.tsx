@@ -40,7 +40,7 @@ interface UsersClientProps {
 export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
    const [tab, setTab] = useState<UserSubscriptionViewTab>("all");
    const [roleFilter, setRoleFilter] = useState<string>("all");
-   const [nameQuery, setNameQuery] = useState("");
+   const [nameQuery, setNameQuery] = useState<string>("");
    const [sortDir, setSortDir] = useState<SortDir>("asc");
 
    const filtered = useMemo(() => {
