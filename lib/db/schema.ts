@@ -41,7 +41,7 @@ export const serviceStatusEnum = pgEnum("service_status", [
    "deleted",
    "disabled",
 ]);
-export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
+export const genderEnum = pgEnum("gender", ["male", "female", "prefer_not_to_say"]);
 export const extraQuestionTypeEnum = pgEnum("extra_question_type", [
    "text",
    "multiple_choices",
