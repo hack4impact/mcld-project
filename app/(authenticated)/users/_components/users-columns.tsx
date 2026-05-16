@@ -85,7 +85,7 @@ export const usersColumns: ColumnDef<UserRow>[] = [
       },
    },
    {
-      id: "createdAt",
+      id: "lastLoginAt",
       header: "Last Login",
       meta: { colWidth: "18%" },
       cell: ({ row }) => (
@@ -94,7 +94,7 @@ export const usersColumns: ColumnDef<UserRow>[] = [
                year: "numeric",
                month: "short",
                day: "numeric",
-            }).format(new Date(row.original.createdAt))}
+            }).format(new Date(row.original.lastLoginAt || "Never Logged in" ))} 
          </span>
       ),
    },

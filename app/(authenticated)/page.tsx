@@ -9,6 +9,7 @@ import {
    CardHeader,
    CardTitle,
 } from "@/components/ui/card";
+import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckoutButton } from "@/components/subscribe-button";
 
@@ -38,9 +39,15 @@ async function HomeContent() {
       <main className="min-h-screen p-4 w-full">
          <div className="flex flex-row gap-4 w-full">
             <Card className="flex-1">
-               <CardHeader>
-                  <CardTitle className="text-2xl">Welcome t</CardTitle>
-                  <CardDescription>You are signed in as</CardDescription>
+               <CardHeader className="flex flex-row items-center justify-between">
+                  <div className="space-y-1.5">
+                     <CardTitle className="text-2xl">Welcome</CardTitle>
+                     <CardDescription>You are signed in as</CardDescription>
+                  </div>
+                  <Button variant="outline" className="gap-2">
+                     <UserPlus className="h-4 w-4" />
+                     Add User
+                  </Button>
                </CardHeader>
                <CardContent className="space-y-4">
                   <p className="text-sm font-medium">{user.email}</p>

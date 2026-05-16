@@ -16,5 +16,5 @@ export type UserRow = {
    lastName: string;
    role: string;
    isActive: boolean;
-   createdAt: Date;
+   lastLoginAt: Date;
 };

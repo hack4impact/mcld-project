@@ -15,7 +15,7 @@ async function fetchUsers(): Promise<UserRow[]> {
          firstName: profiles.firstName,
          lastName: profiles.lastName,
          role: profiles.role,
-         createdAt: profiles.createdAt,
+         lastLoginAt: profiles.lastLoginAt,
          subscriptionStatus: subscriptions.status,
       })
       .from(profiles)
@@ -26,7 +26,7 @@ async function fetchUsers(): Promise<UserRow[]> {
       firstName: row.firstName,
       lastName: row.lastName,
       role: row.role,
-      createdAt: row.createdAt,
+      lastLoginAt: row.lastLoginAt,
       isActive: row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_ACTIVE,
    }));
 }

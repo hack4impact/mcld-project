@@ -44,6 +44,7 @@ export const profiles = pgTable("profiles", {
    stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   lastLoginAt: timestamp('last_login_at').defaultNow().notNull()
 });
 
 export const services = pgTable("services", {
