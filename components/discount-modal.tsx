@@ -3,6 +3,16 @@
 import * as React from "react";
 import { Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface ActiveDiscount {
   id: string;
@@ -43,12 +53,12 @@ const TABLE_GRID = "grid grid-cols-[2fr_1fr_1fr_1fr_2.5rem]";
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span
+    <Label
       className="text-[0.625rem] font-extrabold text-[#00327d] tracking-[0.6px] uppercase"
       style={{ fontFamily: pjs }}
     >
       {children}
-    </span>
+    </Label>
   );
 }
 
@@ -109,14 +119,16 @@ export function DiscountModal({
               {userEmail}{"  ·  "}{userRole}
             </p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => setIsOpen(false)}
-            className="flex items-center justify-center size-7 rounded-full bg-[#f8f9fa] text-[#191c1d] text-sm font-semibold hover:bg-[#e9ecef] transition-colors shrink-0"
+            className="rounded-full bg-[#f8f9fa] text-[#191c1d] hover:bg-[#e9ecef] shrink-0 text-sm font-semibold"
             style={{ fontFamily: pjs }}
             aria-label="Close"
           >
             ✕
-          </button>
+          </Button>
         </div>
 
         {/* Divider */}
@@ -176,13 +188,15 @@ export function DiscountModal({
                     </span>
                   </div>
                   <div className="flex items-center justify-center h-10">
-                    <button
+                    <Button
+                      variant="destructive"
+                      size="icon-xs"
                       onClick={() => onRemove?.(discount.id)}
-                      className="flex items-center justify-center p-1.5 rounded-full bg-[#fef2f2] hover:bg-red-100 transition-colors"
+                      className="rounded-full bg-[#fef2f2] text-red-500 hover:bg-red-100 hover:text-red-500"
                       aria-label={`Remove discount for ${discount.service}`}
                     >
-                      <Trash2 className="size-3.5 text-red-500" />
-                    </button>
+                      <Trash2 className="size-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))
@@ -202,27 +216,21 @@ export function DiscountModal({
           {/* Service selector */}
           <div className="flex flex-col gap-1 w-full">
             <FieldLabel>Service</FieldLabel>
-            <div className="relative">
-              <select
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                className="appearance-none w-full px-3 py-2 bg-white border border-[#e6eaef] rounded-lg text-xs text-[#3f484c] outline-none focus:border-[#0040a1] transition-colors cursor-pointer pr-7"
+            <Select value={serviceId} onValueChange={setServiceId}>
+              <SelectTrigger
+                className="w-full h-auto px-3 py-2 bg-white border-[#e6eaef] rounded-lg text-xs text-[#3f484c] focus-visible:ring-0 focus-visible:border-[#0040a1]"
                 style={{ fontFamily: lexend, fontWeight: 400 }}
               >
-                <option value="">Select a service</option>
+                <SelectValue placeholder="Select a service" />
+              </SelectTrigger>
+              <SelectContent>
                 {services.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <SelectItem key={s.id} value={s.id} style={{ fontFamily: lexend }}>
                     {s.name}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-              <span
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#3f484c]"
-                style={{ fontFamily: pjs }}
-              >
-                ▾
-              </span>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Discount type + value row */}
@@ -230,43 +238,48 @@ export function DiscountModal({
             <div className="flex flex-col gap-1 flex-1 min-w-0">
               <FieldLabel>Discount Type</FieldLabel>
               <div className="flex items-center p-0.5 bg-[#f8f9fa] border border-[#e6eaef] rounded-lg">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => setDiscountType("percent")}
-                  className={`flex-1 flex items-center justify-center px-4 py-1.5 rounded-md text-xs transition-all ${
+                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "percent"
-                      ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold"
-                      : "text-[#3f484c] font-normal"
+                      ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
+                      : "text-[#3f484c] font-normal hover:bg-transparent hover:text-[#3f484c]"
                   }`}
                   style={{ fontFamily: lexend }}
                 >
                   Percent (%)
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => setDiscountType("amount")}
-                  className={`flex-1 flex items-center justify-center px-4 py-1.5 rounded-md text-xs transition-all ${
+                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "amount"
-                      ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold"
-                      : "text-[#3f484c] font-normal"
+                      ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
+                      : "text-[#3f484c] font-normal hover:bg-transparent hover:text-[#3f484c]"
                   }`}
                   style={{ fontFamily: lexend }}
                 >
                   Amount ($)
-                </button>
+                </Button>
               </div>
             </div>
 
             <div className="flex flex-col gap-1 flex-1 min-w-0">
               <FieldLabel>Value</FieldLabel>
               <div className="flex items-center px-3 py-2 bg-white border border-[#e6eaef] rounded-lg focus-within:border-[#0040a1] transition-colors">
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  onKeyDown={(e) => { if (!/[\d\.]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab"].includes(e.key)) e.preventDefault(); }}
-                  className="text-xs font-semibold text-[#191c1d] bg-transparent outline-none w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  onKeyDown={(e) => {
+                    if (!/[\d.]/.test(e.key) && !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key))
+                      e.preventDefault();
+                  }}
+                  className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   style={{ fontFamily: lexend }}
                 />
                 <span className="text-xs font-semibold text-[#3f484c] ml-1.5 shrink-0" style={{ fontFamily: lexend }}>
@@ -280,13 +293,16 @@ export function DiscountModal({
           <div className="flex flex-col gap-1 w-full">
             <FieldLabel>Usage Limit</FieldLabel>
             <div className="flex items-center px-3 py-2 bg-white border border-[#e6eaef] rounded-lg focus-within:border-[#0040a1] transition-colors">
-              <input
+              <Input
                 type="number"
                 min={1}
                 value={usageLimit}
                 onChange={(e) => setUsageLimit(e.target.value)}
-                onKeyDown={(e) => { if (!/[\d]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab"].includes(e.key)) e.preventDefault(); }}
-                className="text-xs font-semibold text-[#191c1d] bg-transparent outline-none w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                onKeyDown={(e) => {
+                  if (!/[\d]/.test(e.key) && !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key))
+                    e.preventDefault();
+                }}
+                className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 style={{ fontFamily: lexend }}
               />
               <span className="text-xs font-semibold text-[#3f484c] ml-1.5 whitespace-nowrap shrink-0" style={{ fontFamily: lexend }}>
@@ -297,22 +313,23 @@ export function DiscountModal({
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center px-5 py-2 bg-white border border-[#e6eaef] rounded-full text-xs font-bold text-[#191c1d] hover:bg-gray-50 transition-colors"
+              className="h-auto px-5 py-2 rounded-full text-xs font-bold text-[#191c1d] border-[#e6eaef] hover:bg-gray-50"
               style={{ fontFamily: pjs }}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={handleApply}
-              className="flex items-center justify-center px-5 py-2 bg-[#0040a1] rounded-full text-xs font-bold text-white hover:bg-[#003090] transition-colors"
+              className="h-auto px-5 py-2 rounded-full text-xs font-bold bg-[#0040a1] hover:bg-[#003090] text-white"
               style={{ fontFamily: pjs }}
             >
               Apply discount
-            </button>
+            </Button>
           </div>
         </div>
       </DialogContent>
