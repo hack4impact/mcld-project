@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { profiles, subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { Spinner } from "@/components/ui/spinner";
 import { UsersClient } from "./_components/users-client";
 import { profileRoleLabel, type UserRow } from "./profile-role-label";
 import { listDistinctProfileRoles } from "./queries";
@@ -33,7 +34,11 @@ async function fetchUsers(): Promise<UserRow[]> {
 
 export default function UsersPage() {
    return (
-      <Suspense fallback={<UsersPageSkeleton />}>
+      <Suspense
+         fallback={
+            <Spinner className="size-8 text-muted-foreground" />
+         }
+      >
          <UsersContent />
       </Suspense>
    );
@@ -59,19 +64,6 @@ async function UsersContent() {
          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <UsersClient users={users} roleFilterOptions={roleFilterOptions} />
          </div>
-      </main>
-   );
-}
-
-function UsersPageSkeleton() {
-   return (
-      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
-         <div className="h-9 w-24 shrink-0 rounded-md bg-muted animate-pulse" />
-         <div className="flex items-center justify-between gap-4">
-            <div className="h-9 w-64 rounded-md bg-muted animate-pulse" />
-            <div className="h-9 w-40 rounded-md bg-muted animate-pulse" />
-         </div>
-         <div className="h-64 rounded-lg border bg-muted animate-pulse" />
       </main>
    );
 }
