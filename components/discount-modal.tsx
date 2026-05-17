@@ -40,7 +40,7 @@ interface DiscountModalProps {
     usageLimit: number;
   }) => void;
   onRemove?: (id: string) => void;
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
@@ -96,7 +96,7 @@ export function DiscountModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent
         showCloseButton={false}
         className="sm:max-w-xl w-full p-0 gap-0 rounded-[2rem] shadow-[0px_18px_48px_0px_rgba(0,0,0,0.18)] overflow-hidden ring-0 border-0 bg-white"
@@ -104,7 +104,7 @@ export function DiscountModal({
         <DialogTitle className="sr-only">Discounts for {userName}</DialogTitle>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-7 pt-4 pb-3.5 gap-4">
+        <div className="grid grid-cols-[1fr_auto] items-center px-7 pt-4 pb-3.5 gap-4">
           <div className="flex flex-col gap-0.5 min-w-0">
             <h2
               className="text-lg font-extrabold text-[#191c1d] leading-normal truncate"
@@ -116,7 +116,7 @@ export function DiscountModal({
               className="text-xs text-[#3f484c] leading-normal"
               style={{ fontFamily: lexend, fontWeight: 400 }}
             >
-              {userEmail}{"  ·  "}{userRole}
+              {userEmail ? `${userEmail}  ·  ${userRole}` : userRole}
             </p>
           </div>
           <Button
