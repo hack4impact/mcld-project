@@ -24,6 +24,7 @@ type AvailabilityCalendarProps = {
    daysOfWeek: Weekday[];
    startHour: number;
    endHour: number;
+   embedded?: boolean;
    className?: string;
    /** Called when selection changes (merged DB-shaped ranges). */
    onChange?: (slots: TimeSlot[]) => void;
@@ -34,6 +35,7 @@ export function AvailabilityCalendar({
    daysOfWeek,
    startHour,
    endHour,
+   embedded = false,
    className,
    onChange,
 }: AvailabilityCalendarProps) {
@@ -180,12 +182,13 @@ export function AvailabilityCalendar({
    );
 
    return (
-      <div className={cn("mx-auto w-full max-w-6xl space-y-4", className)}>
-         <div className="inline-flex items-center gap-2 rounded-lg border border-[#B8D9F5] bg-[#E8F3FC] px-4 py-2 text-sm text-[#3D7AB8]">
-            <span className="size-2 shrink-0 rounded-full bg-[#5D9CEC]" />
-            Click and drag to highlight your available times in 15-minute blocks
-         </div>
-         <div className="overflow-x-auto rounded-xl border border-[#C5DFF5] bg-card shadow-sm">
+      <div className={cn("mx-auto w-full max-w-6xl", className)}>
+         <div
+            className={cn(
+               "overflow-x-auto bg-card",
+               !embedded && "rounded-xl border border-[#C5DFF5] shadow-sm",
+            )}
+         >
             <div
                className="min-w-[720px]"
                style={{ minWidth: `${Math.max(720, 80 + columnCount * 56)}px` }}
@@ -209,9 +212,9 @@ export function AvailabilityCalendar({
                            <React.Fragment key={`${hour}-${quarter}`}>
                               <div
                                  className={cn(
-                                    "border-r border-[#E2E8F0] pr-2 text-right text-xs font-medium text-muted-foreground",
+                                    "h-4 border-r border-[#E2E8F0] pr-2 text-right text-xs font-medium text-muted-foreground",
                                     quarter === 0
-                                       ? "border-t border-[#E2E8F0] pt-1"
+                                       ? "border-t border-[#E2E8F0]"
                                        : "border-t border-dashed border-[#EEF2F6]",
                                     showHourLabel && "flex items-start justify-end",
                                  )}
