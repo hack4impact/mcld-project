@@ -25,10 +25,8 @@ async function UsersContent() {
       redirect("/");
    }
 
-   const [users, distinctRoles] = await Promise.all([
-      listUsersWithEmails(),
-      listDistinctProfileRoles(),
-   ]);
+   const users = await listUsersWithEmails();
+   const distinctRoles = await listDistinctProfileRoles();
 
    const roleFilterOptions: { value: string; label: string }[] = [
       { value: "all", label: "All Roles" },
