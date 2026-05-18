@@ -246,122 +246,123 @@ export function AvailabilityCalendar({
       <div className={cn("mx-auto w-full max-w-6xl", className)}>
          <div
             className={cn(
-               "overflow-x-auto bg-card",
+               "bg-card",
                !embedded && "rounded-xl border border-[#C5DFF5] shadow-sm",
             )}
          >
-            <div
-               className="min-w-[720px]"
-               style={{ minWidth: `${Math.max(720, 80 + columnCount * 56)}px` }}
-            >
-               <WeekHeaders weeks={weekRanges} gridColumns={gridColumns} />
-               <DayHeaders days={days} gridColumns={gridColumns} />
-
+            <div className="overflow-x-auto">
                <div
-                  ref={gridRef}
-                  className="relative grid touch-none select-none"
-                  style={{ gridTemplateColumns: gridColumns }}
-                  onPointerMove={handleGridPointerMove}
-                  onPointerLeave={() => dragging && setTooltip(null)}
+                  className="min-w-[720px]"
+                  style={{ minWidth: `${Math.max(720, 80 + columnCount * 56)}px` }}
                >
-                  {hours.map((hour) =>
-                     [0, 1, 2, 3].map((quarter) => {
-                        const slotMinute = quarter * SLOT_MINUTES;
-                        const showHourLabel = quarter === 0;
+                  <WeekHeaders weeks={weekRanges} gridColumns={gridColumns} />
+                  <DayHeaders days={days} gridColumns={gridColumns} />
 
-                        return (
-                           <React.Fragment key={`${hour}-${quarter}`}>
-                              <div
-                                 className={cn(
-                                    "sticky left-0 z-20 h-4 bg-card pr-2 text-right text-xs font-medium text-muted-foreground",
-                                    quarter === 0
-                                       ? "border-t border-[#E2E8F0]"
-                                       : "border-t border-dashed border-[#EEF2F6]",
-                                    showHourLabel && "flex items-start justify-end",
-                                 )}
-                                 style={{
-                                    gridRow: "span 1",
-                                    gridColumn: 1,
-                                 }}
-                              >
-                                 {showHourLabel ? formatHourLabel(hour) : null}
-                              </div>
+                  <div
+                     ref={gridRef}
+                     className="relative grid touch-none select-none"
+                     style={{ gridTemplateColumns: gridColumns }}
+                     onPointerMove={handleGridPointerMove}
+                     onPointerLeave={() => dragging && setTooltip(null)}
+                  >
+                     {hours.map((hour) =>
+                        [0, 1, 2, 3].map((quarter) => {
+                           const slotMinute = quarter * SLOT_MINUTES;
+                           const showHourLabel = quarter === 0;
 
-                              {days.map((day, dayIndex) => {
-                                 const slotDate = new Date(day);
-                                 slotDate.setHours(hour, slotMinute, 0, 0);
-                                 const key = slotKey(slotDate);
-                                 const isWeekend =
-                                    day.getDay() === WEEKDAY.sun ||
-                                    day.getDay() === WEEKDAY.sat;
-                                 const isBlocked = isWeekend;
-                                 const isSelected = selected.has(key);
-                                 const isDragPreview =
-                                    dragging && dragVisited.has(key);
-                                 const wasSelectedAtDragStart =
-                                    dragStartSelectedRef.current.has(key);
-                                 const isAddPreview =
-                                    isDragPreview &&
-                                    dragModeRef.current === "add" &&
-                                    !isSelected;
-                                 const isRemovePreview =
-                                    isDragPreview &&
-                                    dragModeRef.current === "remove" &&
-                                    wasSelectedAtDragStart;
+                           return (
+                              <React.Fragment key={`${hour}-${quarter}`}>
+                                 <div
+                                    className={cn(
+                                       "sticky left-0 z-20 h-4 bg-card pr-2 text-right text-xs font-medium text-muted-foreground",
+                                       quarter === 0
+                                          ? "border-t border-[#E2E8F0]"
+                                          : "border-t border-dashed border-[#EEF2F6]",
+                                       showHourLabel && "flex items-start justify-end",
+                                    )}
+                                    style={{
+                                       gridRow: "span 1",
+                                       gridColumn: 1,
+                                    }}
+                                 >
+                                    {showHourLabel ? formatHourLabel(hour) : null}
+                                 </div>
 
-                                 return (
-                                    <button
-                                       key={key}
-                                       type="button"
-                                       data-slot-key={key}
-                                       className={cn(
-                                          "h-4 w-full border-t border-l border-[#E2E8F0] [border-left-style:dashed] transition-colors select-none",
-                                          quarter > 0 &&
-                                             "border-l border-t border-dashed border-[#EEF2F6]",
-                                          isBlocked && "bg-[#D4DCE6]",
-                                          isSelected &&
-                                             "border-[#5D9CEC] bg-[#7EB8E8]",
-                                          isAddPreview &&
-                                             "border border-dashed border-[#5D9CEC] bg-[#D4EBFA]",
-                                          isRemovePreview &&
-                                             "border border-dashed border-[#5D9CEC] bg-[#D4EBFA]",
-                                       )}
-                                       style={{ gridColumn: dayIndex + 2 }}
-                                       disabled={isBlocked}
-                                       data-slot-disabled={isBlocked ? "true" : undefined}
-                                       onPointerDown={(e) =>
-                                          handleSlotPointerDown(e, key)
-                                       }
-                                       aria-pressed={isSelected}
-                                       aria-disabled={isBlocked}
-                                       aria-label={formatSlotAriaLabel(
-                                          day,
-                                          hour,
-                                          slotMinute,
-                                       )}
-                                    />
-                                 );
-                              })}
-                           </React.Fragment>
-                        );
-                     }),
-                  )}
+                                 {days.map((day, dayIndex) => {
+                                    const slotDate = new Date(day);
+                                    slotDate.setHours(hour, slotMinute, 0, 0);
+                                    const key = slotKey(slotDate);
+                                    const isWeekend =
+                                       day.getDay() === WEEKDAY.sun ||
+                                       day.getDay() === WEEKDAY.sat;
+                                    const isBlocked = isWeekend;
+                                    const isSelected = selected.has(key);
+                                    const isDragPreview =
+                                       dragging && dragVisited.has(key);
+                                    const wasSelectedAtDragStart =
+                                       dragStartSelectedRef.current.has(key);
+                                    const isAddPreview =
+                                       isDragPreview &&
+                                       dragModeRef.current === "add" &&
+                                       !isSelected;
+                                    const isRemovePreview =
+                                       isDragPreview &&
+                                       dragModeRef.current === "remove" &&
+                                       wasSelectedAtDragStart;
 
-                  {tooltip && dragging ? (
-                     <div
-                        className="pointer-events-none fixed z-50 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
-                        style={{
-                           left: "50%",
-                           top: "40%",
-                            transform: "translate(-50%, -100%)",
-                        }}
-                     >
-                        {tooltip.text}
-                     </div>
-                  ) : null}
+                                    return (
+                                       <button
+                                          key={key}
+                                          type="button"
+                                          data-slot-key={key}
+                                          className={cn(
+                                             "h-4 w-full border-t border-l border-[#E2E8F0] [border-left-style:dashed] transition-colors select-none",
+                                             quarter > 0 &&
+                                                "border-l border-t border-dashed border-[#EEF2F6]",
+                                             isBlocked && "bg-[#D4DCE6]",
+                                             isSelected &&
+                                                "border-[#5D9CEC] bg-[#7EB8E8]",
+                                             isAddPreview &&
+                                                "border border-dashed border-[#5D9CEC] bg-[#D4EBFA]",
+                                             isRemovePreview &&
+                                                "border border-dashed border-[#5D9CEC] bg-[#D4EBFA]",
+                                          )}
+                                          style={{ gridColumn: dayIndex + 2 }}
+                                          disabled={isBlocked}
+                                          data-slot-disabled={isBlocked ? "true" : undefined}
+                                          onPointerDown={(e) =>
+                                             handleSlotPointerDown(e, key)
+                                          }
+                                          aria-pressed={isSelected}
+                                          aria-disabled={isBlocked}
+                                          aria-label={formatSlotAriaLabel(
+                                             day,
+                                             hour,
+                                             slotMinute,
+                                          )}
+                                       />
+                                    );
+                                 })}
+                              </React.Fragment>
+                           );
+                        }),
+                     )}
+
+                     {tooltip && dragging ? (
+                        <div
+                           className="pointer-events-none fixed z-50 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
+                           style={{
+                              left: "50%",
+                              top: "40%",
+                              transform: "translate(-50%, -100%)",
+                           }}
+                        >
+                           {tooltip.text}
+                        </div>
+                     ) : null}
+                  </div>
                </div>
             </div>
-
             <footer className="flex flex-col gap-4 border-t border-[#E2E8F0] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                   <span className="font-semibold tracking-wider text-foreground/70">
