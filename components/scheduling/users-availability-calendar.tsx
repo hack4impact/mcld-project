@@ -38,16 +38,19 @@ export function AvailabilityCalendar({
    className,
    onChange,
 }: AvailabilityCalendarProps) {
-   const daysKey = daysOfWeek.join(",");
    const { weeks: weekRanges, days } = React.useMemo(
       () => buildCalendarRange({ weeks, daysOfWeek }),
-      [weeks, daysKey, daysOfWeek],
+      [weeks, daysOfWeek],
    );
    const columnCount = days.length;
    const gridColumns = `4.5rem repeat(${columnCount}, minmax(0, 1fr))`;
    const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
    const [dragging, setDragging] = React.useState(false);
+   const [dragMode, setDragMode] = React.useState<"add" | "remove">("add");
    const [dragVisited, setDragVisited] = React.useState<Set<string>>(
+      () => new Set(),
+   );
+   const [dragStartSelected, setDragStartSelected] = React.useState<Set<string>>(
       () => new Set(),
    );
    const [tooltip, setTooltip] = React.useState<{
@@ -60,7 +63,6 @@ export function AvailabilityCalendar({
    const draggingRef = React.useRef(false);
    const dragModeRef = React.useRef<"add" | "remove">("add");
    const activePointerIdRef = React.useRef<number | null>(null);
-   const dragStartSelectedRef = React.useRef<Set<string>>(new Set());
    const dragVisitedRef = React.useRef<Set<string>>(new Set());
    const dragStartKeyRef = React.useRef<string | null>(null);
    const dragCurrentKeyRef = React.useRef<string | null>(null);
@@ -166,7 +168,8 @@ export function AvailabilityCalendar({
 
          draggingRef.current = true;
          dragModeRef.current = mode;
-         dragStartSelectedRef.current = new Set(selected);
+         setDragMode(mode);
+         setDragStartSelected(new Set(selected));
          dragVisitedRef.current = new Set();
          dragStartKeyRef.current = key;
          dragCurrentKeyRef.current = null;
@@ -209,7 +212,7 @@ export function AvailabilityCalendar({
             }
          }
          activePointerIdRef.current = null;
-         dragStartSelectedRef.current = new Set();
+         setDragStartSelected(new Set());
          dragVisitedRef.current = new Set();
          dragStartKeyRef.current = null;
          dragCurrentKeyRef.current = null;
@@ -300,14 +303,14 @@ export function AvailabilityCalendar({
                                     const isDragPreview =
                                        dragging && dragVisited.has(key);
                                     const wasSelectedAtDragStart =
-                                       dragStartSelectedRef.current.has(key);
+                                       dragStartSelected.has(key);
                                     const isAddPreview =
                                        isDragPreview &&
-                                       dragModeRef.current === "add" &&
+                                       dragMode === "add" &&
                                        !isSelected;
                                     const isRemovePreview =
                                        isDragPreview &&
-                                       dragModeRef.current === "remove" &&
+                                       dragMode === "remove" &&
                                        wasSelectedAtDragStart;
 
                                     return (
