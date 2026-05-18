@@ -1,8 +1,32 @@
 export type TimeSlot = { start: string; end: string };
 
 export const SLOT_MINUTES = 15;
-export const DAY_START_HOUR = 8;
-export const DAY_END_HOUR = 20;
+
+export const WEEKDAY = {
+   sun: 0,
+   mon: 1,
+   tue: 2,
+   wed: 3,
+   thu: 4,
+   fri: 5,
+   sat: 6,
+} as const;
+
+export type Weekday = keyof typeof WEEKDAY;
+
+export type CalendarDaysConfig = {
+   /** Number of 7-day periods starting from today (or `anchor`). */
+   weeks: number;
+   /** Which weekdays appear as columns (e.g. `['mon', 'tue', 'wed', 'thu', 'fri']`). */
+   daysOfWeek: Weekday[];
+   /** Defaults to today at local midnight. */
+   anchor?: Date;
+};
+
+export type CalendarRange = {
+   weeks: Date[][];
+   days: Date[];
+};
 
 export function slotKey(date: Date): string {
    return date.toISOString();
@@ -37,13 +61,23 @@ export function getSlotKeysBetween(fromKey: string, toKey: string): string[] {
    return keys;
 }
 
-export function buildDaySlots(day: Date): Date[] {
+export function buildHourRange(startHour: number, endHour: number): number[] {
+   const hours: number[] = [];
+   for (let h = startHour; h < endHour; h++) hours.push(h);
+   return hours;
+}
+
+export function buildDaySlots(
+   day: Date,
+   startHour: number,
+   endHour: number,
+): Date[] {
    const slots: Date[] = [];
    const base = new Date(day);
-   base.setHours(DAY_START_HOUR, 0, 0, 0);
+   base.setHours(startHour, 0, 0, 0);
 
    const end = new Date(day);
-   end.setHours(DAY_END_HOUR, 0, 0, 0);
+   end.setHours(endHour, 0, 0, 0);
 
    for (let t = base.getTime(); t < end.getTime(); t += SLOT_MINUTES * 60_000) {
       slots.push(new Date(t));
@@ -117,46 +151,31 @@ export function formatTimeRange(start: Date, end: Date): string {
    return `${fmt(start)} – ${fmt(end)}`;
 }
 
-export function getTwoWeekRange(anchor = new Date()): {
-   days: Date[];
-   week1: Date[];
-   week2: Date[];
-   label: string;
-} {
-   const start = startOfWeekMonday(anchor);
-   const days = Array.from({ length: 14 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d;
-   });
-
-   const week1 = days.slice(0, 7);
-   const week2 = days.slice(7, 14);
-   const year = week2[6]!.getFullYear();
-   const label = `${formatRangeDate(week1[0]!)} – ${formatRangeDate(week2[6]!, false)}, ${year}`;
-
-   return { days, week1, week2, label };
+export function normalizeWeekdays(daysOfWeek: Weekday[]): number[] {
+   return daysOfWeek.map((day) => WEEKDAY[day]);
 }
 
-function startOfWeekMonday(date: Date): Date {
+export function buildCalendarRange(config: CalendarDaysConfig): CalendarRange {
+   const { weeks: weekCount, daysOfWeek, anchor } = config;
+   const allowed = new Set(normalizeWeekdays(daysOfWeek));
+   const start = startOfDay(anchor ?? new Date());
+   const weeks: Date[][] = [];
+
+   for (let w = 0; w < weekCount; w++) {
+      const weekDays: Date[] = [];
+      for (let d = 0; d < 7; d++) {
+         const date = new Date(start);
+         date.setDate(start.getDate() + w * 7 + d);
+         if (allowed.has(date.getDay())) weekDays.push(date);
+      }
+      weeks.push(weekDays);
+   }
+
+   return { weeks, days: weeks.flat() };
+}
+
+function startOfDay(date: Date): Date {
    const d = new Date(date);
    d.setHours(0, 0, 0, 0);
-   const day = d.getDay();
-   const diff = day === 0 ? -6 : 1 - day;
-   d.setDate(d.getDate() + diff);
    return d;
-}
-
-const RANGE_DATE_LOCALE = "en-US";
-
-function formatRangeDate(date: Date, monthOnly = true): string {
-   if (monthOnly) {
-      return date
-         .toLocaleDateString(RANGE_DATE_LOCALE, {
-            month: "short",
-            day: "numeric",
-         })
-         .toUpperCase();
-   }
-   return String(date.getDate());
 }

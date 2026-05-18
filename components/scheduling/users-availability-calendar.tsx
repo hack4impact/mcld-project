@@ -1,38 +1,49 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-   DAY_END_HOUR,
-   DAY_START_HOUR,
+   buildCalendarRange,
+   buildHourRange,
    formatHourLabel,
    formatSlotAriaLabel,
    formatTimeRange,
    getSlotKeysBetween,
-   getTwoWeekRange,
    keysToTimeSlots,
    slotKey,
    SLOT_MINUTES,
+   WEEKDAY,
    type TimeSlot,
+   type Weekday,
 } from "@/lib/scheduling/time-slot";
 
-const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
 type AvailabilityCalendarProps = {
+   weeks: number;
+   daysOfWeek: Weekday[];
+   startHour: number;
+   endHour: number;
    className?: string;
    /** Called when selection changes (merged DB-shaped ranges). */
    onChange?: (slots: TimeSlot[]) => void;
 };
 
 export function AvailabilityCalendar({
+   weeks,
+   daysOfWeek,
+   startHour,
+   endHour,
    className,
    onChange,
 }: AvailabilityCalendarProps) {
-   const { days, week1, week2, label } = React.useMemo(
-      () => getTwoWeekRange(),
-      [],
+   const daysKey = daysOfWeek.join(",");
+   const { weeks: weekRanges, days } = React.useMemo(
+      () => buildCalendarRange({ weeks, daysOfWeek }),
+      [weeks, daysKey, daysOfWeek],
    );
+   const columnCount = days.length;
+   const gridColumns = `4.5rem repeat(${columnCount}, minmax(0, 1fr))`;
    const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
    const [dragging, setDragging] = React.useState(false);
    const [dragVisited, setDragVisited] = React.useState<Set<string>>(
@@ -163,47 +174,29 @@ export function AvailabilityCalendar({
    const slotCount = selected.size;
    const hoursTotal = (slotCount * SLOT_MINUTES) / 60;
 
-   const hours = React.useMemo(() => {
-      const list: number[] = [];
-      for (let h = DAY_START_HOUR; h < DAY_END_HOUR; h++) list.push(h);
-      return list;
-   }, []);
+   const hours = React.useMemo(
+      () => buildHourRange(startHour, endHour),
+      [startHour, endHour],
+   );
 
    return (
       <div className={cn("mx-auto w-full max-w-6xl space-y-4", className)}>
-         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-               <div className="inline-flex items-center gap-2 rounded-lg border border-[#B8D9F5] bg-[#E8F3FC] px-4 py-2 text-sm text-[#3D7AB8]">
-                  <span className="size-2 shrink-0 rounded-full bg-[#5D9CEC]" />
-                  Click and drag to highlight your available times in 15-minute
-                  blocks
-               </div>
-            </div>
-            <div className="flex items-center gap-2">
-               <button
-                  type="button"
-                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground"
-               >
-                  This Week
-                  <ChevronDown className="size-4" />
-               </button>
-               <div className="rounded-lg border border-border bg-muted/40 px-4 py-2 text-sm font-semibold tracking-wide text-foreground">
-                  {label}
-               </div>
-            </div>
-         </header>
-
+         <div className="inline-flex items-center gap-2 rounded-lg border border-[#B8D9F5] bg-[#E8F3FC] px-4 py-2 text-sm text-[#3D7AB8]">
+            <span className="size-2 shrink-0 rounded-full bg-[#5D9CEC]" />
+            Click and drag to highlight your available times in 15-minute blocks
+         </div>
          <div className="overflow-x-auto rounded-xl border border-[#C5DFF5] bg-card shadow-sm">
-            <div className="min-w-[900px]">
-               <WeekHeaders week1={week1} week2={week2} />
-               <DayHeaders week1={week1} week2={week2} />
+            <div
+               className="min-w-[720px]"
+               style={{ minWidth: `${Math.max(720, 80 + columnCount * 56)}px` }}
+            >
+               <WeekHeaders weeks={weekRanges} gridColumns={gridColumns} />
+               <DayHeaders days={days} gridColumns={gridColumns} />
 
                <div
                   ref={gridRef}
                   className="relative grid touch-none select-none"
-                  style={{
-                     gridTemplateColumns: `4.5rem repeat(14, minmax(0, 1fr))`,
-                  }}
+                  style={{ gridTemplateColumns: gridColumns }}
                   onPointerMove={handleGridPointerMove}
                   onPointerLeave={() => dragging && setTooltip(null)}
                >
@@ -235,7 +228,8 @@ export function AvailabilityCalendar({
                                  slotDate.setHours(hour, slotMinute, 0, 0);
                                  const key = slotKey(slotDate);
                                  const isWeekend =
-                                    day.getDay() === 0 || day.getDay() === 6;
+                                    day.getDay() === WEEKDAY.sun ||
+                                    day.getDay() === WEEKDAY.sat;
                                  const isSelected = selected.has(key);
                                  const isDragPreview =
                                     dragging && dragVisited.has(key);
@@ -320,69 +314,75 @@ export function AvailabilityCalendar({
    );
 }
 
-function WeekHeaders({
-   week1,
-   week2,
-}: {
-   week1: Date[];
-   week2: Date[];
-}) {
-   const fmt = (days: Date[]) => {
-      const a = days[0]!;
-      const b = days[6]!;
-      const range = `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}–${b.getDate()}`;
-      return range;
-   };
+function formatWeekRange(days: Date[]): string {
+   if (days.length === 0) return "";
+   const a = days[0]!;
+   const b = days[days.length - 1]!;
+   return `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}–${b.getDate()}`;
+}
 
+function WeekHeaders({
+   weeks,
+   gridColumns,
+}: {
+   weeks: Date[][];
+   gridColumns: string;
+}) {
    return (
       <div
          className="grid border-b border-[#C5DFF5] text-xs font-bold tracking-wide text-[#4A8FD4]"
-         style={{ gridTemplateColumns: `4.5rem repeat(14, minmax(0, 1fr))` }}
+         style={{ gridTemplateColumns: gridColumns }}
       >
          <div />
-         <div className="col-span-7 border-r-2 border-[#5D9CEC] bg-[#E8F3FC] py-2 pl-3 text-left">
-            WEEK 1 · {fmt(week1)}
-         </div>
-         <div className="col-span-7 bg-[#D4EBFA] py-2 pl-3 text-left">
-            WEEK 2 · {fmt(week2)}
-         </div>
+         {weeks.map((weekDays, index) => (
+            <div
+               key={index}
+               className={cn(
+                  "py-2 pl-3 text-left",
+                  index % 2 === 0 ? "bg-[#E8F3FC]" : "bg-[#D4EBFA]",
+                  index < weeks.length - 1 && "border-r-2 border-[#5D9CEC]",
+               )}
+               style={{ gridColumn: `span ${weekDays.length}` }}
+            >
+               WEEK {index + 1} · {formatWeekRange(weekDays)}
+            </div>
+         ))}
       </div>
    );
 }
 
-function DayHeaders({ week1, week2 }: { week1: Date[]; week2: Date[] }) {
-   const renderWeek = (days: Date[]) =>
-      days.map((day) => {
-         const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-         const dayIndex = (day.getDay() + 6) % 7;
-         return (
-            <div
-               key={day.toISOString()}
-               className={cn(
-                  "border-b border-l border-[#E2E8F0] py-2 text-center",
-                  isWeekend
-                     ? "bg-muted/70 text-muted-foreground"
-                     : "bg-card text-foreground",
-               )}
-            >
-               <div className="text-[10px] font-bold tracking-wider">
-                  {DAY_LABELS[dayIndex]}
-               </div>
-               <div className="text-lg font-bold leading-none">
-                  {day.getDate()}
-               </div>
-            </div>
-         );
-      });
-
+function DayHeaders({
+   days,
+   gridColumns,
+}: {
+   days: Date[];
+   gridColumns: string;
+}) {
    return (
-      <div
-         className="grid"
-         style={{ gridTemplateColumns: `4.5rem repeat(14, minmax(0, 1fr))` }}
-      >
+      <div className="grid" style={{ gridTemplateColumns: gridColumns }}>
          <div />
-         {renderWeek(week1)}
-         {renderWeek(week2)}
+         {days.map((day) => {
+            const isWeekend =
+               day.getDay() === WEEKDAY.sun || day.getDay() === WEEKDAY.sat;
+            return (
+               <div
+                  key={day.toISOString()}
+                  className={cn(
+                     "border-b border-l border-[#E2E8F0] py-2 text-center",
+                     isWeekend
+                        ? "bg-muted/70 text-muted-foreground"
+                        : "bg-card text-foreground",
+                  )}
+               >
+                  <div className="text-[10px] font-bold tracking-wider">
+                     {DAY_LABELS[day.getDay()]}
+                  </div>
+                  <div className="text-lg font-bold leading-none">
+                     {day.getDate()}
+                  </div>
+               </div>
+            );
+         })}
       </div>
    );
 }
