@@ -212,7 +212,7 @@ export function AvailabilityCalendar({
                            <React.Fragment key={`${hour}-${quarter}`}>
                               <div
                                  className={cn(
-                                    "h-4 border-r border-[#E2E8F0] pr-2 text-right text-xs font-medium text-muted-foreground",
+                                    "h-4 pr-2 text-right text-xs font-medium text-muted-foreground",
                                     quarter === 0
                                        ? "border-t border-[#E2E8F0]"
                                        : "border-t border-dashed border-[#EEF2F6]",
@@ -243,9 +243,9 @@ export function AvailabilityCalendar({
                                        type="button"
                                        data-slot-key={key}
                                        className={cn(
-                                          "h-4 w-full border-t border-l border-[#E2E8F0] transition-colors select-none",
+                                          "h-4 w-full border-t border-l border-[#E2E8F0] [border-left-style:dashed] transition-colors select-none",
                                           quarter > 0 &&
-                                             "border-t border-dashed border-[#EEF2F6]",
+                                             "border-l border-t border-dashed border-[#EEF2F6]",
                                           isWeekend && "bg-muted/80",
                                           isSelected &&
                                              "border-[#5D9CEC] bg-[#7EB8E8]",
