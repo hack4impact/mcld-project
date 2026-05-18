@@ -278,14 +278,16 @@ function WeekHeaders({
 
    return (
       <div
-         className="grid border-b border-[#C5DFF5] bg-[#F8FBFE] text-center text-xs font-bold tracking-wide text-[#4A8FD4]"
+         className="grid border-b border-[#C5DFF5] text-xs font-bold tracking-wide text-[#4A8FD4]"
          style={{ gridTemplateColumns: `4.5rem repeat(14, minmax(0, 1fr))` }}
       >
          <div />
-         <div className="col-span-7 border-r-2 border-[#5D9CEC] py-2">
+         <div className="col-span-7 border-r-2 border-[#5D9CEC] bg-[#E8F3FC] py-2 pl-3 text-left">
             WEEK 1 · {fmt(week1)}
          </div>
-         <div className="col-span-7 py-2">WEEK 2 · {fmt(week2)}</div>
+         <div className="col-span-7 bg-[#D4EBFA] py-2 pl-3 text-left">
+            WEEK 2 · {fmt(week2)}
+         </div>
       </div>
    );
 }
