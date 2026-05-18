@@ -17,7 +17,7 @@ export type Weekday = keyof typeof WEEKDAY;
 export type CalendarDaysConfig = {
    weeks: number;
    daysOfWeek: Weekday[];
-   anchor?: Date;
+   anchor: Date;
 };
 
 export type CalendarRange = {
@@ -31,30 +31,6 @@ export function slotKey(date: Date): string {
 
 export function parseSlotKey(key: string): Date {
    return new Date(key);
-}
-
-function isSameLocalDay(a: Date, b: Date): boolean {
-   return (
-      a.getFullYear() === b.getFullYear() &&
-      a.getMonth() === b.getMonth() &&
-      a.getDate() === b.getDate()
-   );
-}
-
-export function getSlotKeysBetween(fromKey: string, toKey: string): string[] {
-   const from = parseSlotKey(fromKey);
-   const to = parseSlotKey(toKey);
-   if (!isSameLocalDay(from, to)) return [toKey];
-
-   const startMs = Math.min(from.getTime(), to.getTime());
-   const endMs = Math.max(from.getTime(), to.getTime());
-   const step = SLOT_MINUTES * 60_000;
-   const keys: string[] = [];
-
-   for (let t = startMs; t <= endMs; t += step) {
-      keys.push(slotKey(new Date(t)));
-   }
-   return keys;
 }
 
 export function buildHourRange(startHour: number, endHour: number): number[] {
@@ -114,6 +90,19 @@ export function keysToTimeSlots(keys: Iterable<string>): TimeSlot[] {
    return ranges;
 }
 
+export function timeSlotsToKeys(slots: TimeSlot[]): string[] {
+   const keys: string[] = [];
+   const step = SLOT_MINUTES * 60_000;
+   for (const slot of slots) {
+      const start = new Date(slot.start).getTime();
+      const end = new Date(slot.end).getTime();
+      for (let t = start; t < end; t += step) {
+         keys.push(new Date(t).toISOString());
+      }
+   }
+   return keys;
+}
+
 export function addMinutes(date: Date, minutes: number): Date {
    return new Date(date.getTime() + minutes * 60_000);
 }
@@ -125,15 +114,14 @@ export function formatHourLabel(hour: number): string {
    return `${hour - 12} PM`;
 }
 
-export function formatSlotAriaLabel(
-   date: Date,
-   hour: number,
-   minutes: number,
-): string {
-   const y = date.getFullYear();
-   const mo = String(date.getMonth() + 1).padStart(2, "0");
-   const d = String(date.getDate()).padStart(2, "0");
-   return `${y}-${mo}-${d} ${formatHourLabel(hour)} ${minutes} minutes`;
+export function formatSlotAriaLabel(date: Date): string {
+   return date.toLocaleString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+   });
 }
 
 export function formatTimeRange(start: Date, end: Date): string {
@@ -152,7 +140,7 @@ export function normalizeWeekdays(daysOfWeek: Weekday[]): number[] {
 export function buildCalendarRange(config: CalendarDaysConfig): CalendarRange {
    const { weeks: weekCount, daysOfWeek, anchor } = config;
    const allowed = new Set(normalizeWeekdays(daysOfWeek));
-   const start = startOfDay(anchor ?? new Date());
+   const start = startOfDay(anchor);
    const weeks: Date[][] = [];
 
    for (let w = 0; w < weekCount; w++) {

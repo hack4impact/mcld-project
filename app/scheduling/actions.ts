@@ -29,7 +29,11 @@ const selectAvailabilitiesSchema = z.object({
    time_slots: z
       .array(timeSlotSchema)
       .min(1, "At least one time slot is required")
-      .max(50,"You can select up to 50 time slots")
+      .max(50,"You can select up to 50 time slots"),
+   notes: z
+      .string()
+      .max(2000, "Message must be 2000 characters or fewer")
+      .optional(),
 });
 
 const selectTimeSlotSchema = z.object({
@@ -120,9 +124,14 @@ export async function selectAvailabilities(
       return {errors: {time_slots: ["Invalid time slots format"]}};
    }
 
+   const rawNotes = formData.get("notes");
    const parsed = selectAvailabilitiesSchema.safeParse({
       session_id: formData.get("session_id")?.toString(),
-      time_slots: rawTimeSlots
+      time_slots: rawTimeSlots,
+      notes:
+         typeof rawNotes === "string" && rawNotes.trim().length > 0
+            ? rawNotes
+            : undefined,
    })
 
    if (!parsed.success) {
@@ -131,6 +140,7 @@ export async function selectAvailabilities(
 
    const sessionId = parsed.data.session_id;
    const timeSlots = parsed.data.time_slots.map(normalizeSlots)
+   const notes = parsed.data.notes ?? null;
 
    // 3. Authorization: caller must be the coach or user on this session
    const result = await getAuthorizedSession(sessionId, callerId);
@@ -153,6 +163,7 @@ export async function selectAvailabilities(
          .update(coachingSessions)
          .set({
             selectedTimeSlots: timeSlots,
+            notes,
             updatedAt: new Date(),
          })
          .where(eq(coachingSessions.id, sessionId));
