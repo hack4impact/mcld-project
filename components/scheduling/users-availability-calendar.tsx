@@ -63,6 +63,11 @@ export function AvailabilityCalendar({
    const lastSlotRef = React.useRef<string | null>(null);
    const activePointerIdRef = React.useRef<number | null>(null);
 
+   const isBlockedSlotKey = React.useCallback((key: string) => {
+      const day = new Date(key).getDay();
+      return day === WEEKDAY.sun || day === WEEKDAY.sat;
+   }, []);
+
    React.useEffect(() => {
       onChange?.(keysToTimeSlots(selected));
    }, [selected, onChange]);
@@ -73,6 +78,7 @@ export function AvailabilityCalendar({
          setSelected((prev) => {
             const next = new Set(prev);
             for (const k of keys) {
+               if (isBlockedSlotKey(k)) continue;
                if (mode === "add") next.add(k);
                else next.delete(k);
             }
@@ -80,11 +86,14 @@ export function AvailabilityCalendar({
          });
          setDragVisited((prev) => {
             const next = new Set(prev);
-            for (const k of keys) next.add(k);
+            for (const k of keys) {
+               if (isBlockedSlotKey(k)) continue;
+               next.add(k);
+            }
             return next;
          });
       },
-      [],
+      [isBlockedSlotKey],
    );
 
    const visitSlot = React.useCallback(
@@ -105,6 +114,7 @@ export function AvailabilityCalendar({
    const getSlotKeyFromPoint = React.useCallback((x: number, y: number) => {
       const el = document.elementFromPoint(x, y);
       const slot = el?.closest<HTMLElement>("[data-slot-key]");
+      if (slot?.dataset.slotDisabled === "true") return null;
       return slot?.dataset.slotKey ?? null;
    }, []);
 
@@ -233,6 +243,7 @@ export function AvailabilityCalendar({
                                  const isWeekend =
                                     day.getDay() === WEEKDAY.sun ||
                                     day.getDay() === WEEKDAY.sat;
+                                 const isBlocked = isWeekend;
                                  const isSelected = selected.has(key);
                                  const isDragPreview =
                                     dragging && dragVisited.has(key);
@@ -246,7 +257,7 @@ export function AvailabilityCalendar({
                                           "h-4 w-full border-t border-l border-[#E2E8F0] [border-left-style:dashed] transition-colors select-none",
                                           quarter > 0 &&
                                              "border-l border-t border-dashed border-[#EEF2F6]",
-                                          isWeekend && "bg-muted/80",
+                                          isBlocked && "bg-[#D4DCE6]",
                                           isSelected &&
                                              "border-[#5D9CEC] bg-[#7EB8E8]",
                                           isDragPreview &&
@@ -257,10 +268,13 @@ export function AvailabilityCalendar({
                                              "border border-dashed border-[#3D7AB8] bg-[#7EB8E8]",
                                        )}
                                        style={{ gridColumn: dayIndex + 2 }}
+                                       disabled={isBlocked}
+                                       data-slot-disabled={isBlocked ? "true" : undefined}
                                        onPointerDown={(e) =>
                                           handleSlotPointerDown(e, key)
                                        }
                                        aria-pressed={isSelected}
+                                       aria-disabled={isBlocked}
                                        aria-label={formatSlotAriaLabel(
                                           day,
                                           hour,
@@ -295,7 +309,7 @@ export function AvailabilityCalendar({
                      YOUR SELECTIONS:
                   </span>
                   <LegendItem
-                     className="border border-[#E2E8F0] bg-card"
+                     className="border border-[#B6C1CF] bg-[#D4DCE6]"
                      label="Not available"
                   />
                   <LegendItem
@@ -373,7 +387,7 @@ function DayHeaders({
                   className={cn(
                      "border-b border-l border-[#E2E8F0] py-2 text-center",
                      isWeekend
-                        ? "bg-muted/70 text-muted-foreground"
+                           ? "bg-[#CDD6E1] text-foreground/70"
                         : "bg-card text-foreground",
                   )}
                >
