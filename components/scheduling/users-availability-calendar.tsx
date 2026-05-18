@@ -273,7 +273,7 @@ export function AvailabilityCalendar({
                            <React.Fragment key={`${hour}-${quarter}`}>
                               <div
                                  className={cn(
-                                    "h-4 pr-2 text-right text-xs font-medium text-muted-foreground",
+                                    "sticky left-0 z-20 h-4 bg-card pr-2 text-right text-xs font-medium text-muted-foreground",
                                     quarter === 0
                                        ? "border-t border-[#E2E8F0]"
                                        : "border-t border-dashed border-[#EEF2F6]",
@@ -409,7 +409,7 @@ function WeekHeaders({
          className="grid border-b border-[#C5DFF5] text-xs font-bold tracking-wide text-[#4A8FD4]"
          style={{ gridTemplateColumns: gridColumns }}
       >
-         <div />
+         <div className="sticky left-0 z-30 bg-card" />
          {weeks.map((weekDays, index) => (
             <div
                key={index}
@@ -436,7 +436,7 @@ function DayHeaders({
 }) {
    return (
       <div className="grid" style={{ gridTemplateColumns: gridColumns }}>
-         <div />
+         <div className="sticky left-0 z-30 bg-card" />
          {days.map((day) => {
             const isWeekend =
                day.getDay() === WEEKDAY.sun || day.getDay() === WEEKDAY.sat;
