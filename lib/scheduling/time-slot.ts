@@ -12,6 +12,31 @@ export function parseSlotKey(key: string): Date {
    return new Date(key);
 }
 
+function isSameLocalDay(a: Date, b: Date): boolean {
+   return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+   );
+}
+
+/** Inclusive slot keys between two times on the same local day (for fast drag fill). */
+export function getSlotKeysBetween(fromKey: string, toKey: string): string[] {
+   const from = parseSlotKey(fromKey);
+   const to = parseSlotKey(toKey);
+   if (!isSameLocalDay(from, to)) return [toKey];
+
+   const startMs = Math.min(from.getTime(), to.getTime());
+   const endMs = Math.max(from.getTime(), to.getTime());
+   const step = SLOT_MINUTES * 60_000;
+   const keys: string[] = [];
+
+   for (let t = startMs; t <= endMs; t += step) {
+      keys.push(slotKey(new Date(t)));
+   }
+   return keys;
+}
+
 export function buildDaySlots(day: Date): Date[] {
    const slots: Date[] = [];
    const base = new Date(day);
@@ -71,6 +96,18 @@ export function formatHourLabel(hour: number): string {
    return `${hour - 12} PM`;
 }
 
+/** Stable aria-label text (avoids locale-dependent SSR hydration mismatches). */
+export function formatSlotAriaLabel(
+   date: Date,
+   hour: number,
+   minutes: number,
+): string {
+   const y = date.getFullYear();
+   const mo = String(date.getMonth() + 1).padStart(2, "0");
+   const d = String(date.getDate()).padStart(2, "0");
+   return `${y}-${mo}-${d} ${formatHourLabel(hour)} ${minutes} minutes`;
+}
+
 export function formatTimeRange(start: Date, end: Date): string {
    const fmt = (d: Date) =>
       d.toLocaleTimeString(undefined, {
@@ -110,10 +147,15 @@ function startOfWeekMonday(date: Date): Date {
    return d;
 }
 
+const RANGE_DATE_LOCALE = "en-US";
+
 function formatRangeDate(date: Date, monthOnly = true): string {
    if (monthOnly) {
       return date
-         .toLocaleDateString(undefined, { month: "short", day: "numeric" })
+         .toLocaleDateString(RANGE_DATE_LOCALE, {
+            month: "short",
+            day: "numeric",
+         })
          .toUpperCase();
    }
    return String(date.getDate());

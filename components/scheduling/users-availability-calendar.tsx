@@ -7,7 +7,9 @@ import {
    DAY_END_HOUR,
    DAY_START_HOUR,
    formatHourLabel,
+   formatSlotAriaLabel,
    formatTimeRange,
+   getSlotKeysBetween,
    getTwoWeekRange,
    keysToTimeSlots,
    slotKey,
@@ -33,7 +35,6 @@ export function AvailabilityCalendar({
    );
    const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
    const [dragging, setDragging] = React.useState(false);
-   const [dragMode, setDragMode] = React.useState<"add" | "remove">("add");
    const [dragVisited, setDragVisited] = React.useState<Set<string>>(
       () => new Set(),
    );
@@ -43,47 +44,101 @@ export function AvailabilityCalendar({
       y: number;
    } | null>(null);
 
-   const notifyChange = React.useCallback(
-      (next: Set<string>) => {
-         onChange?.(keysToTimeSlots(next));
-      },
-      [onChange],
-   );
+   const gridRef = React.useRef<HTMLDivElement>(null);
+   const draggingRef = React.useRef(false);
+   const dragModeRef = React.useRef<"add" | "remove">("add");
+   const lastSlotRef = React.useRef<string | null>(null);
+   const activePointerIdRef = React.useRef<number | null>(null);
 
-   const applyToSlot = React.useCallback(
-      (key: string, mode: "add" | "remove") => {
+   React.useEffect(() => {
+      onChange?.(keysToTimeSlots(selected));
+   }, [selected, onChange]);
+
+   const applySlots = React.useCallback(
+      (keys: string[], mode: "add" | "remove") => {
+         if (keys.length === 0) return;
          setSelected((prev) => {
             const next = new Set(prev);
-            if (mode === "add") next.add(key);
-            else next.delete(key);
-            notifyChange(next);
+            for (const k of keys) {
+               if (mode === "add") next.add(k);
+               else next.delete(k);
+            }
+            return next;
+         });
+         setDragVisited((prev) => {
+            const next = new Set(prev);
+            for (const k of keys) next.add(k);
             return next;
          });
       },
-      [notifyChange],
+      [],
    );
 
-   const handlePointerDown = (key: string) => {
-      const mode = selected.has(key) ? "remove" : "add";
-      setDragging(true);
-      setDragMode(mode);
-      setDragVisited(new Set([key]));
-      applyToSlot(key, mode);
-   };
+   const visitSlot = React.useCallback(
+      (key: string, mode: "add" | "remove") => {
+         if (lastSlotRef.current === key) return;
 
-   const handlePointerEnter = (key: string) => {
-      if (!dragging) return;
-      setDragVisited((prev) => {
-         if (prev.has(key)) return prev;
-         const next = new Set(prev);
-         next.add(key);
-         return next;
-      });
-      applyToSlot(key, dragMode);
-   };
+         const keys =
+            lastSlotRef.current === null
+               ? [key]
+               : getSlotKeysBetween(lastSlotRef.current, key);
+
+         lastSlotRef.current = key;
+         applySlots(keys, mode);
+      },
+      [applySlots],
+   );
+
+   const getSlotKeyFromPoint = React.useCallback((x: number, y: number) => {
+      const el = document.elementFromPoint(x, y);
+      const slot = el?.closest<HTMLElement>("[data-slot-key]");
+      return slot?.dataset.slotKey ?? null;
+   }, []);
+
+   const handleGridPointerMove = React.useCallback(
+      (e: React.PointerEvent) => {
+         if (!draggingRef.current) return;
+         const key = getSlotKeyFromPoint(e.clientX, e.clientY);
+         if (key) visitSlot(key, dragModeRef.current);
+      },
+      [getSlotKeyFromPoint, visitSlot],
+   );
+
+   const handleSlotPointerDown = React.useCallback(
+      (e: React.PointerEvent, key: string) => {
+         e.preventDefault();
+         const mode = selected.has(key) ? "remove" : "add";
+
+         draggingRef.current = true;
+         dragModeRef.current = mode;
+         lastSlotRef.current = null;
+         activePointerIdRef.current = e.pointerId;
+         gridRef.current?.setPointerCapture(e.pointerId);
+
+         setDragging(true);
+         setDragVisited(new Set());
+         visitSlot(key, mode);
+      },
+      [selected, visitSlot],
+   );
 
    React.useEffect(() => {
       const endDrag = () => {
+         draggingRef.current = false;
+         lastSlotRef.current = null;
+         if (
+            gridRef.current &&
+            activePointerIdRef.current !== null
+         ) {
+            try {
+               gridRef.current.releasePointerCapture(
+                  activePointerIdRef.current,
+               );
+            } catch {
+               /* already released */
+            }
+         }
+         activePointerIdRef.current = null;
          setDragging(false);
          setDragVisited(new Set());
          setTooltip(null);
@@ -144,10 +199,12 @@ export function AvailabilityCalendar({
                <DayHeaders week1={week1} week2={week2} />
 
                <div
+                  ref={gridRef}
                   className="relative grid touch-none select-none"
                   style={{
                      gridTemplateColumns: `4.5rem repeat(14, minmax(0, 1fr))`,
                   }}
+                  onPointerMove={handleGridPointerMove}
                   onPointerLeave={() => dragging && setTooltip(null)}
                >
                   {hours.map((hour) =>
@@ -187,6 +244,7 @@ export function AvailabilityCalendar({
                                     <button
                                        key={key}
                                        type="button"
+                                       data-slot-key={key}
                                        className={cn(
                                           "h-4 w-full border-t border-l border-[#E2E8F0] transition-colors select-none",
                                           quarter > 0 &&
@@ -202,15 +260,15 @@ export function AvailabilityCalendar({
                                              "border border-dashed border-[#3D7AB8] bg-[#7EB8E8]",
                                        )}
                                        style={{ gridColumn: dayIndex + 2 }}
-                                       onPointerDown={(e) => {
-                                          e.preventDefault();
-                                          handlePointerDown(key);
-                                       }}
-                                       onPointerEnter={() =>
-                                          handlePointerEnter(key)
+                                       onPointerDown={(e) =>
+                                          handleSlotPointerDown(e, key)
                                        }
                                        aria-pressed={isSelected}
-                                       aria-label={`${day.toLocaleDateString()} ${formatHourLabel(hour)} ${slotMinute} minutes`}
+                                       aria-label={formatSlotAriaLabel(
+                                          day,
+                                          hour,
+                                          slotMinute,
+                                       )}
                                     />
                                  );
                               })}
@@ -272,7 +330,7 @@ function WeekHeaders({
    const fmt = (days: Date[]) => {
       const a = days[0]!;
       const b = days[6]!;
-      const range = `${a.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()}–${b.getDate()}`;
+      const range = `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}–${b.getDate()}`;
       return range;
    };
 
