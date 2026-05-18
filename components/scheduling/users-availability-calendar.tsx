@@ -4,6 +4,8 @@ import * as React from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+   DAY_END_HOUR,
+   DAY_START_HOUR,
    formatHourLabel,
    formatTimeRange,
    getTwoWeekRange,
@@ -108,7 +110,7 @@ export function AvailabilityCalendar({
 
    const hours = React.useMemo(() => {
       const list: number[] = [];
-      for (let h = 8; h < 19; h++) list.push(h);
+      for (let h = DAY_START_HOUR; h < DAY_END_HOUR; h++) list.push(h);
       return list;
    }, []);
 
@@ -189,7 +191,7 @@ export function AvailabilityCalendar({
                                           "h-4 w-full border-t border-l border-[#E2E8F0] transition-colors select-none",
                                           quarter > 0 &&
                                              "border-t border-dashed border-[#EEF2F6]",
-                                          isWeekend && "bg-muted/50",
+                                          isWeekend && "bg-muted/80",
                                           isSelected &&
                                              "border-[#5D9CEC] bg-[#7EB8E8]",
                                           isDragPreview &&
@@ -299,7 +301,7 @@ function DayHeaders({ week1, week2 }: { week1: Date[]; week2: Date[] }) {
                className={cn(
                   "border-b border-l border-[#E2E8F0] py-2 text-center",
                   isWeekend
-                     ? "bg-muted/40 text-muted-foreground"
+                     ? "bg-muted/70 text-muted-foreground"
                      : "bg-card text-foreground",
                )}
             >

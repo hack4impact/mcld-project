@@ -2,7 +2,7 @@ export type TimeSlot = { start: string; end: string };
 
 export const SLOT_MINUTES = 15;
 export const DAY_START_HOUR = 8;
-export const DAY_END_HOUR = 19;
+export const DAY_END_HOUR = 20;
 
 export function slotKey(date: Date): string {
    return date.toISOString();
