@@ -15,11 +15,8 @@ export const WEEKDAY = {
 export type Weekday = keyof typeof WEEKDAY;
 
 export type CalendarDaysConfig = {
-   /** Number of 7-day periods starting from today (or `anchor`). */
    weeks: number;
-   /** Which weekdays appear as columns (e.g. `['mon', 'tue', 'wed', 'thu', 'fri']`). */
    daysOfWeek: Weekday[];
-   /** Defaults to today at local midnight. */
    anchor?: Date;
 };
 
@@ -44,7 +41,6 @@ function isSameLocalDay(a: Date, b: Date): boolean {
    );
 }
 
-/** Inclusive slot keys between two times on the same local day (for fast drag fill). */
 export function getSlotKeysBetween(fromKey: string, toKey: string): string[] {
    const from = parseSlotKey(fromKey);
    const to = parseSlotKey(toKey);
@@ -85,7 +81,6 @@ export function buildDaySlots(
    return slots;
 }
 
-/** Merge selected 15-minute keys into `{ start, end }` ranges (ISO strings). */
 export function keysToTimeSlots(keys: Iterable<string>): TimeSlot[] {
    const sorted = [...keys]
       .map(parseSlotKey)
@@ -130,7 +125,6 @@ export function formatHourLabel(hour: number): string {
    return `${hour - 12} PM`;
 }
 
-/** Stable aria-label text (avoids locale-dependent SSR hydration mismatches). */
 export function formatSlotAriaLabel(
    date: Date,
    hour: number,
