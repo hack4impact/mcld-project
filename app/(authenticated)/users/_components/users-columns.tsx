@@ -3,6 +3,8 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback} from "@/components/ui/avatar";
 import {
    Tooltip,
    TooltipContent,
@@ -10,16 +12,6 @@ import {
 } from "@/components/ui/tooltip";
 
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
-
-function AvatarCircle({ name }: { name: string }) {
-   const [first = "", last = ""] = name.trim().split(" ");
-   const initials = `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
-   return (
-      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-         {initials}
-      </span>
-   );
-}
 
 export const usersColumns: ColumnDef<UserRow>[] = [
    {
@@ -34,7 +26,11 @@ export const usersColumns: ColumnDef<UserRow>[] = [
          const fullName = `${u.firstName} ${u.lastName}`;
          return (
             <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-3">
-               <AvatarCircle name={fullName} />
+               <Avatar>
+                  <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+                     {`${u.firstName[0] ?? ""}${u.lastName[0] ?? ""}`.toUpperCase()}
+                  </AvatarFallback>
+               </Avatar>
                <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-semibold text-sm">
                      {fullName}
@@ -66,20 +62,14 @@ export const usersColumns: ColumnDef<UserRow>[] = [
       cell: ({ row }) => {
          const active = row.original.isActive;
          return (
-            <span className="inline-flex items-center gap-1.5 text-sm">
+            <Badge variant={active ? "default" : "secondary"} className="gap-1.5">
                <span
                   className={`h-2 w-2 rounded-full ${
                      active ? "bg-green-500" : "bg-muted-foreground/50"
                   }`}
                />
-               <span
-                  className={
-                     active ? "text-foreground" : "text-muted-foreground"
-                  }
-               >
-                  {active ? "Active" : "Inactive"}
-               </span>
-            </span>
+               {active ? "Active" : "Inactive"}
+            </Badge>
          );
       },
    },
