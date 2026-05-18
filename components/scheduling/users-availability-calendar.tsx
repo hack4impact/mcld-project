@@ -8,7 +8,6 @@ import {
    formatHourLabel,
    formatSlotAriaLabel,
    formatTimeRange,
-   getSlotKeysBetween,
    keysToTimeSlots,
    slotKey,
    SLOT_MINUTES,
@@ -60,55 +59,88 @@ export function AvailabilityCalendar({
    const gridRef = React.useRef<HTMLDivElement>(null);
    const draggingRef = React.useRef(false);
    const dragModeRef = React.useRef<"add" | "remove">("add");
-   const lastSlotRef = React.useRef<string | null>(null);
    const activePointerIdRef = React.useRef<number | null>(null);
+   const dragStartSelectedRef = React.useRef<Set<string>>(new Set());
+   const dragVisitedRef = React.useRef<Set<string>>(new Set());
+   const dragStartKeyRef = React.useRef<string | null>(null);
+   const dragCurrentKeyRef = React.useRef<string | null>(null);
 
    const isBlockedSlotKey = React.useCallback((key: string) => {
       const day = new Date(key).getDay();
       return day === WEEKDAY.sun || day === WEEKDAY.sat;
    }, []);
 
+   const { keyToCoord, coordToKey } = React.useMemo(() => {
+      const keyToCoordMap = new Map<string, { dayIndex: number; slotIndex: number }>();
+      const coordToKeyMap = new Map<string, string>();
+
+      for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+         const day = days[dayIndex]!;
+         for (let hour = startHour; hour < endHour; hour++) {
+            for (let quarter = 0; quarter < 4; quarter++) {
+               const slotIndex = (hour - startHour) * 4 + quarter;
+               const d = new Date(day);
+               d.setHours(hour, quarter * SLOT_MINUTES, 0, 0);
+               const key = slotKey(d);
+               keyToCoordMap.set(key, { dayIndex, slotIndex });
+               coordToKeyMap.set(`${dayIndex}:${slotIndex}`, key);
+            }
+         }
+      }
+
+      return { keyToCoord: keyToCoordMap, coordToKey: coordToKeyMap };
+   }, [days, startHour, endHour]);
+
    React.useEffect(() => {
       onChange?.(keysToTimeSlots(selected));
    }, [selected, onChange]);
 
-   const applySlots = React.useCallback(
-      (keys: string[], mode: "add" | "remove") => {
+   const updateDragVisited = React.useCallback(
+      (keys: string[]) => {
          if (keys.length === 0) return;
-         setSelected((prev) => {
-            const next = new Set(prev);
-            for (const k of keys) {
-               if (isBlockedSlotKey(k)) continue;
-               if (mode === "add") next.add(k);
-               else next.delete(k);
-            }
-            return next;
-         });
-         setDragVisited((prev) => {
-            const next = new Set(prev);
-            for (const k of keys) {
-               if (isBlockedSlotKey(k)) continue;
-               next.add(k);
-            }
-            return next;
-         });
+         const next = new Set<string>();
+         for (const k of keys) {
+            if (isBlockedSlotKey(k)) continue;
+            next.add(k);
+         }
+         dragVisitedRef.current = next;
+         setDragVisited(next);
       },
       [isBlockedSlotKey],
    );
 
-   const visitSlot = React.useCallback(
-      (key: string, mode: "add" | "remove") => {
-         if (lastSlotRef.current === key) return;
+   const getRangeKeys = React.useCallback(
+      (fromKey: string, toKey: string) => {
+         const from = keyToCoord.get(fromKey);
+         const to = keyToCoord.get(toKey);
+         if (!from || !to) return [toKey];
 
-         const keys =
-            lastSlotRef.current === null
-               ? [key]
-               : getSlotKeysBetween(lastSlotRef.current, key);
+         const dayStart = Math.min(from.dayIndex, to.dayIndex);
+         const dayEnd = Math.max(from.dayIndex, to.dayIndex);
+         const slotStart = Math.min(from.slotIndex, to.slotIndex);
+         const slotEnd = Math.max(from.slotIndex, to.slotIndex);
+         const keys: string[] = [];
 
-         lastSlotRef.current = key;
-         applySlots(keys, mode);
+         for (let slotIndex = slotStart; slotIndex <= slotEnd; slotIndex++) {
+            for (let dayIndex = dayStart; dayIndex <= dayEnd; dayIndex++) {
+               const key = coordToKey.get(`${dayIndex}:${slotIndex}`);
+               if (key) keys.push(key);
+            }
+         }
+         return keys;
       },
-      [applySlots],
+      [keyToCoord, coordToKey],
+   );
+
+   const visitSlot = React.useCallback(
+      (key: string) => {
+         const startKey = dragStartKeyRef.current;
+         if (!startKey) return;
+         if (dragCurrentKeyRef.current === key) return;
+         dragCurrentKeyRef.current = key;
+         updateDragVisited(getRangeKeys(startKey, key));
+      },
+      [getRangeKeys, updateDragVisited],
    );
 
    const getSlotKeyFromPoint = React.useCallback((x: number, y: number) => {
@@ -122,7 +154,7 @@ export function AvailabilityCalendar({
       (e: React.PointerEvent) => {
          if (!draggingRef.current) return;
          const key = getSlotKeyFromPoint(e.clientX, e.clientY);
-         if (key) visitSlot(key, dragModeRef.current);
+         if (key) visitSlot(key);
       },
       [getSlotKeyFromPoint, visitSlot],
    );
@@ -134,21 +166,36 @@ export function AvailabilityCalendar({
 
          draggingRef.current = true;
          dragModeRef.current = mode;
-         lastSlotRef.current = null;
+         dragStartSelectedRef.current = new Set(selected);
+         dragVisitedRef.current = new Set();
+         dragStartKeyRef.current = key;
+         dragCurrentKeyRef.current = null;
          activePointerIdRef.current = e.pointerId;
          gridRef.current?.setPointerCapture(e.pointerId);
 
          setDragging(true);
          setDragVisited(new Set());
-         visitSlot(key, mode);
+         visitSlot(key);
       },
       [selected, visitSlot],
    );
 
    React.useEffect(() => {
       const endDrag = () => {
+         const draggedKeys = [...dragVisitedRef.current];
+         if (draggedKeys.length > 0) {
+            const mode = dragModeRef.current;
+            setSelected((prev) => {
+               const next = new Set(prev);
+               for (const k of draggedKeys) {
+                  if (mode === "add") next.add(k);
+                  else next.delete(k);
+               }
+               return next;
+            });
+         }
+
          draggingRef.current = false;
-         lastSlotRef.current = null;
          if (
             gridRef.current &&
             activePointerIdRef.current !== null
@@ -162,6 +209,10 @@ export function AvailabilityCalendar({
             }
          }
          activePointerIdRef.current = null;
+         dragStartSelectedRef.current = new Set();
+         dragVisitedRef.current = new Set();
+         dragStartKeyRef.current = null;
+         dragCurrentKeyRef.current = null;
          setDragging(false);
          setDragVisited(new Set());
          setTooltip(null);
@@ -247,6 +298,16 @@ export function AvailabilityCalendar({
                                  const isSelected = selected.has(key);
                                  const isDragPreview =
                                     dragging && dragVisited.has(key);
+                                 const wasSelectedAtDragStart =
+                                    dragStartSelectedRef.current.has(key);
+                                 const isAddPreview =
+                                    isDragPreview &&
+                                    dragModeRef.current === "add" &&
+                                    !isSelected;
+                                 const isRemovePreview =
+                                    isDragPreview &&
+                                    dragModeRef.current === "remove" &&
+                                    wasSelectedAtDragStart;
 
                                  return (
                                     <button
@@ -260,12 +321,10 @@ export function AvailabilityCalendar({
                                           isBlocked && "bg-[#D4DCE6]",
                                           isSelected &&
                                              "border-[#5D9CEC] bg-[#7EB8E8]",
-                                          isDragPreview &&
-                                             !isSelected &&
+                                          isAddPreview &&
                                              "border border-dashed border-[#5D9CEC] bg-[#D4EBFA]",
-                                          isDragPreview &&
-                                             isSelected &&
-                                             "border border-dashed border-[#3D7AB8] bg-[#7EB8E8]",
+                                          isRemovePreview &&
+                                             "border border-dashed border-[#5D9CEC] bg-[#D4EBFA]",
                                        )}
                                        style={{ gridColumn: dayIndex + 2 }}
                                        disabled={isBlocked}
