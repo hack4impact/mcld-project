@@ -49,7 +49,10 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
       return users
          .filter((u) => {
             if (!query) return true;
-            return `${u.firstName} ${u.lastName}`.toLowerCase().includes(query);
+            const name = `${u.firstName} ${u.lastName}`.toLowerCase();
+            return (
+               name.includes(query) || u.email.toLowerCase().includes(query)
+            );
          })
          .filter((u) => {
             if (tab === "all") return true;
@@ -82,7 +85,7 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
                   <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <Input
                      id="users-search"
-                     placeholder="Search by name..."
+                     placeholder="Search by name or email..."
                      value={nameQuery}
                      onChange={(e) => setNameQuery(e.target.value)}
                      className="w-full min-w-0 pl-9"

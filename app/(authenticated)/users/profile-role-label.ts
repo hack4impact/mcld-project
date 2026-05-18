@@ -14,6 +14,7 @@ export type UserRow = {
    id: string;
    firstName: string;
    lastName: string;
+   email: string;
    role: string;
    isActive: boolean;
    lastLoginAt: Date;

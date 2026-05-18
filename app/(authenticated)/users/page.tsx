@@ -1,36 +1,10 @@
 import { Suspense } from "react";
-import { db } from "@/lib/db";
-import { profiles, subscriptions } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { UsersClient } from "./_components/users-client";
-import { profileRoleLabel, type UserRow } from "./profile-role-label";
-import { listDistinctProfileRoles } from "./queries";
-
-const USERS_SUBSCRIPTION_STATUS_ACTIVE = "active" as const;
-
-async function fetchUsers(): Promise<UserRow[]> {
-   const rows = await db
-      .select({
-         id: profiles.id,
-         firstName: profiles.firstName,
-         lastName: profiles.lastName,
-         role: profiles.role,
-         lastLoginAt: profiles.lastLoginAt,
-         subscriptionStatus: subscriptions.status,
-      })
-      .from(profiles)
-      .leftJoin(subscriptions, eq(subscriptions.userId, profiles.id));
-
-   return rows.map((row) => ({
-      id: row.id,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      role: row.role,
-      lastLoginAt: row.lastLoginAt,
-      isActive: row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_ACTIVE,
-   }));
-}
+import { profileRoleLabel } from "./profile-role-label";
+import { listDistinctProfileRoles, listUsersWithEmails } from "./queries";
 
 export default function UsersPage() {
    return (
@@ -45,8 +19,14 @@ export default function UsersPage() {
 }
 
 async function UsersContent() {
+   try {
+      await requireAdmin();
+   } catch {
+      redirect("/");
+   }
+
    const [users, distinctRoles] = await Promise.all([
-      fetchUsers(),
+      listUsersWithEmails(),
       listDistinctProfileRoles(),
    ]);
 

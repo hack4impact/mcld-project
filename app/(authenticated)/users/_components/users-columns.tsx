@@ -32,7 +32,6 @@ export const usersColumns: ColumnDef<UserRow>[] = [
       cell: ({ row }) => {
          const u = row.original;
          const fullName = `${u.firstName} ${u.lastName}`;
-         const email = `${u.firstName.toLowerCase()}.${u.lastName.toLowerCase()}@mcld.ca`;
          return (
             <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-3">
                <AvatarCircle name={fullName} />
@@ -41,7 +40,7 @@ export const usersColumns: ColumnDef<UserRow>[] = [
                      {fullName}
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
-                     {email}
+                     {u.email}
                   </span>
                </div>
             </div>
