@@ -39,7 +39,7 @@ async function HomeContent() {
          <div className="flex flex-row gap-4 w-full">
             <Card className="flex-1">
                <CardHeader>
-                  <CardTitle className="text-2xl">Welcome t</CardTitle>
+                  <CardTitle className="text-2xl">Welcome</CardTitle>
                   <CardDescription>You are signed in as</CardDescription>
                </CardHeader>
                <CardContent className="space-y-4">
