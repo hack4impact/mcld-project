@@ -1,6 +1,6 @@
 # Profiles Table
 
-Mirrors Supabase `auth.users` — populated via a database trigger on signup. Stores display data and the user's role within the platform.
+Mirrors Supabase `auth.users` — populated via a database trigger on signup. Stores display data and the user's role within the platform. The last_login_at property is updated via a Server Action every time a user logs in.
 
 ```mermaid
 erDiagram
@@ -8,9 +8,11 @@ erDiagram
         uuid id PK "references auth.users(id)"
         text first_name
         text last_name
+        text stripe_customer_id "unique"
         role role "user | admin | coach"
         timestamp created_at
         timestamp updated_at
+        timestamp last_login_at
     }
 ```
 

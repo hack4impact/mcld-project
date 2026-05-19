@@ -62,11 +62,60 @@ erDiagram
         timestamp updated_at
     }
 
+    children {
+        uuid id PK
+        uuid parent_id FK
+        gender gender
+        text first_name
+        text last_name
+        date dob
+        text allergies
+        text medical_conditions
+        text medications
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    emergency_contacts {
+        uuid id PK
+        uuid child_id FK
+        text full_name
+        text email_address
+        text phone_number
+        text relationship
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    extra_questions {
+        uuid id PK
+        uuid service_id FK
+        extra_question_type type
+        text prompt
+        jsonb options
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    extra_question_answers {
+        uuid id PK
+        uuid extra_question_id FK
+        uuid child_id FK
+        text answer "text[]"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     profiles ||--o{ service_bookings : "books"
     services ||--o{ service_bookings : "booked via"
     profiles ||--o{ coaching_sessions : "coaches"
     profiles ||--o{ coaching_sessions : "attends"
     services ||--o{ coaching_sessions : "fulfilled by"
+    profiles ||--o{ children : "parent of"
+    children ||--o{ emergency_contacts : "has"
+    services ||--o{ extra_questions : "defines"
+    extra_questions ||--o{ extra_question_answers : "answered via"
+    children ||--o{ extra_question_answers : "submits"
 ```
 
 ## Enums
@@ -78,3 +127,5 @@ erDiagram
 | `booking_status` | `pending`, `confirmed`, `cancelled` |
 | `webinar_tier` | `free`, `premium` |
 | `session_status` | `pending`, `confirmed`, `cancelled`, `completed` |
+| `gender` | `male`, `female`, `prefer_not_to_say` |
+| `extra_question_type` | `text`, `multiple_choices`, `checkboxes`, `user_agreement` |
