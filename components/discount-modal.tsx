@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ interface DiscountModalProps {
   userRole: string;
   discounts?: ActiveDiscount[];
   services?: DiscountService[];
+  loading?: boolean;
   onApply?: (data: {
     serviceId: string;
     type: "percent" | "amount";
@@ -69,6 +71,7 @@ export function DiscountModal({
   userRole,
   discounts = [],
   services = [],
+  loading = false,
   onApply,
   onRemove,
   trigger,
@@ -177,7 +180,11 @@ export function DiscountModal({
             </div>
 
             {/* Table rows */}
-            {discounts.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center h-10">
+                <Spinner className="size-4 text-[#0040a1]" />
+              </div>
+            ) : discounts.length === 0 ? (
               <div
                 className="flex items-center justify-center h-10 text-xs text-[#3f484c]"
                 style={{ fontFamily: lexend, fontWeight: 400 }}
