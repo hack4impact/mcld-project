@@ -7,7 +7,7 @@ import {
    purchases,
    serviceBookings,
 } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
 
 const allowedEvents: Stripe.Event.Type[] = [
@@ -54,7 +54,12 @@ export async function POST(request: NextRequest) {
          await db
             .update(coachingSessions)
             .set({ status: "pending", stripeOrderId: session.id })
-            .where(eq(coachingSessions.id, metadata.coachingSessionId));
+            .where(
+               and(
+                  eq(coachingSessions.id, metadata.coachingSessionId),
+                  eq(coachingSessions.status, "awaiting_payment"),
+               ),
+            );
          return NextResponse.json({ received: true });
       }
 
@@ -62,7 +67,12 @@ export async function POST(request: NextRequest) {
          await db
             .update(serviceBookings)
             .set({ status: "confirmed", stripeOrderId: session.id })
-            .where(eq(serviceBookings.id, metadata.bookingId));
+            .where(
+               and(
+                  eq(serviceBookings.id, metadata.bookingId),
+                  eq(serviceBookings.status, "awaiting_payment"),
+               ),
+            );
          return NextResponse.json({ received: true });
       }
 

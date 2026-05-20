@@ -11,11 +11,21 @@ import { createClient } from "@/utils/supabase/server";
 
 export type CheckoutResult = { url: string } | { error: string };
 
-async function getDefaultPriceId(stripeProductId: string) {
+async function getDefaultPriceId(stripeProductId: string): Promise<string> {
    const product = await stripe.products.retrieve(stripeProductId);
-   const defaultPrice = product.default_price;
-   if (typeof defaultPrice === "string") return defaultPrice;
-   return (defaultPrice as Stripe.Price | null)?.id ?? null;
+   const defaultPriceId = product.default_price;
+   if (!defaultPriceId) {
+      throw new Error(`Stripe product ${stripeProductId} has no default price`);
+   }
+   return defaultPriceId as string;
+}
+
+async function getRequestOrigin(): Promise<string> {
+   const origin = (await headers()).get("origin");
+   if (!origin) {
+      throw new Error("Missing request origin");
+   }
+   return origin;
 }
 
 type CreateSessionResult =
@@ -29,13 +39,12 @@ async function createStripeCheckoutSession(params: {
    metadata: Record<string, string>;
 }): Promise<CreateSessionResult> {
    const priceId = await getDefaultPriceId(params.stripeProductId);
-   if (!priceId) return { error: "Service has no Stripe price configured" };
 
    const customerId = await getOrCreateStripeCustomer(
       params.userId,
       params.email,
    );
-   const origin = (await headers()).get("origin") ?? "";
+   const origin = await getRequestOrigin();
 
    const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -138,7 +147,12 @@ export async function checkoutCoachingSession({
          coachingSessionId: row.id,
       },
    });
-   if ("error" in result) return { error: result.error };
+   if ("error" in result) {
+      await db
+         .delete(coachingSessions)
+         .where(eq(coachingSessions.id, row.id));
+      return { error: result.error };
+   }
 
    await db
       .update(coachingSessions)
@@ -147,3 +161,4 @@ export async function checkoutCoachingSession({
 
    return { url: result.session.url! };
 }
+
