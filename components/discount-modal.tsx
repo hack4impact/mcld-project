@@ -85,6 +85,28 @@ export function DiscountModal({
   const isOpen = isControlled ? open! : internalOpen;
   const setIsOpen = isControlled ? onOpenChange! : setInternalOpen;
 
+  const handleTypeChange = (type: "percent" | "amount") => {
+    setDiscountType(type);
+    if (type === "percent") {
+      // strip any decimal portion when switching to percent
+      setValue((v) => String(Math.round(Number(v) || 0)));
+    }
+  };
+
+  const handleValueChange = (raw: string) => {
+    if (discountType === "percent") {
+      if (!/^\d*$/.test(raw)) return;
+      if (raw !== "" && Number(raw) > 100) { setValue("100"); return; }
+      setValue(raw);
+    } else {
+      if (/^\d*\.?\d{0,2}$/.test(raw)) setValue(raw);
+    }
+  };
+
+  const handleUsageLimitChange = (raw: string) => {
+    if (/^\d*$/.test(raw)) setUsageLimit(raw);
+  };
+
   const handleApply = () => {
     onApply?.({
       serviceId,
@@ -242,7 +264,7 @@ export function DiscountModal({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setDiscountType("percent")}
+                  onClick={() => handleTypeChange("percent")}
                   className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "percent"
                       ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
@@ -255,7 +277,7 @@ export function DiscountModal({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setDiscountType("amount")}
+                  onClick={() => handleTypeChange("amount")}
                   className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "amount"
                       ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
@@ -272,15 +294,18 @@ export function DiscountModal({
               <FieldLabel>Value</FieldLabel>
               <div className="flex items-center px-3 py-2 bg-white border border-[#e6eaef] rounded-lg focus-within:border-[#0040a1] transition-colors">
                 <Input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode={discountType === "percent" ? "numeric" : "decimal"}
                   value={value}
-                  onChange={(e) => setValue(e.target.value)}
+                  onChange={(e) => handleValueChange(e.target.value)}
                   onKeyDown={(e) => {
-                    if (!/[\d.]/.test(e.key) && !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key))
-                      e.preventDefault();
+                    if (e.ctrlKey || e.metaKey) return;
+                    const nav = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End"];
+                    if (nav.includes(e.key)) return;
+                    if (discountType === "percent" && !/^\d$/.test(e.key)) e.preventDefault();
+                    if (discountType === "amount" && !/^[\d.]$/.test(e.key)) e.preventDefault();
                   }}
-                  className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0"
                   style={{ fontFamily: lexend }}
                 />
                 <span className="text-xs font-semibold text-[#3f484c] ml-1.5 shrink-0" style={{ fontFamily: lexend }}>
@@ -295,15 +320,17 @@ export function DiscountModal({
             <FieldLabel>Usage Limit</FieldLabel>
             <div className="flex items-center px-3 py-2 bg-white border border-[#e6eaef] rounded-lg focus-within:border-[#0040a1] transition-colors">
               <Input
-                type="number"
-                min={1}
+                type="text"
+                inputMode="numeric"
                 value={usageLimit}
-                onChange={(e) => setUsageLimit(e.target.value)}
+                onChange={(e) => handleUsageLimitChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (!/[\d]/.test(e.key) && !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key))
-                    e.preventDefault();
+                  if (e.ctrlKey || e.metaKey) return;
+                  const nav = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End"];
+                  if (nav.includes(e.key)) return;
+                  if (!/^\d$/.test(e.key)) e.preventDefault();
                 }}
-                className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0"
                 style={{ fontFamily: lexend }}
               />
               <span className="text-xs font-semibold text-[#3f484c] ml-1.5 whitespace-nowrap shrink-0" style={{ fontFamily: lexend }}>
