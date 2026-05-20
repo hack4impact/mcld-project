@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +102,7 @@ export function DiscountModal({
         className="sm:max-w-xl w-full p-0 gap-0 rounded-[2rem] shadow-[0px_18px_48px_0px_rgba(0,0,0,0.18)] overflow-hidden ring-0 border-0 bg-white"
       >
         <DialogTitle className="sr-only">Discounts for {userName}</DialogTitle>
+        <DialogDescription className="sr-only">Manage and apply discounts for {userName}</DialogDescription>
 
         {/* Header */}
         <div className="grid grid-cols-[1fr_auto] items-center px-7 pt-4 pb-3.5 gap-4">
