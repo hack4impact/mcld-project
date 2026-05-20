@@ -156,9 +156,6 @@ export const purchases = pgTable("purchases", {
    currency: text("currency").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-<<<<<<< HEAD
-});
-=======
 });
 
 export const children = pgTable("children", {
@@ -214,4 +211,3 @@ export const extraQuestionAnswers = pgTable("extra_question_answers", {
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
->>>>>>> origin/develop
