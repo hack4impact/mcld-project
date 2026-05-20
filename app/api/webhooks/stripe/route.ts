@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, syncStripeData } from "@/lib/stripe";
+import { deleteCouponIfExhausted, stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import {
    coachingSessions,
@@ -74,6 +74,14 @@ export async function POST(request: NextRequest) {
                ),
             );
          return NextResponse.json({ received: true });
+      }
+
+      for (const d of session.discounts ?? []) {
+         const couponId =
+            typeof d.coupon === "string" ? d.coupon : d.coupon?.id;
+         if (couponId) {
+            await deleteCouponIfExhausted(couponId);
+         }
       }
 
       if (session.mode === "payment" && session.customer) {

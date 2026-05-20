@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { loginSchema, signupSchema } from "./schema";
+import { db } from "@/lib/db";
+import { profiles } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export type ActionState = {
   errors: Partial<Record<string, string[]>>;
@@ -22,12 +25,13 @@ export async function login(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(result.data);
+  const { error , data} = await supabase.auth.signInWithPassword(result.data);
 
   if (error) {
     return { errors: { email: [error.message] } };
   }
 
+  await updateUserLastLoginAt(data.user.id);
   redirect("/");
 }
 
@@ -68,4 +72,16 @@ export async function signout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+async function  updateUserLastLoginAt(userId: string) {
+  const profile = await db.query.profiles.findFirst({
+    where: eq(profiles.id, userId),
+  });
+
+  if (!profile) {
+    return;
+  }
+
+  await db.update(profiles).set({ lastLoginAt: new Date()}).where(eq(profiles.id, profile.id));
 }

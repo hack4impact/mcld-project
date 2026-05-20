@@ -12,6 +12,12 @@ import {
 
 export type ProgramSlot = { dayOfWeek: number; time: string };
 
+export type ExtraQuestionOption = {
+   id: string;
+   title: string;
+   description?: string;
+};
+
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
 export const serviceTypeEnum = pgEnum("service_type", [
    "private_lessons",
@@ -37,6 +43,13 @@ export const serviceStatusEnum = pgEnum("service_status", [
    "deleted",
    "disabled",
 ]);
+export const genderEnum = pgEnum("gender", ["male", "female", "prefer_not_to_say"]);
+export const extraQuestionTypeEnum = pgEnum("extra_question_type", [
+   "text",
+   "multiple_choices",
+   "checkboxes",
+   "user_agreement",
+]);
 
 export const profiles = pgTable("profiles", {
    id: uuid("id").primaryKey(),
@@ -46,6 +59,7 @@ export const profiles = pgTable("profiles", {
    stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   lastLoginAt: timestamp('last_login_at').defaultNow().notNull()
 });
 
 export const services = pgTable("services", {
@@ -142,4 +156,62 @@ export const purchases = pgTable("purchases", {
    currency: text("currency").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+<<<<<<< HEAD
 });
+=======
+});
+
+export const children = pgTable("children", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   parentId: uuid("parent_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
+   gender: genderEnum("gender").notNull(),
+   firstName: text("first_name").notNull(),
+   lastName: text("last_name").notNull(),
+   dob: date("dob", { mode: "string" }).notNull(),
+   allergies: text("allergies"),
+   medicalConditions: text("medical_conditions"),
+   medications: text("medications"),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const emergencyContacts = pgTable("emergency_contacts", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   childId: uuid("child_id")
+      .references(() => children.id, { onDelete: "cascade" })
+      .notNull(),
+   fullName: text("full_name").notNull(),
+   emailAddress: text("email_address").notNull(),
+   phoneNumber: text("phone_number").notNull(),
+   relationship: text("relationship").notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const extraQuestions = pgTable("extra_questions", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   serviceId: uuid("service_id")
+      .references(() => services.id, { onDelete: "cascade" })
+      .notNull(),
+   type: extraQuestionTypeEnum("type").notNull(),
+   prompt: text("prompt").notNull(),
+   options: jsonb("options").$type<ExtraQuestionOption[]>(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const extraQuestionAnswers = pgTable("extra_question_answers", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   extraQuestionId: uuid("extra_question_id")
+      .references(() => extraQuestions.id, { onDelete: "cascade" })
+      .notNull(),
+   childId: uuid("child_id")
+      .references(() => children.id, { onDelete: "cascade" })
+      .notNull(),
+   answer: text("answer").array().notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+>>>>>>> origin/develop
