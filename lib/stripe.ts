@@ -217,6 +217,36 @@ export async function getStripeServiceData(
    };
 }
 
+export async function listStripeServices(): Promise<{ id: string; name: string }[]> {
+   const products = await stripe.products.list({ active: true, limit: 100 });
+   return products.data.map((p) => ({ id: p.id, name: p.name }));
+}
+
+export type CustomerDiscount = {
+   productId: string;
+   percentOff: number | null;
+   amountOffCents: number | null;
+   currency: string | null;
+   timesRedeemed: number;
+   maxRedemptions: number | null;
+};
+
+export async function listActiveDiscountsForCustomer(
+   customerId: string,
+): Promise<CustomerDiscount[]> {
+   const coupons = await stripe.coupons.list({ limit: 100 });
+   return coupons.data
+      .filter((c) => c.metadata?.customerId === customerId && c.valid)
+      .map((c) => ({
+         productId: c.metadata!.productId,
+         percentOff: c.percent_off ?? null,
+         amountOffCents: c.amount_off ?? null,
+         currency: c.currency ?? null,
+         timesRedeemed: c.times_redeemed,
+         maxRedemptions: c.max_redemptions ?? null,
+      }));
+}
+
 async function getManagedDiscountForCustomerProduct(
    customerId: string,
    productId: string,

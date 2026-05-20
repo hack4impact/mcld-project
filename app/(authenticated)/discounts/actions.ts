@@ -5,7 +5,10 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import {
    applyProductDiscountToCustomer,
    removeProductDiscountFromCustomer,
+   listStripeServices,
+   listActiveDiscountsForCustomer,
 } from "@/lib/stripe";
+import type { ActiveDiscount, DiscountService } from "@/components/discount-modal";
 
 export type DiscountActionState = {
    errors?: Record<string, string[]>;
@@ -147,4 +150,38 @@ export async function removeDiscountFromCustomerProduct(
          },
       };
    }
+}
+
+export async function getUserDiscountModalData(stripeCustomerId: string): Promise<{
+   services: DiscountService[];
+   discounts: ActiveDiscount[];
+}> {
+   try {
+      await requireAdmin();
+   } catch {
+      return { services: [], discounts: [] };
+   }
+
+   const [rawServices, rawDiscounts] = await Promise.all([
+      listStripeServices(),
+      listActiveDiscountsForCustomer(stripeCustomerId),
+   ]);
+
+   const nameMap = new Map(rawServices.map((s) => [s.id, s.name]));
+
+   const discounts: ActiveDiscount[] = rawDiscounts.map((d) => ({
+      id: d.productId,
+      service: nameMap.get(d.productId) ?? d.productId,
+      type: d.percentOff !== null ? "Percent" : "Amount",
+      value:
+         d.percentOff !== null
+            ? `${d.percentOff}%`
+            : `$${((d.amountOffCents ?? 0) / 100).toFixed(2)}`,
+      used:
+         d.maxRedemptions !== null
+            ? `${d.timesRedeemed} / ${d.maxRedemptions}`
+            : String(d.timesRedeemed),
+   }));
+
+   return { services: rawServices, discounts };
 }

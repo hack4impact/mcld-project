@@ -5,35 +5,63 @@ import { Pencil, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DiscountModal, type ActiveDiscount, type DiscountService } from "@/components/discount-modal";
+import {
+   getUserDiscountModalData,
+   applyDiscountToCustomerProduct,
+   removeDiscountFromCustomerProduct,
+} from "@/app/(authenticated)/discounts/actions";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
-
-// TODO: replace with real services fetched from Stripe
-const PLACEHOLDER_SERVICES: DiscountService[] = [
-   { id: "prod_placeholder1", name: "Coaching Session" },
-   { id: "prod_placeholder2", name: "Membership" },
-];
 
 interface UserActionsCellProps {
    user: UserRow;
-   // TODO: accept services as prop once fetched server-side
 }
 
 export function UserActionsCell({ user }: UserActionsCellProps) {
    const [open, setOpen] = useState(false);
-   // TODO: fetch real discounts from Stripe when modal opens
-   const [discounts] = useState<ActiveDiscount[]>([]);
+   const [services, setServices] = useState<DiscountService[]>([]);
+   const [discounts, setDiscounts] = useState<ActiveDiscount[]>([]);
+   const [loading, setLoading] = useState(false);
 
-   const handleApply = async (_data: {
+   const fetchModalData = async () => {
+      if (!user.stripeCustomerId) return;
+      setLoading(true);
+      const data = await getUserDiscountModalData(user.stripeCustomerId);
+      setServices(data.services);
+      setDiscounts(data.discounts);
+      setLoading(false);
+   };
+
+   const handleOpenChange = async (next: boolean) => {
+      setOpen(next);
+      if (next) await fetchModalData();
+   };
+
+   const handleApply = async (data: {
       serviceId: string;
       type: "percent" | "amount";
       value: number;
       usageLimit: number;
    }) => {
-      // TODO: call applyDiscountToCustomerProduct server action
+      if (!user.stripeCustomerId) return;
+      const fd = new FormData();
+      fd.append("product_id", data.serviceId);
+      fd.append("customer_id", user.stripeCustomerId);
+      fd.append("usage_limit", String(data.usageLimit));
+      fd.append("discount_type", data.type);
+      const discountValue = data.type === "amount" ? Math.round(parseFloat(data.value.toFixed(2)) * 100) : data.value;
+      fd.append("discount_value", String(discountValue));
+      if (data.type === "amount") fd.append("currency", "cad");
+      const result = await applyDiscountToCustomerProduct(null, fd);
+      if (!result?.errors) await fetchModalData();
    };
 
-   const handleRemove = async (_productId: string) => {
-      // TODO: call removeDiscountFromCustomerProduct server action
+   const handleRemove = async (productId: string) => {
+      if (!user.stripeCustomerId) return;
+      const fd = new FormData();
+      fd.append("product_id", productId);
+      fd.append("customer_id", user.stripeCustomerId);
+      const result = await removeDiscountFromCustomerProduct(null, fd);
+      if (!result?.errors) await fetchModalData();
    };
 
    return (
@@ -52,21 +80,25 @@ export function UserActionsCell({ user }: UserActionsCellProps) {
                   variant="ghost"
                   size="icon-sm"
                   aria-label="Manage discounts"
-                  onClick={() => setOpen(true)}
+                  disabled={!user.stripeCustomerId || loading}
+                  onClick={() => handleOpenChange(true)}
                >
                   <Tag />
                </Button>
             </TooltipTrigger>
-            <TooltipContent>Manage discounts</TooltipContent>
+            <TooltipContent>
+               {user.stripeCustomerId ? "Manage discounts" : "No Stripe customer"}
+            </TooltipContent>
          </Tooltip>
          <DiscountModal
             userName={`${user.firstName} ${user.lastName}`}
             userEmail={user.email}
             userRole={profileRoleLabel(user.role)}
             discounts={discounts}
-            services={PLACEHOLDER_SERVICES}
+            services={services}
+            loading={loading}
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={handleOpenChange}
             onApply={handleApply}
             onRemove={handleRemove}
          />

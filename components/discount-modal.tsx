@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ interface DiscountModalProps {
     type: "percent" | "amount";
     value: number;
     usageLimit: number;
-  }) => void;
+  }) => void | Promise<void>;
   onRemove?: (id: string) => void;
   trigger?: React.ReactNode;
   open?: boolean;
@@ -83,6 +83,7 @@ export function DiscountModal({
   const [usageLimit, setUsageLimit] = React.useState("1");
   const [serviceId, setServiceId] = React.useState("");
   const [internalOpen, setInternalOpen] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
 
   const isControlled = open !== undefined;
   const isOpen = isControlled ? open! : internalOpen;
@@ -110,13 +111,18 @@ export function DiscountModal({
     if (/^\d*$/.test(raw)) setUsageLimit(raw);
   };
 
-  const handleApply = () => {
-    onApply?.({
-      serviceId,
-      type: discountType,
-      value: Number(value),
-      usageLimit: Number(usageLimit),
-    });
+  const handleApply = async () => {
+    setSubmitting(true);
+    try {
+      await onApply?.({
+        serviceId,
+        type: discountType,
+        value: Number(value),
+        usageLimit: Number(usageLimit),
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -246,7 +252,7 @@ export function DiscountModal({
           {/* Service selector */}
           <div className="flex flex-col gap-1 w-full">
             <FieldLabel>Service</FieldLabel>
-            <Select value={serviceId} onValueChange={setServiceId}>
+            <Select value={serviceId} onValueChange={setServiceId} disabled={submitting}>
               <SelectTrigger
                 className="w-full h-auto px-3 py-2 bg-white border-[#e6eaef] rounded-lg text-xs text-[#3f484c] focus-visible:ring-0 focus-visible:border-[#0040a1]"
                 style={{ fontFamily: lexend, fontWeight: 400 }}
@@ -271,6 +277,7 @@ export function DiscountModal({
                 <Button
                   type="button"
                   variant="ghost"
+                  disabled={submitting}
                   onClick={() => handleTypeChange("percent")}
                   className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "percent"
@@ -284,6 +291,7 @@ export function DiscountModal({
                 <Button
                   type="button"
                   variant="ghost"
+                  disabled={submitting}
                   onClick={() => handleTypeChange("amount")}
                   className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "amount"
@@ -304,6 +312,7 @@ export function DiscountModal({
                   type="text"
                   inputMode={discountType === "percent" ? "numeric" : "decimal"}
                   value={value}
+                  disabled={submitting}
                   onChange={(e) => handleValueChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.ctrlKey || e.metaKey) return;
@@ -330,6 +339,7 @@ export function DiscountModal({
                 type="text"
                 inputMode="numeric"
                 value={usageLimit}
+                disabled={submitting}
                 onChange={(e) => handleUsageLimitChange(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.ctrlKey || e.metaKey) return;
@@ -351,6 +361,7 @@ export function DiscountModal({
             <Button
               type="button"
               variant="outline"
+              disabled={submitting}
               onClick={() => setIsOpen(false)}
               className="h-auto px-5 py-2 rounded-full text-xs font-bold text-[#191c1d] border-[#e6eaef] hover:bg-gray-50"
               style={{ fontFamily: pjs }}
@@ -359,11 +370,12 @@ export function DiscountModal({
             </Button>
             <Button
               type="button"
+              disabled={submitting}
               onClick={handleApply}
               className="h-auto px-5 py-2 rounded-full text-xs font-bold bg-[#0040a1] hover:bg-[#003090] text-white"
               style={{ fontFamily: pjs }}
             >
-              Apply discount
+              {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Apply discount"}
             </Button>
           </div>
         </div>
