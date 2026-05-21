@@ -47,24 +47,16 @@ interface DiscountModalProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-// todo: apply the fonts to the entire project rather than here
-const pjs = "'Plus Jakarta Sans', sans-serif";
-const lexend = "'Lexend', sans-serif";
-
 const TABLE_GRID = "grid grid-cols-[2fr_1fr_1fr_1fr_2.5rem]";
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Label
-      className="text-[0.625rem] font-extrabold text-[#00327d] tracking-[0.6px] uppercase"
-      style={{ fontFamily: pjs }}
-    >
+    <Label className="text-[0.625rem] font-extrabold text-accent-foreground tracking-[0.6px] uppercase">
       {children}
     </Label>
   );
 }
 
-// todo: use project's design system for colors
 export function DiscountModal({
   userName,
   userEmail,
@@ -131,8 +123,7 @@ export function DiscountModal({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-xl w-full p-0 gap-0 rounded-[2rem] shadow-[0px_18px_48px_0px_rgba(0,0,0,0.18)] overflow-hidden ring-0 border-0 bg-white"
-        style={{ fontFamily: lexend }}
+        className="sm:max-w-xl w-full p-0 gap-0 rounded-[2rem] shadow-[0px_18px_48px_0px_rgba(0,0,0,0.18)] overflow-hidden ring-0 border-0 bg-card"
       >
         <DialogTitle className="sr-only">Discounts for {userName}</DialogTitle>
         <DialogDescription className="sr-only">Manage and apply discounts for {userName}</DialogDescription>
@@ -140,15 +131,10 @@ export function DiscountModal({
         {/* Header */}
         <div className="grid grid-cols-[1fr_auto] items-center px-7 pt-4 pb-3.5 gap-4">
           <div className="flex flex-col gap-0.5 min-w-0">
-            <h2
-              className="text-lg font-extrabold text-[#191c1d] leading-normal truncate"
-              style={{ fontFamily: pjs }}
-            >
+            <h2 className="text-lg font-extrabold text-foreground leading-normal truncate">
               Discounts for {userName}
             </h2>
-            <p
-              className="text-xs font-normal text-[#3f484c] leading-normal"
-            >
+            <p className="text-xs font-normal text-muted-foreground leading-normal">
               {userEmail ? `${userEmail}  ·  ${userRole}` : userRole}
             </p>
           </div>
@@ -156,8 +142,7 @@ export function DiscountModal({
             variant="ghost"
             size="icon-sm"
             onClick={() => setIsOpen(false)}
-            className="rounded-full bg-[#f8f9fa] text-[#191c1d] hover:bg-[#e9ecef] shrink-0 text-sm font-semibold"
-            style={{ fontFamily: pjs }}
+            className="rounded-full bg-muted text-foreground hover:bg-muted/80 shrink-0 text-sm font-semibold"
             aria-label="Close"
           >
             ✕
@@ -165,20 +150,17 @@ export function DiscountModal({
         </div>
 
         {/* Divider */}
-        <div className="h-px w-full bg-[#e6eaef]" />
+        <div className="h-px w-full bg-border" />
 
         {/* Active Discounts */}
         <div className="flex flex-col gap-2 px-7 pt-4 pb-1.5">
-          <h3
-            className="text-sm font-extrabold text-[#191c1d] leading-normal"
-            style={{ fontFamily: pjs }}
-          >
+          <h3 className="text-sm font-extrabold text-foreground leading-normal">
             Active discounts
           </h3>
 
-          <div className="w-full rounded-lg border border-[#e6eaef] overflow-hidden">
+          <div className="w-full rounded-lg border border-border overflow-hidden">
             {/* Table header */}
-            <div className={`${TABLE_GRID} bg-[#edf4fd]`}>
+            <div className={`${TABLE_GRID} bg-accent`}>
               <div className="flex items-center h-8 px-3"><FieldLabel>Service</FieldLabel></div>
               <div className="flex items-center h-8 px-3"><FieldLabel>Type</FieldLabel></div>
               <div className="flex items-center h-8 px-3"><FieldLabel>Value</FieldLabel></div>
@@ -189,37 +171,35 @@ export function DiscountModal({
             {/* Table rows */}
             {loading ? (
               <div className="flex items-center justify-center h-10">
-                <Spinner className="size-4 text-[#0040a1]" />
+                <Spinner className="size-4 text-accent-foreground" />
               </div>
             ) : discounts.length === 0 ? (
-              <div
-                className="flex items-center justify-center h-10 text-xs font-normal text-[#3f484c]"
-              >
+              <div className="flex items-center justify-center h-10 text-xs font-normal text-muted-foreground">
                 No active discounts
               </div>
             ) : (
               discounts.map((discount, i) => (
                 <div
                   key={discount.id}
-                  className={`${TABLE_GRID} ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafd]"}`}
+                  className={`${TABLE_GRID} ${i % 2 === 0 ? "bg-card" : "bg-muted/30"}`}
                 >
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-semibold text-[#191c1d] truncate">
+                    <span className="text-xs font-semibold text-foreground truncate">
                       {discount.service}
                     </span>
                   </div>
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-normal text-[#3f484c] truncate">
+                    <span className="text-xs font-normal text-muted-foreground truncate">
                       {discount.type}
                     </span>
                   </div>
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-bold text-[#0040a1] truncate">
+                    <span className="text-xs font-bold text-accent-foreground truncate">
                       {discount.value}
                     </span>
                   </div>
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-normal text-[#3f484c] truncate">
+                    <span className="text-xs font-normal text-muted-foreground truncate">
                       {discount.used}
                     </span>
                   </div>
@@ -233,7 +213,7 @@ export function DiscountModal({
                         try { await onRemove?.(discount.id); }
                         finally { setRemovingId(null); }
                       }}
-                      className="rounded-full bg-[#fef2f2] text-red-500 hover:bg-red-100 hover:text-red-500"
+                      className="rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
                       aria-label={`Remove discount for ${discount.service}`}
                     >
                       {removingId === discount.id
@@ -248,11 +228,8 @@ export function DiscountModal({
         </div>
 
         {/* Apply New Discount */}
-        <div className="flex flex-col gap-3 px-7 py-4 bg-[#fafbfd] border-t border-[#e6eaef]">
-          <h3
-            className="text-sm font-extrabold text-[#191c1d] leading-normal"
-            style={{ fontFamily: pjs }}
-          >
+        <div className="flex flex-col gap-3 px-7 py-4 bg-muted/50 border-t border-border">
+          <h3 className="text-sm font-extrabold text-foreground leading-normal">
             Apply new discount
           </h3>
 
@@ -261,7 +238,7 @@ export function DiscountModal({
             <FieldLabel>Service</FieldLabel>
             <Select value={serviceId} onValueChange={setServiceId} disabled={submitting}>
               <SelectTrigger
-                className="w-full h-auto px-3 py-2 bg-white border-[#e6eaef] rounded-lg text-xs font-normal text-[#3f484c] focus-visible:ring-0 focus-visible:border-[#0040a1]"
+                className="w-full h-auto px-3 py-2 bg-card border-input rounded-lg text-xs font-normal text-muted-foreground focus-visible:ring-0 focus-visible:border-ring"
               >
                 <SelectValue placeholder="Select a service" />
               </SelectTrigger>
@@ -279,7 +256,7 @@ export function DiscountModal({
           <div className="flex gap-2.5 w-full">
             <div className="flex flex-col gap-1 flex-1 min-w-0">
               <FieldLabel>Discount Type</FieldLabel>
-              <div className="flex items-center p-0.5 bg-[#f8f9fa] border border-[#e6eaef] rounded-lg">
+              <div className="flex items-center p-0.5 bg-muted border border-border rounded-lg">
                 <Button
                   type="button"
                   variant="ghost"
@@ -287,8 +264,8 @@ export function DiscountModal({
                   onClick={() => handleTypeChange("percent")}
                   className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "percent"
-                      ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
-                      : "text-[#3f484c] font-normal hover:bg-transparent hover:text-[#3f484c]"
+                      ? "bg-card shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
+                      : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
                   }`}
                 >
                   Percent (%)
@@ -300,8 +277,8 @@ export function DiscountModal({
                   onClick={() => handleTypeChange("amount")}
                   className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
                     discountType === "amount"
-                      ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
-                      : "text-[#3f484c] font-normal hover:bg-transparent hover:text-[#3f484c]"
+                      ? "bg-card shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
+                      : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
                   }`}
                 >
                   Amount ($)
@@ -311,7 +288,7 @@ export function DiscountModal({
 
             <div className="flex flex-col gap-1 flex-1 min-w-0">
               <FieldLabel>Value</FieldLabel>
-              <div className="flex items-center px-3 py-2 bg-white border border-[#e6eaef] rounded-lg focus-within:border-[#0040a1] transition-colors">
+              <div className="flex items-center px-3 py-2 bg-card border border-input rounded-lg focus-within:border-ring transition-colors">
                 <Input
                   type="text"
                   inputMode={discountType === "percent" ? "numeric" : "decimal"}
@@ -325,9 +302,9 @@ export function DiscountModal({
                     if (discountType === "percent" && !/^\d$/.test(e.key)) e.preventDefault();
                     if (discountType === "amount" && !/^[\d.]$/.test(e.key)) e.preventDefault();
                   }}
-                  className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0"
+                  className="h-auto border-0 p-0 text-xs font-semibold text-foreground bg-transparent focus-visible:ring-0 focus-visible:border-0"
                 />
-                <span className="text-xs font-semibold text-[#3f484c] ml-1.5 shrink-0">
+                <span className="text-xs font-semibold text-muted-foreground ml-1.5 shrink-0">
                   {discountType === "percent" ? "%" : "$"}
                 </span>
               </div>
@@ -337,7 +314,7 @@ export function DiscountModal({
           {/* Usage limit */}
           <div className="flex flex-col gap-1 w-full">
             <FieldLabel>Usage Limit</FieldLabel>
-            <div className="flex items-center px-3 py-2 bg-white border border-[#e6eaef] rounded-lg focus-within:border-[#0040a1] transition-colors">
+            <div className="flex items-center px-3 py-2 bg-card border border-input rounded-lg focus-within:border-ring transition-colors">
               <Input
                 type="text"
                 inputMode="numeric"
@@ -350,9 +327,9 @@ export function DiscountModal({
                   if (nav.includes(e.key)) return;
                   if (!/^\d$/.test(e.key)) e.preventDefault();
                 }}
-                className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0"
+                className="h-auto border-0 p-0 text-xs font-semibold text-foreground bg-transparent focus-visible:ring-0 focus-visible:border-0"
               />
-              <span className="text-xs font-semibold text-[#3f484c] ml-1.5 whitespace-nowrap shrink-0">
+              <span className="text-xs font-semibold text-muted-foreground ml-1.5 whitespace-nowrap shrink-0">
                 redemptions
               </span>
             </div>
@@ -365,8 +342,7 @@ export function DiscountModal({
               variant="outline"
               disabled={submitting}
               onClick={() => setIsOpen(false)}
-              className="h-auto px-5 py-2 rounded-full text-xs font-bold text-[#191c1d] border-[#e6eaef] hover:bg-gray-50"
-              style={{ fontFamily: pjs }}
+              className="h-auto px-5 py-2 rounded-full text-xs font-bold text-foreground border-border hover:bg-muted/50"
             >
               Cancel
             </Button>
@@ -374,8 +350,7 @@ export function DiscountModal({
               type="button"
               disabled={submitting}
               onClick={handleApply}
-              className="h-auto px-5 py-2 rounded-full text-xs font-bold bg-[#0040a1] hover:bg-[#003090] text-white"
-              style={{ fontFamily: pjs }}
+              className="h-auto px-5 py-2 rounded-full text-xs font-bold bg-accent-foreground hover:bg-accent-foreground/90 text-white"
             >
               {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Apply discount"}
             </Button>
