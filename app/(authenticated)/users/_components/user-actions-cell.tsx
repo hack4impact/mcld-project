@@ -57,7 +57,7 @@ export function UserActionsCell({ user }: UserActionsCellProps) {
 
    const handleRemove = async (couponId: string) => {
       const result = await removeCouponById(couponId);
-      if (!result?.errors) await fetchModalData();
+      if (!result?.errors) setDiscounts(prev => prev.filter(d => d.id !== couponId));
    };
 
    return (
