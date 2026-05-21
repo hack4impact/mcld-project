@@ -132,6 +132,7 @@ export function DiscountModal({
       <DialogContent
         showCloseButton={false}
         className="sm:max-w-xl w-full p-0 gap-0 rounded-[2rem] shadow-[0px_18px_48px_0px_rgba(0,0,0,0.18)] overflow-hidden ring-0 border-0 bg-white"
+        style={{ fontFamily: lexend }}
       >
         <DialogTitle className="sr-only">Discounts for {userName}</DialogTitle>
         <DialogDescription className="sr-only">Manage and apply discounts for {userName}</DialogDescription>
@@ -146,8 +147,7 @@ export function DiscountModal({
               Discounts for {userName}
             </h2>
             <p
-              className="text-xs text-[#3f484c] leading-normal"
-              style={{ fontFamily: lexend, fontWeight: 400 }}
+              className="text-xs font-normal text-[#3f484c] leading-normal"
             >
               {userEmail ? `${userEmail}  ·  ${userRole}` : userRole}
             </p>
@@ -193,8 +193,7 @@ export function DiscountModal({
               </div>
             ) : discounts.length === 0 ? (
               <div
-                className="flex items-center justify-center h-10 text-xs text-[#3f484c]"
-                style={{ fontFamily: lexend, fontWeight: 400 }}
+                className="flex items-center justify-center h-10 text-xs font-normal text-[#3f484c]"
               >
                 No active discounts
               </div>
@@ -205,22 +204,22 @@ export function DiscountModal({
                   className={`${TABLE_GRID} ${i % 2 === 0 ? "bg-white" : "bg-[#f8fafd]"}`}
                 >
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-semibold text-[#191c1d] truncate" style={{ fontFamily: lexend }}>
+                    <span className="text-xs font-semibold text-[#191c1d] truncate">
                       {discount.service}
                     </span>
                   </div>
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs text-[#3f484c] truncate" style={{ fontFamily: lexend, fontWeight: 400 }}>
+                    <span className="text-xs font-normal text-[#3f484c] truncate">
                       {discount.type}
                     </span>
                   </div>
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-bold text-[#0040a1] truncate" style={{ fontFamily: lexend }}>
+                    <span className="text-xs font-bold text-[#0040a1] truncate">
                       {discount.value}
                     </span>
                   </div>
                   <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs text-[#3f484c] truncate" style={{ fontFamily: lexend, fontWeight: 400 }}>
+                    <span className="text-xs font-normal text-[#3f484c] truncate">
                       {discount.used}
                     </span>
                   </div>
@@ -262,14 +261,13 @@ export function DiscountModal({
             <FieldLabel>Service</FieldLabel>
             <Select value={serviceId} onValueChange={setServiceId} disabled={submitting}>
               <SelectTrigger
-                className="w-full h-auto px-3 py-2 bg-white border-[#e6eaef] rounded-lg text-xs text-[#3f484c] focus-visible:ring-0 focus-visible:border-[#0040a1]"
-                style={{ fontFamily: lexend, fontWeight: 400 }}
+                className="w-full h-auto px-3 py-2 bg-white border-[#e6eaef] rounded-lg text-xs font-normal text-[#3f484c] focus-visible:ring-0 focus-visible:border-[#0040a1]"
               >
                 <SelectValue placeholder="Select a service" />
               </SelectTrigger>
               <SelectContent>
                 {services.map((s) => (
-                  <SelectItem key={s.id} value={s.id} style={{ fontFamily: lexend }}>
+                  <SelectItem key={s.id} value={s.id}>
                     {s.name}
                   </SelectItem>
                 ))}
@@ -292,7 +290,6 @@ export function DiscountModal({
                       ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
                       : "text-[#3f484c] font-normal hover:bg-transparent hover:text-[#3f484c]"
                   }`}
-                  style={{ fontFamily: lexend }}
                 >
                   Percent (%)
                 </Button>
@@ -306,7 +303,6 @@ export function DiscountModal({
                       ? "bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-[#0040a1] font-bold hover:bg-white hover:text-[#0040a1]"
                       : "text-[#3f484c] font-normal hover:bg-transparent hover:text-[#3f484c]"
                   }`}
-                  style={{ fontFamily: lexend }}
                 >
                   Amount ($)
                 </Button>
@@ -330,9 +326,8 @@ export function DiscountModal({
                     if (discountType === "amount" && !/^[\d.]$/.test(e.key)) e.preventDefault();
                   }}
                   className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0"
-                  style={{ fontFamily: lexend }}
                 />
-                <span className="text-xs font-semibold text-[#3f484c] ml-1.5 shrink-0" style={{ fontFamily: lexend }}>
+                <span className="text-xs font-semibold text-[#3f484c] ml-1.5 shrink-0">
                   {discountType === "percent" ? "%" : "$"}
                 </span>
               </div>
@@ -356,9 +351,8 @@ export function DiscountModal({
                   if (!/^\d$/.test(e.key)) e.preventDefault();
                 }}
                 className="h-auto border-0 p-0 text-xs font-semibold text-[#191c1d] bg-transparent focus-visible:ring-0 focus-visible:border-0"
-                style={{ fontFamily: lexend }}
               />
-              <span className="text-xs font-semibold text-[#3f484c] ml-1.5 whitespace-nowrap shrink-0" style={{ fontFamily: lexend }}>
+              <span className="text-xs font-semibold text-[#3f484c] ml-1.5 whitespace-nowrap shrink-0">
                 redemptions
               </span>
             </div>
