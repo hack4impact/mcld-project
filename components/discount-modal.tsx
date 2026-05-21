@@ -41,7 +41,7 @@ interface DiscountModalProps {
     value: number;
     usageLimit: number;
   }) => void | Promise<void>;
-  onRemove?: (id: string) => void;
+  onRemove?: (id: string) => void | Promise<void>;
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -84,6 +84,7 @@ export function DiscountModal({
   const [serviceId, setServiceId] = React.useState("");
   const [internalOpen, setInternalOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const [removingId, setRemovingId] = React.useState<string | null>(null);
 
   const isControlled = open !== undefined;
   const isOpen = isControlled ? open! : internalOpen;
@@ -227,11 +228,18 @@ export function DiscountModal({
                     <Button
                       variant="destructive"
                       size="icon-xs"
-                      onClick={() => onRemove?.(discount.id)}
+                      disabled={removingId === discount.id || submitting}
+                      onClick={async () => {
+                        setRemovingId(discount.id);
+                        try { await onRemove?.(discount.id); }
+                        finally { setRemovingId(null); }
+                      }}
                       className="rounded-full bg-[#fef2f2] text-red-500 hover:bg-red-100 hover:text-red-500"
                       aria-label={`Remove discount for ${discount.service}`}
                     >
-                      <Trash2 className="size-3.5" />
+                      {removingId === discount.id
+                        ? <Loader2 className="size-3.5 animate-spin" />
+                        : <Trash2 className="size-3.5" />}
                     </Button>
                   </div>
                 </div>

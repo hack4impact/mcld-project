@@ -223,6 +223,7 @@ export async function listStripeServices(): Promise<{ id: string; name: string }
 }
 
 export type CustomerDiscount = {
+   couponId: string;
    productId: string;
    percentOff: number | null;
    amountOffCents: number | null;
@@ -238,6 +239,7 @@ export async function listActiveDiscountsForCustomer(
    return coupons.data
       .filter((c) => c.metadata?.customerId === customerId && c.valid)
       .map((c) => ({
+         couponId: c.id,
          productId: c.metadata!.productId,
          percentOff: c.percent_off ?? null,
          amountOffCents: c.amount_off ?? null,
@@ -245,6 +247,10 @@ export async function listActiveDiscountsForCustomer(
          timesRedeemed: c.times_redeemed,
          maxRedemptions: c.max_redemptions ?? null,
       }));
+}
+
+export async function deleteCoupon(couponId: string): Promise<void> {
+   await stripe.coupons.del(couponId);
 }
 
 async function getManagedDiscountForCustomerProduct(

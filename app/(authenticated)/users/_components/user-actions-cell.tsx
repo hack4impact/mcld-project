@@ -8,7 +8,7 @@ import { DiscountModal, type ActiveDiscount, type DiscountService } from "@/comp
 import {
    getUserDiscountModalData,
    applyDiscountToCustomerProduct,
-   removeDiscountFromCustomerProduct,
+   removeCouponById,
 } from "@/app/(authenticated)/discounts/actions";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
 
@@ -55,12 +55,8 @@ export function UserActionsCell({ user }: UserActionsCellProps) {
       if (!result?.errors) await fetchModalData();
    };
 
-   const handleRemove = async (productId: string) => {
-      if (!user.stripeCustomerId) return;
-      const fd = new FormData();
-      fd.append("product_id", productId);
-      fd.append("customer_id", user.stripeCustomerId);
-      const result = await removeDiscountFromCustomerProduct(null, fd);
+   const handleRemove = async (couponId: string) => {
+      const result = await removeCouponById(couponId);
       if (!result?.errors) await fetchModalData();
    };
 

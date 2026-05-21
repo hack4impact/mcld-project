@@ -7,6 +7,7 @@ import {
    removeProductDiscountFromCustomer,
    listStripeServices,
    listActiveDiscountsForCustomer,
+   deleteCoupon,
 } from "@/lib/stripe";
 import type { ActiveDiscount, DiscountService } from "@/components/discount-modal";
 
@@ -170,7 +171,7 @@ export async function getUserDiscountModalData(stripeCustomerId: string): Promis
    const nameMap = new Map(rawServices.map((s) => [s.id, s.name]));
 
    const discounts: ActiveDiscount[] = rawDiscounts.map((d) => ({
-      id: d.productId,
+      id: d.couponId,
       service: nameMap.get(d.productId) ?? d.productId,
       type: d.percentOff !== null ? "Percent" : "Amount",
       value:
@@ -184,4 +185,18 @@ export async function getUserDiscountModalData(stripeCustomerId: string): Promis
    }));
 
    return { services: rawServices, discounts };
+}
+
+export async function removeCouponById(couponId: string): Promise<DiscountActionState> {
+   try {
+      await requireAdmin();
+   } catch {
+      return { errors: { _form: ["Unauthorized"] } };
+   }
+   try {
+      await deleteCoupon(couponId);
+      return { message: "Discount removed." };
+   } catch (error) {
+      return { errors: { _form: [error instanceof Error ? error.message : "Could not remove discount"] } };
+   }
 }
