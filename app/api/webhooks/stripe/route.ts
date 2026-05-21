@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteCouponIfExhausted, stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
-import { profiles, purchases } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import {
+   coachingSessions,
+   profiles,
+   purchases,
+   serviceBookings,
+} from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
 
 const allowedEvents: Stripe.Event.Type[] = [
@@ -43,6 +48,33 @@ export async function POST(request: NextRequest) {
 
    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata ?? {};
+
+      if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
+         await db
+            .update(coachingSessions)
+            .set({ status: "pending", stripeOrderId: session.id })
+            .where(
+               and(
+                  eq(coachingSessions.id, metadata.coachingSessionId),
+                  eq(coachingSessions.status, "awaiting_payment"),
+               ),
+            );
+         return NextResponse.json({ received: true });
+      }
+
+      if (metadata.type === "program" && metadata.bookingId) {
+         await db
+            .update(serviceBookings)
+            .set({ status: "confirmed", stripeOrderId: session.id })
+            .where(
+               and(
+                  eq(serviceBookings.id, metadata.bookingId),
+                  eq(serviceBookings.status, "awaiting_payment"),
+               ),
+            );
+         return NextResponse.json({ received: true });
+      }
 
       for (const d of session.discounts ?? []) {
          const couponId =
