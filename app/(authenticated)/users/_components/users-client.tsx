@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowDownAZ, ArrowUpZA, Search } from "lucide-react";
 import { UsersDataTable } from "./users-data-table";
-import { usersColumns } from "./users-columns";
+import { getUsersColumns } from "./users-columns";
 import type { UserRow } from "../profile-role-label";
+import { CreateUserDialog, EditUserDialog } from "./user-admin-dialog";
 
 const USER_SUBSCRIPTION_VIEW_TABS = [
    { value: "all", label: "All Users" },
@@ -42,6 +43,17 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
    const [roleFilter, setRoleFilter] = useState<string>("all");
    const [nameQuery, setNameQuery] = useState<string>("");
    const [sortDir, setSortDir] = useState<SortDir>("asc");
+   const [editUser, setEditUser] = useState<UserRow | null>(null);
+   const [editOpen, setEditOpen] = useState(false);
+
+   const columns = useMemo(
+      () =>
+         getUsersColumns((user) => {
+            setEditUser(user);
+            setEditOpen(true);
+         }),
+      [],
+   );
 
    const filtered = useMemo(() => {
       const query = nameQuery.trim().toLowerCase();
@@ -74,6 +86,16 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
 
    return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+         {editUser && (
+            <EditUserDialog
+               user={editUser}
+               open={editOpen}
+               onOpenChange={(open) => {
+                  setEditOpen(open);
+                  if (!open) setEditUser(null);
+               }}
+            />
+         )}
          <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as UserSubscriptionViewTab)}
@@ -100,6 +122,8 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
                   ))}
                </TabsList>
             </div>
+
+            <CreateUserDialog />
 
             <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
                <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -144,7 +168,7 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
          >
             <UsersDataTable
-               columns={usersColumns}
+               columns={columns}
                data={filtered}
                emptyMessage="No users match the current filters."
                rowLabel={(n) => `${n} user${n === 1 ? "" : "s"}`}

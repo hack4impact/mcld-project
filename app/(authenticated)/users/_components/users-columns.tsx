@@ -6,7 +6,10 @@ import { Avatar, AvatarFallback} from "@/components/ui/avatar";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
 import { UserActionsCell } from "./user-actions-cell";
 
-export const usersColumns: ColumnDef<UserRow>[] = [
+export function getUsersColumns(
+   onEdit: (user: UserRow) => void,
+): ColumnDef<UserRow>[] {
+   return [
    {
       id: "profile",
       header: "User Profile",
@@ -88,6 +91,7 @@ export const usersColumns: ColumnDef<UserRow>[] = [
          thClassName: "text-right",
          tdClassName: "text-right",
       },
-      cell: ({ row }) => <UserActionsCell user={row.original} />,
+      cell: ({ row }) => <UserActionsCell user={row.original} onEdit={onEdit} />,
    },
-];
+   ];
+}

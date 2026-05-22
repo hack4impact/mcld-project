@@ -15,9 +15,10 @@ import { profileRoleLabel, type UserRow } from "../profile-role-label";
 
 interface UserActionsCellProps {
    user: UserRow;
+   onEdit: (user: UserRow) => void;
 }
 
-export function UserActionsCell({ user }: UserActionsCellProps) {
+export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
    const [open, setOpen] = useState(false);
    const [services, setServices] = useState<DiscountService[]>([]);
    const [discounts, setDiscounts] = useState<ActiveDiscount[]>([]);
@@ -87,11 +88,16 @@ export function UserActionsCell({ user }: UserActionsCellProps) {
       <div className="flex items-center justify-end gap-0.5">
          <Tooltip>
             <TooltipTrigger asChild>
-               <Button variant="ghost" size="icon-sm" aria-label="Edit user" disabled>
+               <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit user"
+                  onClick={() => onEdit(user)}
+               >
                   <Pencil />
                </Button>
             </TooltipTrigger>
-            <TooltipContent>Edit (coming soon)</TooltipContent>
+            <TooltipContent>Edit user</TooltipContent>
          </Tooltip>
          <Tooltip>
             <TooltipTrigger asChild>
