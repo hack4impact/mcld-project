@@ -129,7 +129,7 @@ export function DiscountModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-xl w-full p-0 gap-0 rounded-3xl shadow-xl overflow-hidden bg-card">
+      <DialogContent className="sm:max-w-xl w-full p-0 gap-0 overflow-hidden bg-card">
         <DialogHeader className="px-7 pt-4 pb-3.5 gap-0.5 pr-14">
           <DialogTitle className="text-lg font-extrabold text-foreground leading-normal truncate">
             Discounts for {userName}
@@ -254,7 +254,7 @@ export function DiscountModal({
                   variant="ghost"
                   disabled={submitting}
                   onClick={() => handleTypeChange("percent")}
-                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${discountType === "percent"
+                  className={`flex-1 h-auto px-4 py-1.5 text-xs transition-all ${discountType === "percent"
                       ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
                       : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
                     }`}
@@ -266,7 +266,7 @@ export function DiscountModal({
                   variant="ghost"
                   disabled={submitting}
                   onClick={() => handleTypeChange("amount")}
-                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${discountType === "amount"
+                  className={`flex-1 h-auto px-4 py-1.5 text-xs transition-all ${discountType === "amount"
                       ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
                       : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
                     }`}
