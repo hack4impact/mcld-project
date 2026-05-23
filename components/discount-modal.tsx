@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import { Loader2, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +94,6 @@ export function DiscountModal({
   const handleTypeChange = (type: "percent" | "amount") => {
     setDiscountType(type);
     if (type === "percent") {
-      // strip any decimal portion when switching to percent
       setValue((v) => String(Math.round(Number(v) || 0)));
     }
   };
@@ -122,33 +129,15 @@ export function DiscountModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent
-        showCloseButton={false}
-        className="sm:max-w-xl w-full p-0 gap-0 rounded-[2rem] shadow-[0px_18px_48px_0px_rgba(0,0,0,0.18)] overflow-hidden ring-0 border-0 bg-card"
-      >
-        <DialogTitle className="sr-only">Discounts for {userName}</DialogTitle>
-        <DialogDescription className="sr-only">Manage and apply discounts for {userName}</DialogDescription>
-
-        {/* Header */}
-        <div className="grid grid-cols-[1fr_auto] items-center px-7 pt-4 pb-3.5 gap-4">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <h2 className="text-lg font-extrabold text-foreground leading-normal truncate">
-              Discounts for {userName}
-            </h2>
-            <p className="text-xs font-normal text-muted-foreground leading-normal">
-              {userEmail ? `${userEmail}  ·  ${userRole}` : userRole}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setIsOpen(false)}
-            className="rounded-full bg-muted text-foreground hover:bg-muted/80 shrink-0 text-sm font-semibold"
-            aria-label="Close"
-          >
-            ✕
-          </Button>
-        </div>
+      <DialogContent className="sm:max-w-xl w-full p-0 gap-0 rounded-3xl shadow-xl overflow-hidden bg-card">
+        <DialogHeader className="px-7 pt-4 pb-3.5 gap-0.5 pr-14">
+          <DialogTitle className="text-lg font-extrabold text-foreground leading-normal truncate">
+            Discounts for {userName}
+          </DialogTitle>
+          <DialogDescription className="text-xs font-normal leading-normal">
+            {userEmail ? `${userEmail}  ·  ${userRole}` : userRole}
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Divider */}
         <div className="h-px w-full bg-border" />
@@ -171,61 +160,61 @@ export function DiscountModal({
 
             {/* Table rows */}
             <div className="max-h-[120px] overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-10">
-                <Spinner className="size-4 text-accent-foreground" />
-              </div>
-            ) : discounts.length === 0 ? (
-              <div className="flex items-center justify-center h-10 text-xs font-normal text-muted-foreground">
-                No active discounts
-              </div>
-            ) : (
-              discounts.map((discount, i) => (
-                <div
-                  key={discount.id}
-                  className={`${TABLE_GRID} ${i % 2 === 0 ? "bg-card" : "bg-muted/30"}`}
-                >
-                  <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-semibold text-foreground truncate">
-                      {discount.service}
-                    </span>
-                  </div>
-                  <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-normal text-muted-foreground truncate">
-                      {discount.type}
-                    </span>
-                  </div>
-                  <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-bold text-accent-foreground truncate">
-                      {discount.value}
-                    </span>
-                  </div>
-                  <div className="flex items-center h-10 px-3 min-w-0">
-                    <span className="text-xs font-normal text-muted-foreground truncate">
-                      {discount.used}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-center h-10">
-                    <Button
-                      variant="destructive"
-                      size="icon-xs"
-                      disabled={removingId === discount.id || submitting}
-                      onClick={async () => {
-                        setRemovingId(discount.id);
-                        try { await onRemove?.(discount.id); }
-                        finally { setRemovingId(null); }
-                      }}
-                      className="rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
-                      aria-label={`Remove discount for ${discount.service}`}
-                    >
-                      {removingId === discount.id
-                        ? <Loader2 className="size-3.5 animate-spin" />
-                        : <Trash2 className="size-3.5" />}
-                    </Button>
-                  </div>
+              {loading ? (
+                <div className="flex items-center justify-center h-10">
+                  <Spinner className="size-4 text-accent-foreground" />
                 </div>
-              ))
-            )}
+              ) : discounts.length === 0 ? (
+                <div className="flex items-center justify-center h-10 text-xs font-normal text-muted-foreground">
+                  No active discounts
+                </div>
+              ) : (
+                discounts.map((discount, i) => (
+                  <div
+                    key={discount.id}
+                    className={`${TABLE_GRID} ${i % 2 === 0 ? "bg-card" : "bg-muted/30"}`}
+                  >
+                    <div className="flex items-center h-10 px-3 min-w-0">
+                      <span className="text-xs font-semibold text-foreground truncate">
+                        {discount.service}
+                      </span>
+                    </div>
+                    <div className="flex items-center h-10 px-3 min-w-0">
+                      <span className="text-xs font-normal text-muted-foreground truncate">
+                        {discount.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center h-10 px-3 min-w-0">
+                      <span className="text-xs font-bold text-accent-foreground truncate">
+                        {discount.value}
+                      </span>
+                    </div>
+                    <div className="flex items-center h-10 px-3 min-w-0">
+                      <span className="text-xs font-normal text-muted-foreground truncate">
+                        {discount.used}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center h-10">
+                      <Button
+                        variant="destructive"
+                        size="icon-xs"
+                        disabled={removingId === discount.id || submitting}
+                        onClick={async () => {
+                          setRemovingId(discount.id);
+                          try { await onRemove?.(discount.id); }
+                          finally { setRemovingId(null); }
+                        }}
+                        className="bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
+                        aria-label={`Remove discount for ${discount.service}`}
+                      >
+                        {removingId === discount.id
+                          ? <Loader2 className="size-3.5 animate-spin" />
+                          : <Trash2 className="size-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -265,11 +254,10 @@ export function DiscountModal({
                   variant="ghost"
                   disabled={submitting}
                   onClick={() => handleTypeChange("percent")}
-                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
-                    discountType === "percent"
-                      ? "bg-card shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
+                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${discountType === "percent"
+                      ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
                       : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
-                  }`}
+                    }`}
                 >
                   Percent (%)
                 </Button>
@@ -278,11 +266,10 @@ export function DiscountModal({
                   variant="ghost"
                   disabled={submitting}
                   onClick={() => handleTypeChange("amount")}
-                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${
-                    discountType === "amount"
-                      ? "bg-card shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06)] text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
+                  className={`flex-1 h-auto px-4 py-1.5 rounded-md text-xs transition-all ${discountType === "amount"
+                      ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
                       : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
-                  }`}
+                    }`}
                 >
                   Amount ($)
                 </Button>
@@ -359,28 +346,27 @@ export function DiscountModal({
               </span>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={submitting}
-              onClick={() => setIsOpen(false)}
-              className="h-auto px-5 py-2 rounded-full text-xs font-bold text-foreground border-border hover:bg-muted/50"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              disabled={submitting}
-              onClick={handleApply}
-              className="h-auto px-5 py-2 rounded-full text-xs font-bold bg-accent-foreground hover:bg-accent-foreground/90 text-white"
-            >
-              {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Apply discount"}
-            </Button>
-          </div>
         </div>
+
+        <DialogFooter className="mx-0 mb-0 p-0 border-t-0 bg-transparent rounded-none flex-row items-center justify-end gap-2 px-7 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={submitting}
+            onClick={() => setIsOpen(false)}
+            className="h-auto px-5 py-2 text-xs font-bold text-foreground border-border hover:bg-muted/50"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={submitting}
+            onClick={handleApply}
+            className="h-auto px-5 py-2 text-xs font-bold bg-accent-foreground hover:bg-accent-foreground/90 text-white"
+          >
+            {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Apply discount"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

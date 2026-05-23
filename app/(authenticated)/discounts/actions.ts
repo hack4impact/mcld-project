@@ -8,6 +8,7 @@ import {
    listStripeServices,
    listActiveDiscountsForCustomer,
    deleteCoupon,
+   stripe,
 } from "@/lib/stripe";
 import type { ActiveDiscount, DiscountService } from "@/components/discount-modal";
 
@@ -187,14 +188,32 @@ export async function getUserDiscountModalData(stripeCustomerId: string): Promis
    return { services: rawServices, discounts };
 }
 
-export async function removeCouponById(couponId: string): Promise<DiscountActionState> {
+const removeCouponByIdSchema = z.object({
+   couponId: z.string().min(1, "Coupon ID is required"),
+   customerId: z.string().min(1, "Customer ID is required"),
+});
+
+export async function removeCouponById(
+   couponId: string,
+   customerId: string,
+): Promise<DiscountActionState> {
    try {
       await requireAdmin();
    } catch {
       return { errors: { _form: ["Unauthorized"] } };
    }
+
+   const parsed = removeCouponByIdSchema.safeParse({ couponId, customerId });
+   if (!parsed.success) {
+      return { errors: parsed.error.flatten().fieldErrors };
+   }
+
    try {
-      await deleteCoupon(couponId);
+      const coupon = await stripe.coupons.retrieve(parsed.data.couponId);
+      if (coupon.metadata?.customerId !== parsed.data.customerId) {
+         return { errors: { _form: ["This discount does not belong to the specified customer"] } };
+      }
+      await deleteCoupon(parsed.data.couponId);
       return { message: "Discount removed." };
    } catch (error) {
       return { errors: { _form: [error instanceof Error ? error.message : "Could not remove discount"] } };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pencil, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -21,14 +21,21 @@ export function UserActionsCell({ user }: UserActionsCellProps) {
    const [services, setServices] = useState<DiscountService[]>([]);
    const [discounts, setDiscounts] = useState<ActiveDiscount[]>([]);
    const [loading, setLoading] = useState(false);
+   const servicesFetched = useRef(false);
 
-   const fetchModalData = async () => {
+   const fetchModalData = async (forceServices = false) => {
       if (!user.stripeCustomerId) return;
       setLoading(true);
-      const data = await getUserDiscountModalData(user.stripeCustomerId);
-      setServices(data.services);
-      setDiscounts(data.discounts);
-      setLoading(false);
+      try {
+         const data = await getUserDiscountModalData(user.stripeCustomerId);
+         if (forceServices || !servicesFetched.current) {
+            setServices(data.services);
+            servicesFetched.current = true;
+         }
+         setDiscounts(data.discounts);
+      } finally {
+         setLoading(false);
+      }
    };
 
    const handleOpenChange = async (next: boolean) => {
@@ -56,8 +63,9 @@ export function UserActionsCell({ user }: UserActionsCellProps) {
    };
 
    const handleRemove = async (couponId: string) => {
-      const result = await removeCouponById(couponId);
-      if (!result?.errors) setDiscounts(prev => prev.filter(d => d.id !== couponId));
+      if (!user.stripeCustomerId) return;
+      const result = await removeCouponById(couponId, user.stripeCustomerId);
+      if (!result?.errors) setDiscounts((prev) => prev.filter((d) => d.id !== couponId));
    };
 
    return (
