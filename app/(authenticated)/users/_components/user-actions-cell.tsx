@@ -10,6 +10,7 @@ import {
    applyDiscountToCustomerProduct,
    removeCouponById,
 } from "@/app/(authenticated)/discounts/actions";
+import { toast } from "sonner";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
 
 interface UserActionsCellProps {
@@ -59,13 +60,27 @@ export function UserActionsCell({ user }: UserActionsCellProps) {
       fd.append("discount_value", String(discountValue));
       if (data.type === "amount") fd.append("currency", "cad");
       const result = await applyDiscountToCustomerProduct(null, fd);
-      if (!result?.errors) await fetchModalData();
+      if (result?.errors) {
+         toast.error("Failed to apply discount", {
+            description: Object.values(result.errors).flat().join(" "),
+         });
+      } else {
+         toast.success("Discount applied");
+         await fetchModalData();
+      }
    };
 
    const handleRemove = async (couponId: string) => {
       if (!user.stripeCustomerId) return;
       const result = await removeCouponById(couponId, user.stripeCustomerId);
-      if (!result?.errors) setDiscounts((prev) => prev.filter((d) => d.id !== couponId));
+      if (result?.errors) {
+         toast.error("Failed to remove discount", {
+            description: Object.values(result.errors).flat().join(" "),
+         });
+      } else {
+         toast.success("Discount removed");
+         setDiscounts((prev) => prev.filter((d) => d.id !== couponId));
+      }
    };
 
    return (

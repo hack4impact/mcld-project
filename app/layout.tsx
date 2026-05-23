@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col font-[Helvetica,Arial,sans-serif]">
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light">
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

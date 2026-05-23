@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import { AppSidebar } from "@/components/app-sidebar";
 
 async function AuthGate({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export default function AuthenticatedLayout({
                </div>
             </SidebarInset>
          </SidebarProvider>
+         <Toaster />
       </TooltipProvider>
    );
 }
