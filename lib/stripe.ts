@@ -217,9 +217,26 @@ export async function getStripeServiceData(
    };
 }
 
-export async function listStripeServices(): Promise<{ id: string; name: string }[]> {
-   const products = await stripe.products.list({ active: true, limit: 100 });
-   return products.data.map((p) => ({ id: p.id, name: p.name }));
+export async function listStripeServices(): Promise<{ id: string; name: string; priceCents: number | null }[]> {
+   const [products, prices] = await Promise.all([
+      stripe.products.list({ active: true, limit: 100 }),
+      stripe.prices.list({ active: true, limit: 100 }),
+   ]);
+
+   const sortedPrices = [...prices.data].sort((a, b) => b.created - a.created);
+   const priceMap = new Map<string, number | null>();
+   for (const price of sortedPrices) {
+      const productId = typeof price.product === "string" ? price.product : price.product.id;
+      if (!priceMap.has(productId)) {
+         priceMap.set(productId, price.unit_amount);
+      }
+   }
+
+   return products.data.map((p) => ({
+      id: p.id,
+      name: p.name,
+      priceCents: priceMap.get(p.id) ?? null,
+   }));
 }
 
 export type CustomerDiscount = {

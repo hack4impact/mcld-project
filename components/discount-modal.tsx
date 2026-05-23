@@ -26,6 +26,7 @@ export interface ActiveDiscount {
 export interface DiscountService {
   id: string;
   name: string;
+  priceCents: number | null;
 }
 
 interface DiscountModalProps {
@@ -169,6 +170,7 @@ export function DiscountModal({
             </div>
 
             {/* Table rows */}
+            <div className="max-h-[120px] overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center h-10">
                 <Spinner className="size-4 text-accent-foreground" />
@@ -224,6 +226,7 @@ export function DiscountModal({
                 </div>
               ))
             )}
+            </div>
           </div>
         </div>
 
@@ -245,7 +248,7 @@ export function DiscountModal({
               <SelectContent>
                 {services.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.name}
+                    {s.name}{s.priceCents != null ? ` · $${(s.priceCents / 100).toFixed(2)}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -310,6 +313,28 @@ export function DiscountModal({
               </div>
             </div>
           </div>
+
+          {/* After discount preview */}
+          {(() => {
+            const selected = services.find((s) => s.id === serviceId);
+            if (!selected || selected.priceCents == null) return null;
+            const numValue = Number(value);
+            if (!value || isNaN(numValue) || numValue <= 0) return null;
+            const afterCents = Math.max(
+              0,
+              discountType === "percent"
+                ? selected.priceCents * (1 - numValue / 100)
+                : selected.priceCents - numValue * 100,
+            );
+            return (
+              <p className="text-xs text-muted-foreground -mt-1">
+                After discount:{" "}
+                <span className="font-semibold text-foreground">
+                  ${(afterCents / 100).toFixed(2)}
+                </span>
+              </p>
+            );
+          })()}
 
           {/* Usage limit */}
           <div className="flex flex-col gap-1 w-full">
