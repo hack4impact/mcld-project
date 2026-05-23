@@ -7,7 +7,9 @@ import {profiles} from "@/lib/db/schema"
 import {requireAdmin} from "@/lib/auth/require-admin";
 import {createAdminClient} from "@/utils/supabase/admin";
 import type {Role} from "@/lib/roles";
+import {ROLES} from "@/lib/roles";
 import {createUserAdminSchema, updateUserAdminSchema} from "./schema";
+import {grantComplimentarySubscription} from "@/lib/stripe";
 
 export type UserAdminActionState = {
     errors?: Record<string, string[]>;
@@ -88,13 +90,14 @@ export async function createUserAdmin(
         password: formData.get("password"),
         confirm_password: formData.get("confirm_password"),
         role: formData.get("role"),
+        subscription_months: formData.get("subscription_months"),
       });
 
     if (!parsed.success) {
         return {errors: parsed.error.flatten().fieldErrors };
     }
 
-    const {first_name, last_name, email,password, role} = parsed.data;
+    const {first_name, last_name, email,password, role, subscription_months} = parsed.data;
 
     const admin = createAdminClient();
     const { data: authData, error: authError} = await admin.auth.admin.createUser({
@@ -136,6 +139,27 @@ export async function createUserAdmin(
     } catch (error) {
         return {errors: { _form: ["Could not create user"]}};
     }
+
+    if (role === ROLES.USER && subscription_months > 0) {
+        try {
+           await grantComplimentarySubscription(
+              userId,
+              email,
+              subscription_months,
+           );
+        } catch (err) {
+            console.error("[createUserAdmin] grant subscription failed:", err);
+            return {
+               errors: {
+                  _form: [
+                     "User was created, but the complimentary subscription could not be added. Please try again or contact support.",
+                  ],
+               },
+               data: { user_id: userId },
+            };
+        }
+     }
+
     revalidatePath(USERS_PATH);
     return {message: "User created.", data: {user_id: userId}};
 }

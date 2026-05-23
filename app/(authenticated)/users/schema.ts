@@ -9,6 +9,7 @@ export const createUserAdminSchema = z
     confirm_password: z.string().min(1, "Please confirm the password"),
     email: z.string().email(),
     role: z.enum(Object.values(ROLES) as [string, ...string[]]),
+    subscription_months: z.coerce.number().int().min(0).max(24).default(0),
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "Passwords do not match",

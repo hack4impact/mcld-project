@@ -5,6 +5,7 @@ import type { UserRow } from "./profile-role-label";
 import { pgSchema, uuid, text } from "drizzle-orm/pg-core";
 
 const USERS_SUBSCRIPTION_STATUS_ACTIVE = "active" as const;
+const USERS_SUBSCRIPTION_STATUS_TRIAL = "trialing" as const;
 
 const auth = pgSchema("auth");
 
@@ -39,7 +40,7 @@ export async function listUsersWithEmails(): Promise<UserRow[]> {
       lastLoginAt: row.lastLoginAt,
       stripeCustomerId: row.stripeCustomerId ?? null,
       email: row.email ?? "",
-      isActive: row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_ACTIVE,
+      isActive: row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_ACTIVE || row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_TRIAL,
    }));
 }
 

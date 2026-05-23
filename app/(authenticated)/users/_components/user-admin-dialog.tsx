@@ -119,6 +119,26 @@ export function CreateUserDialog() {
             <FieldError errors={state?.errors?.role} />
           </div>
 
+          {role === ROLES.USER && (
+            <div className="space-y-2">
+                <Label htmlFor="subscription_months">
+                Complimentary subscription (months)
+                </Label>
+                <Input
+                id="subscription_months"
+                name="subscription_months"
+                type="number"
+                min={0}
+                max={24}
+                defaultValue={0}
+                />
+                <p className="text-xs text-muted-foreground">
+                Creates a trial on the platform plan.
+                </p>
+                <FieldError errors={state?.errors?.subscription_months} />
+            </div>
+            )}
+
           {state?.message && (
             <p className="text-sm text-muted-foreground">{state.message}</p>
           )}
