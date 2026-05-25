@@ -2,6 +2,13 @@ export type TimeSlot = { start: string; end: string };
 
 export const SLOT_MINUTES = 15;
 
+export const SLOTS_PER_HOUR = 60 / SLOT_MINUTES;
+
+export const SLOT_INDICES: readonly number[] = Array.from(
+   { length: SLOTS_PER_HOUR },
+   (_, i) => i,
+);
+
 export const WEEKDAY = {
    sun: 0,
    mon: 1,

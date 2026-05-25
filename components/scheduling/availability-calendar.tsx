@@ -11,24 +11,20 @@ import {
    keysToTimeSlots,
    slotKey,
    timeSlotsToKeys,
+   SLOT_INDICES,
    SLOT_MINUTES,
+   SLOTS_PER_HOUR,
    type TimeSlot,
    type Weekday,
 } from "@/lib/scheduling/time-slot";
 
 const DAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
-const QUARTERS = [0, 1, 2, 3] as const;
 
 type AvailabilityCalendarProps = {
    weeks: number;
    daysOfWeek: Weekday[];
    startHour: number;
    endHour: number;
-   /**
-    * Anchor date used as week 1 / day 0. Should be set after mount by the
-    * parent (or left undefined to render a placeholder until then) so that
-    * server-rendered HTML matches the first client render.
-    */
    anchor: Date | null;
    value: TimeSlot[];
    onChange: (slots: TimeSlot[]) => void;
@@ -96,8 +92,8 @@ export function AvailabilityCalendar({
       for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
          const day = days[dayIndex]!;
          for (let hour = startHour; hour < endHour; hour++) {
-            for (const quarter of QUARTERS) {
-               const slotIndex = (hour - startHour) * 4 + quarter;
+            for (const quarter of SLOT_INDICES) {
+               const slotIndex = (hour - startHour) * SLOTS_PER_HOUR + quarter;
                const d = new Date(day);
                d.setHours(hour, quarter * SLOT_MINUTES, 0, 0);
                const key = slotKey(d);
@@ -230,9 +226,7 @@ export function AvailabilityCalendar({
          if (gridRef.current) {
             try {
                gridRef.current.releasePointerCapture(current.pointerId);
-            } catch {
-               /* already released */
-            }
+            } catch {}
          }
 
          setDragState(IDLE);
@@ -295,7 +289,7 @@ export function AvailabilityCalendar({
                   onPointerMove={handleGridPointerMove}
                >
                   {hours.map((hour) =>
-                     QUARTERS.map((quarter) => {
+                     SLOT_INDICES.map((quarter) => {
                         const slotMinute = quarter * SLOT_MINUTES;
                         const showHourLabel = quarter === 0;
 
