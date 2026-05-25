@@ -42,6 +42,33 @@ function FieldError({ errors }: { errors?: string[] }) {
    return <p className="text-sm text-destructive">{errors[0]}</p>;
 }
 
+function useActionConfirm(
+   state: UserAdminActionState | null,
+   pending: boolean,
+   onSuccess: () => void,
+) {
+   const [confirmOpen, setConfirmOpen] = useState(false);
+   const prevStateRef = useRef(state);
+
+   useEffect(() => {
+      if (state === prevStateRef.current) return;
+      prevStateRef.current = state;
+      if (state?.message) onSuccess();
+   }, [state, onSuccess]);
+
+   const confirmVisible =
+      confirmOpen &&
+      !state?.message &&
+      !(state?.errors && !pending);
+
+   function openConfirm() {
+      setConfirmOpen(false);
+      queueMicrotask(() => setConfirmOpen(true));
+   }
+
+   return { confirmVisible, openConfirm, setConfirmOpen };
+}
+
 type ConfirmAlertProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
@@ -104,7 +131,6 @@ function CreateUserFormContent({
    onSuccess,
    onCancel,
 }: CreateUserFormContentProps) {
-   const [confirmOpen, setConfirmOpen] = useState(false);
    const [firstName, setFirstName] = useState(CREATE_DEFAULTS.firstName);
    const [lastName, setLastName] = useState(CREATE_DEFAULTS.lastName);
    const [email, setEmail] = useState(CREATE_DEFAULTS.email);
@@ -123,16 +149,11 @@ function CreateUserFormContent({
       FormData
    >(createUserAdmin, null);
 
-   useEffect(() => {
-      if (state?.message) {
-         setConfirmOpen(false);
-         onSuccess();
-      }
-   }, [state?.message, onSuccess]);
-
-   useEffect(() => {
-      if (state?.errors) setConfirmOpen(false);
-   }, [state?.errors]);
+   const { confirmVisible, openConfirm, setConfirmOpen } = useActionConfirm(
+      state,
+      pending,
+      onSuccess,
+   );
 
    return (
       <>
@@ -274,7 +295,7 @@ function CreateUserFormContent({
                </Button>
                <Button
                   type="button"
-                  onClick={() => setConfirmOpen(true)}
+                  onClick={openConfirm}
                   disabled={pending}
                >
                   Create user
@@ -283,7 +304,7 @@ function CreateUserFormContent({
          </form>
 
          <ConfirmAlert
-            open={confirmOpen}
+            open={confirmVisible}
             onOpenChange={setConfirmOpen}
             title="Create user?"
             description="Are you sure you want to create this user?"
@@ -342,7 +363,6 @@ function EditUserFormContent({
    onSuccess,
    onCancel,
 }: EditUserFormContentProps) {
-   const [confirmOpen, setConfirmOpen] = useState(false);
    const [email, setEmail] = useState(user.email);
    const [role, setRole] = useState(user.role);
 
@@ -352,16 +372,11 @@ function EditUserFormContent({
       FormData
    >(updateUserAdmin, null);
 
-   useEffect(() => {
-      if (state?.message) {
-         setConfirmOpen(false);
-         onSuccess();
-      }
-   }, [state?.message, onSuccess]);
-
-   useEffect(() => {
-      if (state?.errors) setConfirmOpen(false);
-   }, [state?.errors]);
+   const { confirmVisible, openConfirm, setConfirmOpen } = useActionConfirm(
+      state,
+      pending,
+      onSuccess,
+   );
 
    return (
       <>
@@ -430,7 +445,7 @@ function EditUserFormContent({
                </Button>
                <Button
                   type="button"
-                  onClick={() => setConfirmOpen(true)}
+                  onClick={openConfirm}
                   disabled={pending}
                >
                   Save changes
@@ -439,7 +454,7 @@ function EditUserFormContent({
          </form>
 
          <ConfirmAlert
-            open={confirmOpen}
+            open={confirmVisible}
             onOpenChange={setConfirmOpen}
             title="Save changes?"
             description="Are you sure you want to save these changes?"
