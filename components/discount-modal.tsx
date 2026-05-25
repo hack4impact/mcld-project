@@ -22,6 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 export interface ActiveDiscount {
   id: string;
@@ -55,8 +64,6 @@ interface DiscountModalProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
-
-const TABLE_GRID = "grid grid-cols-[2fr_1fr_1fr_1fr_2.5rem]";
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -149,72 +156,83 @@ export function DiscountModal({
           </h3>
 
           <div className="w-full rounded-lg border border-border overflow-hidden">
-            {/* Table header */}
-            <div className={`${TABLE_GRID} bg-accent`}>
-              <div className="flex items-center h-8 px-3"><FieldLabel>Service</FieldLabel></div>
-              <div className="flex items-center h-8 px-3"><FieldLabel>Type</FieldLabel></div>
-              <div className="flex items-center h-8 px-3"><FieldLabel>Value</FieldLabel></div>
-              <div className="flex items-center h-8 px-3"><FieldLabel>Used</FieldLabel></div>
-              <div className="h-8" />
-            </div>
-
-            {/* Table rows */}
+            {/* Fixed header — separate table so the body can scroll independently */}
+            <Table className="table-fixed">
+              <TableHeader className="bg-accent [&_tr]:border-0">
+                <TableRow className="hover:bg-accent">
+                  <TableHead className="h-8 w-[38%] px-3 py-0"><FieldLabel>Service</FieldLabel></TableHead>
+                  <TableHead className="h-8 w-[19%] px-3 py-0"><FieldLabel>Type</FieldLabel></TableHead>
+                  <TableHead className="h-8 w-[19%] px-3 py-0"><FieldLabel>Value</FieldLabel></TableHead>
+                  <TableHead className="h-8 w-[19%] px-3 py-0"><FieldLabel>Used</FieldLabel></TableHead>
+                  <TableHead className="h-8 w-10 p-0" />
+                </TableRow>
+              </TableHeader>
+            </Table>
+            {/* Scrollable body */}
             <div className="max-h-[120px] overflow-y-auto">
-              {loading ? (
-                <div className="flex items-center justify-center h-10">
-                  <Spinner className="size-4 text-accent-foreground" />
-                </div>
-              ) : discounts.length === 0 ? (
-                <div className="flex items-center justify-center h-10 text-xs font-normal text-muted-foreground">
-                  No active discounts
-                </div>
-              ) : (
-                discounts.map((discount, i) => (
-                  <div
-                    key={discount.id}
-                    className={`${TABLE_GRID} ${i % 2 === 0 ? "bg-card" : "bg-muted/30"}`}
-                  >
-                    <div className="flex items-center h-10 px-3 min-w-0">
-                      <span className="text-xs font-semibold text-foreground truncate">
-                        {discount.service}
-                      </span>
-                    </div>
-                    <div className="flex items-center h-10 px-3 min-w-0">
-                      <span className="text-xs font-normal text-muted-foreground truncate">
-                        {discount.type}
-                      </span>
-                    </div>
-                    <div className="flex items-center h-10 px-3 min-w-0">
-                      <span className="text-xs font-bold text-accent-foreground truncate">
-                        {discount.value}
-                      </span>
-                    </div>
-                    <div className="flex items-center h-10 px-3 min-w-0">
-                      <span className="text-xs font-normal text-muted-foreground truncate">
-                        {discount.used}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-center h-10">
-                      <Button
-                        variant="destructive"
-                        size="icon-xs"
-                        disabled={removingId === discount.id || submitting}
-                        onClick={async () => {
-                          setRemovingId(discount.id);
-                          try { await onRemove?.(discount.id); }
-                          finally { setRemovingId(null); }
-                        }}
-                        className="bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
-                        aria-label={`Remove discount for ${discount.service}`}
+              <Table className="table-fixed">
+                <TableBody>
+                  {loading ? (
+                    <TableRow className="border-0 hover:bg-transparent">
+                      <TableCell colSpan={5} className="h-10 p-0 text-center">
+                        <Spinner className="size-4 text-accent-foreground inline-block" />
+                      </TableCell>
+                    </TableRow>
+                  ) : discounts.length === 0 ? (
+                    <TableRow className="border-0 hover:bg-transparent">
+                      <TableCell colSpan={5} className="h-10 p-0 text-center text-xs font-normal text-muted-foreground">
+                        No active discounts
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    discounts.map((discount, i) => (
+                      <TableRow
+                        key={discount.id}
+                        className={cn("border-0", i % 2 === 0 ? "bg-card" : "bg-muted/30")}
                       >
-                        {removingId === discount.id
-                          ? <Loader2 className="size-3.5 animate-spin" />
-                          : <Trash2 className="size-3.5" />}
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
+                        <TableCell className="h-10 w-[38%] px-3 py-0 min-w-0">
+                          <span className="text-xs font-semibold text-foreground truncate block">
+                            {discount.service}
+                          </span>
+                        </TableCell>
+                        <TableCell className="h-10 w-[19%] px-3 py-0 min-w-0">
+                          <span className="text-xs font-normal text-muted-foreground truncate block">
+                            {discount.type}
+                          </span>
+                        </TableCell>
+                        <TableCell className="h-10 w-[19%] px-3 py-0 min-w-0">
+                          <span className="text-xs font-bold text-accent-foreground truncate block">
+                            {discount.value}
+                          </span>
+                        </TableCell>
+                        <TableCell className="h-10 w-[19%] px-3 py-0 min-w-0">
+                          <span className="text-xs font-normal text-muted-foreground truncate block">
+                            {discount.used}
+                          </span>
+                        </TableCell>
+                        <TableCell className="h-10 w-10 p-0 text-center">
+                          <Button
+                            variant="destructive"
+                            size="icon-xs"
+                            disabled={removingId === discount.id || submitting}
+                            onClick={async () => {
+                              setRemovingId(discount.id);
+                              try { await onRemove?.(discount.id); }
+                              finally { setRemovingId(null); }
+                            }}
+                            className="bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive"
+                            aria-label={`Remove discount for ${discount.service}`}
+                          >
+                            {removingId === discount.id
+                              ? <Loader2 className="size-3.5 animate-spin" />
+                              : <Trash2 className="size-3.5" />}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
         </div>
@@ -255,8 +273,8 @@ export function DiscountModal({
                   disabled={submitting}
                   onClick={() => handleTypeChange("percent")}
                   className={`flex-1 h-auto px-4 py-1.5 text-xs transition-all ${discountType === "percent"
-                      ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
-                      : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
+                    ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
+                    : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
                     }`}
                 >
                   Percent (%)
@@ -267,8 +285,8 @@ export function DiscountModal({
                   disabled={submitting}
                   onClick={() => handleTypeChange("amount")}
                   className={`flex-1 h-auto px-4 py-1.5 text-xs transition-all ${discountType === "amount"
-                      ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
-                      : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
+                    ? "bg-card shadow-sm text-accent-foreground font-bold hover:bg-card hover:text-accent-foreground"
+                    : "text-muted-foreground font-normal hover:bg-transparent hover:text-muted-foreground"
                     }`}
                 >
                   Amount ($)

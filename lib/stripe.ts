@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { profiles, subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { cacheLife } from "next/cache";
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
    apiVersion: "2026-03-25.dahlia",
@@ -218,6 +219,8 @@ export async function getStripeServiceData(
 }
 
 export async function listStripeServices(): Promise<{ id: string; name: string; priceCents: number | null }[]> {
+   "use cache";
+   cacheLife("hours");
    const [products, prices] = await Promise.all([
       stripe.products.list({ active: true, limit: 100 }),
       stripe.prices.list({ active: true, limit: 100 }),
@@ -296,15 +299,15 @@ async function getManagedDiscountForCustomerProduct(
 
 export type ProductDiscountConfig =
    | {
-        percentOff: number;
-        amountOffCents?: never;
-        currency?: string;
-     }
+      percentOff: number;
+      amountOffCents?: never;
+      currency?: string;
+   }
    | {
-        percentOff?: never;
-        amountOffCents: number;
-        currency: string;
-     };
+      percentOff?: never;
+      amountOffCents: number;
+      currency: string;
+   };
 
 export async function applyProductDiscountToCustomer(input: {
    productId: string;
