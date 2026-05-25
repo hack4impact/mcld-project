@@ -391,17 +391,19 @@ export async function deleteCouponIfExhausted(couponId: string): Promise<void> {
 
 
 
-export async function grantComplimentarySubscription(userId:string , email: string, months: number): Promise<void> {
+export async function grantComplimentarySubscription(
+   userId: string,
+   email: string,
+   months: number,
+): Promise<void> {
    if (months <= 0) return;
 
-   
-   const priceId = process.env.STRIPE_PRICE_ID!;
-   // if SUBSCRIPTION_PRICE_ID was null from the environment then we woudn't have been able to reach this point since it was stated not to be null by using ! isn't taht right ? 
-   if(!priceId) {
+   const priceId = process.env.STRIPE_PRICE_ID;
+   if (!priceId) {
       throw new Error("Subscription price ID is not set");
    }
 
-   const customerId = await getOrCreateStripeCustomer(userId,email);
+   const customerId = await getOrCreateStripeCustomer(userId, email);
 
    const existing = await stripe.subscriptions.list({
       customer: customerId,
@@ -409,7 +411,6 @@ export async function grantComplimentarySubscription(userId:string , email: stri
       limit: 1,
    });
 
-   // might just want to return return here since you could create  an account and give no subscript ooh but that woudl be the case of 0 months which is already handled by the if statement above
    const status = existing.data[0]?.status;
    if (status === "active" || status === "trialing") {
       throw new Error("User already has a subscription");
@@ -424,9 +425,5 @@ export async function grantComplimentarySubscription(userId:string , email: stri
       },
    });
 
-
    await syncStripeData(customerId);
-
-
-
 }
