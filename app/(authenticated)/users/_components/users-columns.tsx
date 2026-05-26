@@ -1,17 +1,10 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Tag } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback} from "@/components/ui/avatar";
-import {
-   Tooltip,
-   TooltipContent,
-   TooltipTrigger,
-} from "@/components/ui/tooltip";
-
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
+import { UserActionsCell } from "./user-actions-cell";
 
 export const usersColumns: ColumnDef<UserRow>[] = [
    {
@@ -95,35 +88,6 @@ export const usersColumns: ColumnDef<UserRow>[] = [
          thClassName: "text-right",
          tdClassName: "text-right",
       },
-      cell: () => (
-         <div className="flex items-center justify-end gap-0.5">
-            <Tooltip>
-               <TooltipTrigger asChild>
-                  <Button
-                     variant="ghost"
-                     size="icon-sm"
-                     aria-label="Edit user"
-                     disabled
-                  >
-                     <Pencil />
-                  </Button>
-               </TooltipTrigger>
-               <TooltipContent>Edit (coming soon)</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-               <TooltipTrigger asChild>
-                  <Button
-                     variant="ghost"
-                     size="icon-sm"
-                     aria-label="Give discount"
-                     disabled
-                  >
-                     <Tag />
-                  </Button>
-               </TooltipTrigger>
-               <TooltipContent>Give coupon (coming soon)</TooltipContent>
-            </Tooltip>
-         </div>
-      ),
+      cell: ({ row }) => <UserActionsCell user={row.original} />,
    },
 ];

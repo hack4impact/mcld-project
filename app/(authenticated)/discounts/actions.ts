@@ -5,7 +5,12 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import {
    applyProductDiscountToCustomer,
    removeProductDiscountFromCustomer,
+   listStripeServices,
+   listActiveDiscountsForCustomer,
+   deleteCoupon,
+   stripe,
 } from "@/lib/stripe";
+import type { ActiveDiscount, DiscountService } from "@/components/discount-modal";
 
 export type DiscountActionState = {
    errors?: Record<string, string[]>;
@@ -146,5 +151,71 @@ export async function removeDiscountFromCustomerProduct(
             ],
          },
       };
+   }
+}
+
+export async function getUserDiscountModalData(stripeCustomerId: string): Promise<{
+   services: DiscountService[];
+   discounts: ActiveDiscount[];
+}> {
+   try {
+      await requireAdmin();
+   } catch {
+      return { services: [], discounts: [] };
+   }
+
+   const [rawServices, rawDiscounts] = await Promise.all([
+      listStripeServices(),
+      listActiveDiscountsForCustomer(stripeCustomerId),
+   ]);
+
+   const nameMap = new Map(rawServices.map((s) => [s.id, s.name]));
+
+   const discounts: ActiveDiscount[] = rawDiscounts.map((d) => ({
+      id: d.couponId,
+      service: nameMap.get(d.productId) ?? d.productId,
+      type: d.percentOff !== null ? "Percent" : "Amount",
+      value:
+         d.percentOff !== null
+            ? `${d.percentOff}%`
+            : `$${((d.amountOffCents ?? 0) / 100).toFixed(2)}`,
+      used:
+         d.maxRedemptions !== null
+            ? `${d.timesRedeemed} / ${d.maxRedemptions}`
+            : String(d.timesRedeemed),
+   }));
+
+   return { services: rawServices, discounts };
+}
+
+const removeCouponByIdSchema = z.object({
+   couponId: z.string().min(1, "Coupon ID is required"),
+   customerId: z.string().min(1, "Customer ID is required"),
+});
+
+export async function removeCouponById(
+   couponId: string,
+   customerId: string,
+): Promise<DiscountActionState> {
+   try {
+      await requireAdmin();
+   } catch {
+      return { errors: { _form: ["Unauthorized"] } };
+   }
+
+   const parsed = removeCouponByIdSchema.safeParse({ couponId, customerId });
+   if (!parsed.success) {
+      return { errors: parsed.error.flatten().fieldErrors };
+   }
+
+   try {
+      const coupon = await stripe.coupons.retrieve(parsed.data.couponId);
+      if (coupon.metadata?.customerId !== parsed.data.customerId) {
+         return { errors: { _form: ["This discount does not belong to the specified customer"] } };
+      }
+      await deleteCoupon(parsed.data.couponId);
+      return { message: "Discount removed." };
+   } catch (error) {
+      return { errors: { _form: [error instanceof Error ? error.message : "Could not remove discount"] } };
    }
 }

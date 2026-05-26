@@ -18,4 +18,5 @@ export type UserRow = {
    role: string;
    isActive: boolean;
    lastLoginAt: Date;
+   stripeCustomerId: string | null;
 };

@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { profiles, subscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { cacheLife } from "next/cache";
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
    apiVersion: "2026-03-25.dahlia",
@@ -217,6 +218,61 @@ export async function getStripeServiceData(
    };
 }
 
+export async function listStripeServices(): Promise<{ id: string; name: string; priceCents: number | null }[]> {
+   "use cache";
+   cacheLife("hours");
+   const [products, prices] = await Promise.all([
+      stripe.products.list({ active: true, limit: 100 }),
+      stripe.prices.list({ active: true, limit: 100 }),
+   ]);
+
+   const sortedPrices = [...prices.data].sort((a, b) => b.created - a.created);
+   const priceMap = new Map<string, number | null>();
+   for (const price of sortedPrices) {
+      const productId = typeof price.product === "string" ? price.product : price.product.id;
+      if (!priceMap.has(productId)) {
+         priceMap.set(productId, price.unit_amount);
+      }
+   }
+
+   return products.data.map((p) => ({
+      id: p.id,
+      name: p.name,
+      priceCents: priceMap.get(p.id) ?? null,
+   }));
+}
+
+export type CustomerDiscount = {
+   couponId: string;
+   productId: string;
+   percentOff: number | null;
+   amountOffCents: number | null;
+   currency: string | null;
+   timesRedeemed: number;
+   maxRedemptions: number | null;
+};
+
+export async function listActiveDiscountsForCustomer(
+   customerId: string,
+): Promise<CustomerDiscount[]> {
+   const coupons = await stripe.coupons.list({ limit: 100 });
+   return coupons.data
+      .filter((c) => c.metadata?.customerId === customerId && c.valid)
+      .map((c) => ({
+         couponId: c.id,
+         productId: c.metadata!.productId,
+         percentOff: c.percent_off ?? null,
+         amountOffCents: c.amount_off ?? null,
+         currency: c.currency ?? null,
+         timesRedeemed: c.times_redeemed,
+         maxRedemptions: c.max_redemptions ?? null,
+      }));
+}
+
+export async function deleteCoupon(couponId: string): Promise<void> {
+   await stripe.coupons.del(couponId);
+}
+
 async function getManagedDiscountForCustomerProduct(
    customerId: string,
    productId: string,
@@ -243,15 +299,15 @@ async function getManagedDiscountForCustomerProduct(
 
 export type ProductDiscountConfig =
    | {
-        percentOff: number;
-        amountOffCents?: never;
-        currency?: string;
-     }
+      percentOff: number;
+      amountOffCents?: never;
+      currency?: string;
+   }
    | {
-        percentOff?: never;
-        amountOffCents: number;
-        currency: string;
-     };
+      percentOff?: never;
+      amountOffCents: number;
+      currency: string;
+   };
 
 export async function applyProductDiscountToCustomer(input: {
    productId: string;

@@ -23,6 +23,7 @@ export async function listUsersWithEmails(): Promise<UserRow[]> {
          lastName: profiles.lastName,
          role: profiles.role,
          lastLoginAt: profiles.lastLoginAt,
+         stripeCustomerId: profiles.stripeCustomerId,
          subscriptionStatus: subscriptions.status,
          email: authUsers.email,
       })
@@ -36,6 +37,7 @@ export async function listUsersWithEmails(): Promise<UserRow[]> {
       lastName: row.lastName,
       role: row.role,
       lastLoginAt: row.lastLoginAt,
+      stripeCustomerId: row.stripeCustomerId ?? null,
       email: row.email ?? "",
       isActive: row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_ACTIVE,
    }));
