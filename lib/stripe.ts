@@ -411,19 +411,21 @@ export async function grantComplimentarySubscription(
       limit: 1,
    });
 
-   const status = existing.data[0]?.status;
-   if (status === "active" || status === "trialing") {
-      throw new Error("User already has a subscription");
-   }
+  
+
+   const trialEndDate = new Date();
+   trialEndDate.setMonth(trialEndDate.getMonth() + months);
+
+
+   const trialEndTimestamp = Math.floor(trialEndDate.getTime() / 1000);
 
    await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
-      trial_period_days: months * 30,
+      trial_end: trialEndTimestamp, 
       trial_settings: {
          end_behavior: { missing_payment_method: "cancel" },
       },
    });
-
    await syncStripeData(customerId);
 }

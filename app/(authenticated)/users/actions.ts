@@ -65,10 +65,17 @@ export async function updateUserAdmin(
       return { errors: { _form: [message] } };
    }
 
-   await db
-      .update(profiles)
-      .set({ role: role as Role, updatedAt: new Date() })
-      .where(eq(profiles.id, user_id));
+   try {
+
+      await db
+         .update(profiles)
+         .set({ role: role as Role, updatedAt: new Date() })
+         .where(eq(profiles.id, user_id));
+   } catch {
+      return  {
+         errors: { _form: ["Failed to update profile. Please try again."] }
+      }
+   }
 
    revalidatePath(USERS_PATH);
    return { message: "User updated." };
@@ -155,7 +162,7 @@ export async function createUserAdmin(
             },
          });
    } catch {
-      return { errors: { _form: ["Could not create user"] } };
+      await admin.auth.admin.deleteUser(userId);
    }
 
    if (role === ROLES.USER && subscription_months > 0) {

@@ -90,7 +90,7 @@ function ConfirmAlert({
 }: ConfirmAlertProps) {
    return (
       <AlertDialog open={open} onOpenChange={onOpenChange}>
-         <AlertDialogContent className="z-[60] w-full max-w-[calc(100%-2rem)] sm:max-w-md">
+         <AlertDialogContent className="sm:max-w-md">
             <AlertDialogHeader className="place-items-start text-left sm:place-items-start sm:text-left">
                <AlertDialogTitle>{title}</AlertDialogTitle>
                <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -334,8 +334,8 @@ export function CreateUserDialog() {
 
    return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-         <DialogTrigger asChild>
-            <Button className="shrink-0 border-[#0040A1] bg-[#0040A1] text-white hover:bg-[#003380] hover:text-white">
+         <DialogTrigger asChild className=''>
+            <Button>
                Add user
             </Button>
          </DialogTrigger>
