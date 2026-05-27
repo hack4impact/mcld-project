@@ -119,6 +119,7 @@ export async function checkoutDonation(): Promise<CheckoutResult> {
    } = await supabase.auth.getUser();
    if (!user) return { error: "Not authenticated" };
 
+   // This product can have a variable price, adjusted by Stripe Checkout
    const donationProductId = process.env.STRIPE_DONATION_PRODUCT_ID;
    if (!donationProductId) return { error: "Donation product not configured" };
 
