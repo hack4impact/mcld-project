@@ -388,3 +388,44 @@ export async function deleteCouponIfExhausted(couponId: string): Promise<void> {
       console.error(`[STRIPE] Coupon cleanup failed for ${couponId}:`, err);
    }
 }
+
+
+
+export async function grantComplimentarySubscription(
+   userId: string,
+   email: string,
+   months: number,
+): Promise<void> {
+   if (months <= 0) return;
+
+   const priceId = process.env.STRIPE_PRICE_ID;
+   if (!priceId) {
+      throw new Error("Subscription price ID is not set");
+   }
+
+   const customerId = await getOrCreateStripeCustomer(userId, email);
+
+   const existing = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 1,
+   });
+
+  
+
+   const trialEndDate = new Date();
+   trialEndDate.setMonth(trialEndDate.getMonth() + months);
+
+
+   const trialEndTimestamp = Math.floor(trialEndDate.getTime() / 1000);
+
+   await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+      trial_end: trialEndTimestamp, 
+      trial_settings: {
+         end_behavior: { missing_payment_method: "cancel" },
+      },
+   });
+   await syncStripeData(customerId);
+}
