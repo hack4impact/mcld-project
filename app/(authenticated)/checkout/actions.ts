@@ -112,6 +112,27 @@ export async function checkoutServiceBooking({
    return { url: result.session.url! };
 }
 
+export async function checkoutDonation(): Promise<CheckoutResult> {
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) return { error: "Not authenticated" };
+
+   const donationProductId = process.env.STRIPE_DONATION_PRODUCT_ID;
+   if (!donationProductId) return { error: "Donation product not configured" };
+
+   const result = await createStripeCheckoutSession({
+      userId: user.id,
+      email: user.email!,
+      stripeProductId: donationProductId,
+      metadata: { type: "donation" },
+   });
+   if ("error" in result) return { error: result.error };
+
+   return { url: result.session.url! };
+}
+
 export async function checkoutCoachingSession({
    coachingSessionId,
 }: {
