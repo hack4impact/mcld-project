@@ -107,6 +107,22 @@ export type SubscriptionDetails = {
    paymentMethodLast4: string | null;
 } | null;
 
+/**
+ * Lightweight gate used by the checkout flow. Returns true when the
+ * user has a subscription row with status active or trialing. Avoids
+ * the Stripe round-trip that getSubscriptionDetails does.
+ */
+export async function userHasActiveSubscription(
+   userId: string,
+): Promise<boolean> {
+   const subscription = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.userId, userId),
+   });
+   return (
+      subscription?.status === "active" || subscription?.status === "trialing"
+   );
+}
+
 export async function getSubscriptionDetails(
    userId: string,
 ): Promise<SubscriptionDetails> {

@@ -7,6 +7,7 @@ import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import { coachingSessions, serviceBookings, services } from "@/lib/db/schema";
 import { getOrCreateStripeCustomer, stripe } from "@/lib/stripe";
+import { submitAvailabilities, type Availability } from "@/app/coaching/actions";
 import { createClient } from "@/utils/supabase/server";
 
 export type CheckoutResult = { url: string } | { error: string };
@@ -160,5 +161,56 @@ export async function checkoutCoachingSession({
       .where(eq(coachingSessions.id, row.id));
 
    return { url: result.session.url! };
+}
+
+/**
+ * Kick off a Stripe Checkout session for the monthly subscription. Used by
+ * the "subscription needed" modal in the product checkout flow.
+ */
+export async function startSubscriptionCheckout(): Promise<CheckoutResult> {
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) return { error: "Not authenticated" };
+
+   const priceId = process.env.STRIPE_PRICE_ID;
+   if (!priceId) return { error: "Subscription price is not configured" };
+
+   const customerId = await getOrCreateStripeCustomer(user.id, user.email!);
+   const origin = await getRequestOrigin();
+
+   const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${origin}/checkout/success`,
+      cancel_url: `${origin}/checkout/cancel`,
+   });
+
+   if (!session.url)
+      return { error: "Stripe did not return a checkout URL" };
+   return { url: session.url };
+}
+
+/**
+ * Composite action used by the private-lesson checkout step. Stores the
+ * user's availabilities as a new coaching session, then opens the Stripe
+ * Checkout session for it.
+ */
+export async function startPrivateLessonCheckout({
+   serviceId,
+   availabilities,
+}: {
+   serviceId: string;
+   availabilities: Availability[];
+}): Promise<CheckoutResult> {
+   const created = await submitAvailabilities({ serviceId, availabilities });
+   if ("error" in created) return { error: created.error };
+
+   return checkoutCoachingSession({
+      coachingSessionId: created.coachingSessionId,
+   });
 }
 
