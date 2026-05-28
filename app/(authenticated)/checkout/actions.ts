@@ -123,6 +123,18 @@ export async function checkoutDonation(): Promise<CheckoutResult> {
    const donationProductId = process.env.STRIPE_DONATION_PRODUCT_ID;
    if (!donationProductId) return { error: "Donation product not configured" };
 
+   const product = await stripe.products.retrieve(donationProductId);
+   const priceId = product.default_price;
+
+   if (!priceId || typeof priceId !== "string") {
+      return { error: "Donation product has no default price" };
+   }
+
+   const price = await stripe.prices.retrieve(priceId);
+   if (!price.custom_unit_amount) {
+      return { error: "Donation price is not configured for customer chosen amounts" };
+   }
+
    const result = await createStripeCheckoutSession({
       userId: user.id,
       email: user.email!,

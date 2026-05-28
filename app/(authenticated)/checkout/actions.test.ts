@@ -5,6 +5,7 @@ import { checkoutDonation } from "./actions";
 
 const createSession = jest.fn();
 const retrieveProduct = jest.fn();
+const retrievePrice = jest.fn();
 const getUser = jest.fn();
 const getOrCreateStripeCustomer = jest.fn();
 const headersGet = jest.fn();
@@ -13,6 +14,7 @@ jest.mock("@/lib/stripe", () => ({
    stripe: {
       checkout: { sessions: { create: (...args: unknown[]) => createSession(...args) } },
       products: { retrieve: (...args: unknown[]) => retrieveProduct(...args) },
+      prices: { retrieve: (...args: unknown[]) => retrievePrice(...args) },
    },
    getOrCreateStripeCustomer: (...args: unknown[]) =>
       getOrCreateStripeCustomer(...args),
@@ -36,6 +38,7 @@ beforeEach(() => {
    getUser.mockResolvedValue(authedUser);
    getOrCreateStripeCustomer.mockResolvedValue("cus_123");
    retrieveProduct.mockResolvedValue({ default_price: "price_donation" });
+   retrievePrice.mockResolvedValue({ custom_unit_amount: { preset: 1000 } });
    createSession.mockResolvedValue({ url: "https://stripe.test/session" });
    headersGet.mockReturnValue("https://app.test");
 });
