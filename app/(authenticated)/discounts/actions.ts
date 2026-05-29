@@ -164,12 +164,13 @@ export async function getUserDiscountModalData(stripeCustomerId: string): Promis
       return { services: [], discounts: [] };
    }
 
-   const [rawServices, rawDiscounts] = await Promise.all([
-      listStripeServices(),
+   const [allProducts, rawDiscounts] = await Promise.all([
+      listStripeServices(true),
       listActiveDiscountsForCustomer(stripeCustomerId),
    ]);
 
-   const nameMap = new Map(rawServices.map((s) => [s.id, s.name]));
+   const rawServices = allProducts.filter((p) => p.active);
+   const nameMap = new Map<string, string>(allProducts.map((s) => [s.id, s.name]));
 
    const discounts: ActiveDiscount[] = rawDiscounts.map((d) => ({
       id: d.couponId,
