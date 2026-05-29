@@ -44,7 +44,6 @@ export async function submitAvailabilities({
          userId: user.id,
          serviceId: service.id,
          coachId: service.coachId,
-         durationMinutes: service.durationMinutes,
          selectedTimeSlots: availabilities,
          status: "awaiting_payment",
       })

@@ -118,7 +118,6 @@ export const coachingSessions = pgTable("coaching_sessions", {
       .references(() => profiles.id, { onDelete: "cascade" })
       .notNull(),
    scheduledAt: timestamp("scheduled_at"),
-   durationMinutes: integer("duration_minutes").notNull().default(60),
    status: sessionStatusEnum("status").notNull().default("pending"),
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
