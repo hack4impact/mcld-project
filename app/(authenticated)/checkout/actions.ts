@@ -112,6 +112,40 @@ export async function checkoutServiceBooking({
    return { url: result.session.url! };
 }
 
+export async function checkoutDonation(): Promise<CheckoutResult> {
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) return { error: "Not authenticated" };
+
+   // This product can have a variable price, adjusted by Stripe Checkout
+   const donationProductId = process.env.STRIPE_DONATION_PRODUCT_ID;
+   if (!donationProductId) return { error: "Donation product not configured" };
+
+   const product = await stripe.products.retrieve(donationProductId);
+   const priceId = product.default_price;
+
+   if (!priceId || typeof priceId !== "string") {
+      return { error: "Donation product has no default price" };
+   }
+
+   const price = await stripe.prices.retrieve(priceId);
+   if (!price.custom_unit_amount) {
+      return { error: "Donation price is not configured for customer chosen amounts" };
+   }
+
+   const result = await createStripeCheckoutSession({
+      userId: user.id,
+      email: user.email!,
+      stripeProductId: donationProductId,
+      metadata: { type: "donation" },
+   });
+   if ("error" in result) return { error: result.error };
+
+   return { url: result.session.url! };
+}
+
 export async function checkoutCoachingSession({
    coachingSessionId,
 }: {
