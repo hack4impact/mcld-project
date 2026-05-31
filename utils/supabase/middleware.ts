@@ -42,7 +42,12 @@ export async function updateSession(request: NextRequest) {
       !request.nextUrl.pathname.startsWith("/api/public")
    ) {
       const url = request.nextUrl.clone();
+      const originalPath = request.nextUrl.pathname + request.nextUrl.search;
       url.pathname = "/login";
+      url.search = "";
+      if (originalPath && originalPath !== "/") {
+         url.searchParams.set("next", originalPath);
+      }
       return NextResponse.redirect(url);
    }
 
