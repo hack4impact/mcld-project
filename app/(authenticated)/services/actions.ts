@@ -165,6 +165,7 @@ export async function createService(
    // so they still run when baseFields fails on unrelated fields.
    const typeRaw = formData.get("type")?.toString();
    let scheduledAtValue: ProgramSchedule | null = null;
+   let coachIdValue: string | null = null;
    if (typeRaw === "programs") {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -175,6 +176,7 @@ export async function createService(
    } else if (typeRaw === "private_lessons") {
       const coach = parseCoachId(formData);
       if (!coach.ok) Object.assign(errors, coach.errors);
+      else coachIdValue = coach.value;
    }
 
    if (Object.keys(errors).length > 0) {
@@ -203,6 +205,7 @@ export async function createService(
          slots: scheduledAtValue?.slots ?? null,
          durationMinutes: duration_minutes,
          stripeProductId: productId,
+         coachId: coachIdValue,
          status: "active",
       });
    } catch (e) {
@@ -298,6 +301,7 @@ export async function updateService(
    }
 
    let scheduledAtValue: ProgramSchedule | undefined;
+   let coachIdValue: string | undefined;
    if (row.type === "programs" && formData.has("start_date")) {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -305,6 +309,10 @@ export async function updateService(
       } else {
          scheduledAtValue = result.value;
       }
+   } else if (row.type === "private_lessons" && formData.has("coach_id")) {
+      const coach = parseCoachId(formData);
+      if (!coach.ok) Object.assign(errors, coach.errors);
+      else coachIdValue = coach.value;
    }
 
    if (Object.keys(errors).length > 0) {
@@ -334,6 +342,7 @@ export async function updateService(
          dbPatch.endDate = scheduledAtValue.endDate;
          dbPatch.slots = scheduledAtValue.slots;
       }
+      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();
