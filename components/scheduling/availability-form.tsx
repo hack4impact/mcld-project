@@ -5,6 +5,7 @@ import { useActionState } from "react";
 
 import { AvailabilityCalendar } from "@/components/scheduling/availability-calendar";
 import { MessageYourCoach } from "@/components/scheduling/message-your-coach";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { TimeSlot, Weekday } from "@/lib/scheduling/time-slot";
 import {
@@ -46,20 +47,27 @@ export function AvailabilityForm({
 
    const errors = state?.errors;
 
+   const hours = React.useMemo(() => {
+      const ms = slots.reduce(
+         (acc, s) =>
+            acc + (new Date(s.end).getTime() - new Date(s.start).getTime()),
+         0,
+      );
+      return ms / 3_600_000;
+   }, [slots]);
+
+   const hasSelection = slots.length > 0;
+
    return (
       <form
          action={formAction}
          className={cn(
-            "mx-auto w-full max-w-6xl overflow-hidden rounded-xl border border-border bg-card shadow-sm",
+            "mx-auto w-full max-w-7xl overflow-hidden rounded-xl border border-border bg-card shadow-sm",
             className,
          )}
       >
          <input type="hidden" name="session_id" value={sessionId} />
-         <input
-            type="hidden"
-            name="time_slots"
-            value={JSON.stringify(slots)}
-         />
+         <input type="hidden" name="time_slots" value={JSON.stringify(slots)} />
 
          <AvailabilityCalendar
             weeks={weeks}
@@ -76,7 +84,6 @@ export function AvailabilityForm({
                name="notes"
                value={coachMessage}
                onChange={setCoachMessage}
-               pending={pending}
             />
 
             <FormErrors errors={errors} />
@@ -84,6 +91,41 @@ export function AvailabilityForm({
             {state?.message && !errors ? (
                <p className="mt-2 text-sm text-primary">{state.message}</p>
             ) : null}
+         </div>
+
+         <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+               {hasSelection ? (
+                  <>
+                     <span className="font-semibold text-foreground">
+                        {hours.toLocaleString(undefined, {
+                           maximumFractionDigits: 1,
+                        })}
+                     </span>{" "}
+                     hours selected
+                  </>
+               ) : (
+                  "Select your availability"
+               )}
+            </p>
+            <div className="flex items-center gap-2">
+               <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setSlots([])}
+                  disabled={pending || !hasSelection}
+                  className="text-muted-foreground"
+               >
+                  Clear all
+               </Button>
+               <Button
+                  type="submit"
+                  disabled={pending || !hasSelection}
+                  className="font-semibold sm:min-w-44"
+               >
+                  {pending ? "Submitting…" : "Submit availability"}
+               </Button>
+            </div>
          </div>
       </form>
    );

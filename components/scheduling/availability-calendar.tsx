@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
    buildCalendarRange,
    buildHourRange,
@@ -66,7 +67,7 @@ export function AvailabilityCalendar({
    }, [weeks, daysOfWeek, anchor]);
 
    const columnCount = days.length;
-   const gridColumns = `4.5rem repeat(${columnCount}, minmax(0, 1fr))`;
+   const gridColumns = `3.5rem repeat(${columnCount}, minmax(0, 1fr))`;
 
    const [drag, setDrag] = React.useState<DragState>(IDLE);
    const [pointerPos, setPointerPos] = React.useState<{
@@ -179,7 +180,6 @@ export function AvailabilityCalendar({
    const handleSlotPointerDown = React.useCallback(
       (e: React.PointerEvent, key: string) => {
          e.preventDefault();
-         (e.currentTarget as HTMLElement).focus();
          startDragAt(key, e.pointerId);
       },
       [startDragAt],
@@ -252,21 +252,31 @@ export function AvailabilityCalendar({
       return formatTimeRange(start, end);
    }, [drag]);
 
-   const slotCount = selected.size;
-   const hoursTotal = (slotCount * SLOT_MINUTES) / 60;
-
    const hours = React.useMemo(
       () => buildHourRange(startHour, endHour),
       [startHour, endHour],
    );
 
+   const tooltipStyle = React.useMemo<React.CSSProperties | null>(() => {
+      if (!pointerPos) return null;
+      const margin = 96;
+      const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+      const x = Math.min(
+         Math.max(pointerPos.x, margin),
+         Math.max(margin, vw - margin),
+      );
+      const y = Math.max(pointerPos.y, 44);
+      return {
+         left: x,
+         top: y,
+         transform: "translate(-50%, calc(-100% - 8px))",
+      };
+   }, [pointerPos]);
+
    if (!anchor) {
       return (
-         <div
-            className={cn(
-               "min-h-[480px] w-full animate-pulse rounded-xl bg-muted/40",
-               className,
-            )}
+         <Skeleton
+            className={cn("min-h-[400px] w-full rounded-xl", className)}
             aria-busy="true"
             aria-label="Loading availability calendar"
          />
@@ -274,10 +284,10 @@ export function AvailabilityCalendar({
    }
 
    return (
-      <div className={cn("mx-auto w-full max-w-6xl bg-card", className)}>
+      <div className={cn("mx-auto w-full max-w-7xl bg-card", className)}>
          <div className="overflow-x-auto">
             <div
-               style={{ minWidth: `${Math.max(720, 80 + columnCount * 56)}px` }}
+               style={{ minWidth: `${Math.max(560, 56 + columnCount * 48)}px` }}
             >
                <WeekHeaders weeks={weekRanges} gridColumns={gridColumns} />
                <DayHeaders days={days} gridColumns={gridColumns} />
@@ -297,7 +307,7 @@ export function AvailabilityCalendar({
                            <React.Fragment key={`${hour}-${quarter}`}>
                               <div
                                  className={cn(
-                                    "sticky left-0 z-20 h-4 bg-card pr-2 text-right text-xs font-medium text-muted-foreground",
+                                    "sticky left-0 z-20 h-3 bg-card pr-2 text-right text-[11px] font-medium text-muted-foreground",
                                     "border-t border-border/40",
                                     quarter === 0 && "border-t-border",
                                     showHourLabel &&
@@ -333,12 +343,12 @@ export function AvailabilityCalendar({
                                        type="button"
                                        data-slot-key={key}
                                        className={cn(
-                                          "h-4 w-full border-t border-l border-border/40 transition-colors select-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring",
+                                          "h-3 w-full border-t border-l border-border/40 transition-colors select-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring",
                                           quarter === 0 && "border-t-border",
                                           isSelected &&
-                                             "bg-primary/70 hover:bg-primary/80",
+                                             "bg-ring hover:bg-ring/90",
                                           (isAddPreview || isRemovePreview) &&
-                                             "border border-dashed border-primary bg-primary/30",
+                                             "border border-dashed border-ring bg-ring/25",
                                        )}
                                        style={{ gridColumn: dayIndex + 2 }}
                                        onPointerDown={(e) =>
@@ -348,7 +358,9 @@ export function AvailabilityCalendar({
                                           handleSlotKeyDown(e, key)
                                        }
                                        aria-pressed={isSelected}
-                                       aria-label={formatSlotAriaLabel(slotDate)}
+                                       aria-label={formatSlotAriaLabel(
+                                          slotDate,
+                                       )}
                                     />
                                  );
                               })}
@@ -357,14 +369,10 @@ export function AvailabilityCalendar({
                      }),
                   )}
 
-                  {tooltip && pointerPos ? (
+                  {tooltip && tooltipStyle ? (
                      <div
-                        className="pointer-events-none fixed z-50 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
-                        style={{
-                           left: pointerPos.x,
-                           top: pointerPos.y,
-                           transform: "translate(-50%, calc(-100% - 8px))",
-                        }}
+                        className="pointer-events-none fixed z-50 whitespace-nowrap rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
+                        style={tooltipStyle}
                      >
                         {tooltip}
                      </div>
@@ -372,25 +380,6 @@ export function AvailabilityCalendar({
                </div>
             </div>
          </div>
-         <footer className="flex flex-col gap-4 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-               <span className="font-semibold tracking-wider text-foreground/70">
-                  YOUR SELECTIONS:
-               </span>
-               <LegendItem
-                  className="bg-primary/70"
-                  label="Available"
-               />
-               <LegendItem
-                  className="border border-dashed border-primary bg-primary/30"
-                  label="Selecting... (drag)"
-               />
-            </div>
-            <p className="text-sm font-semibold text-primary">
-               {slotCount} slot{slotCount === 1 ? "" : "s"} selected ·{" "}
-               {hoursTotal.toFixed(2)} hrs total
-            </p>
-         </footer>
       </div>
    );
 }
@@ -411,7 +400,7 @@ function WeekHeaders({
 }) {
    return (
       <div
-         className="grid border-b border-border text-xs font-bold tracking-wide text-primary"
+         className="grid border-b border-border text-xs font-bold tracking-wide text-accent-foreground"
          style={{ gridTemplateColumns: gridColumns }}
       >
          <div className="sticky left-0 z-30 bg-card" />
@@ -419,9 +408,9 @@ function WeekHeaders({
             <div
                key={index}
                className={cn(
-                  "py-2 pl-3 text-left",
+                  "py-1.5 pl-3 text-left",
                   index % 2 === 0 ? "bg-accent/40" : "bg-accent/60",
-                  index < weeks.length - 1 && "border-r-2 border-primary",
+                  index < weeks.length - 1 && "border-r-2 border-ring",
                )}
                style={{ gridColumn: `span ${weekDays.length}` }}
             >
@@ -445,31 +434,16 @@ function DayHeaders({
          {days.map((day) => (
             <div
                key={day.toISOString()}
-               className="border-b border-l border-border bg-card py-2 text-center text-foreground"
+               className="border-b border-l border-border bg-card py-1.5 text-center text-foreground"
             >
                <div className="text-[10px] font-bold tracking-wider">
                   {DAY_LABELS[day.getDay()]}
                </div>
-               <div className="text-lg font-bold leading-none">
+               <div className="text-base font-bold leading-none">
                   {day.getDate()}
                </div>
             </div>
          ))}
       </div>
-   );
-}
-
-function LegendItem({
-   className,
-   label,
-}: {
-   className?: string;
-   label: string;
-}) {
-   return (
-      <span className="inline-flex items-center gap-1.5">
-         <span className={cn("size-4 rounded-sm", className)} />
-         {label}
-      </span>
    );
 }
