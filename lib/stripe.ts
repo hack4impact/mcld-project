@@ -218,11 +218,12 @@ export async function getStripeServiceData(
    };
 }
 
-export async function listStripeServices(): Promise<{ id: string; name: string; priceCents: number | null }[]> {
+export async function listStripeServices(includeArchived = false): Promise<{ id: string; name: string; priceCents: number | null; active: boolean }[]> {
    "use cache";
    cacheLife("hours");
+   const activeFilter = includeArchived ? {} : { active: true };
    const [products, prices] = await Promise.all([
-      stripe.products.list({ active: true, limit: 100 }),
+      stripe.products.list({ ...activeFilter, limit: 100 }),
       stripe.prices.list({ active: true, limit: 100 }),
    ]);
 
@@ -239,6 +240,7 @@ export async function listStripeServices(): Promise<{ id: string; name: string; 
       id: p.id,
       name: p.name,
       priceCents: priceMap.get(p.id) ?? null,
+      active: p.active,
    }));
 }
 
