@@ -79,8 +79,10 @@ export function FormDialog(props: Props) {
       FormData
    >(boundFormAction, null);
 
+   const editOpen = isEdit ? props.open : false;
+
    React.useEffect(() => {
-      if (!isEdit || !form?.id || !props.open) return;
+      if (!isEdit || !form?.id || !editOpen) return;
 
       let cancelled = false;
       setLoading(true);
@@ -104,7 +106,7 @@ export function FormDialog(props: Props) {
       return () => {
          cancelled = true;
       };
-   }, [isEdit, form?.id, isEdit ? props.open : false]);
+   }, [isEdit, form?.id, editOpen]);
 
    const closeRef = React.useRef<HTMLButtonElement>(null);
    const prevState = React.useRef<FormActionState>(null);
