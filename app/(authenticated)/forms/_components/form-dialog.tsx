@@ -62,6 +62,8 @@ export function FormDialog(props: Props) {
    const [questions, setQuestions] = React.useState<DraftQuestion[]>([]);
    const [loading, setLoading] = React.useState(false);
    const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
+   const [pendingNewQuestion, setPendingNewQuestion] =
+      React.useState<DraftQuestion | null>(null);
    const [questionDialogOpen, setQuestionDialogOpen] = React.useState(false);
 
    const boundFormAction = React.useCallback(
@@ -129,31 +131,52 @@ export function FormDialog(props: Props) {
    const showForm = !isEdit || (form !== null && !loading);
 
    const openQuestionEditor = (index: number) => {
+      setPendingNewQuestion(null);
       setEditingIndex(index);
       setQuestionDialogOpen(true);
    };
 
+   const handleQuestionDialogOpenChange = (open: boolean) => {
+      setQuestionDialogOpen(open);
+      if (!open) {
+         setPendingNewQuestion(null);
+         setEditingIndex(null);
+      }
+   };
+
    const addQuestion = () => {
-      const next = [...questions, emptyQuestion()];
-      setQuestions(next);
-      openQuestionEditor(next.length - 1);
+      setEditingIndex(questions.length);
+      setPendingNewQuestion(emptyQuestion());
+      setQuestionDialogOpen(true);
    };
 
    const saveQuestion = (updated: DraftQuestion) => {
-      if (editingIndex === null) return;
-      setQuestions((prev) =>
-         prev.map((q, i) => (i === editingIndex ? updated : q)),
-      );
+      if (pendingNewQuestion) {
+         setQuestions((prev) => [...prev, updated]);
+         setPendingNewQuestion(null);
+      } else if (editingIndex !== null) {
+         setQuestions((prev) =>
+            prev.map((q, i) => (i === editingIndex ? updated : q)),
+         );
+      }
+      setEditingIndex(null);
    };
 
    const deleteQuestion = () => {
+      if (pendingNewQuestion) {
+         setPendingNewQuestion(null);
+         setEditingIndex(null);
+         return;
+      }
       if (editingIndex === null) return;
       setQuestions((prev) => prev.filter((_, i) => i !== editingIndex));
       setEditingIndex(null);
    };
 
    const editingQuestion =
-      editingIndex !== null ? (questions[editingIndex] ?? null) : null;
+      pendingNewQuestion ??
+      (editingIndex !== null ? (questions[editingIndex] ?? null) : null);
+   const isEditingNewQuestion = pendingNewQuestion !== null;
 
    return (
       <>
@@ -252,12 +275,12 @@ export function FormDialog(props: Props) {
 
          <QuestionEditDialog
             open={questionDialogOpen}
-            onOpenChange={setQuestionDialogOpen}
+            onOpenChange={handleQuestionDialogOpenChange}
             questionIndex={editingIndex}
             question={editingQuestion}
             onSave={saveQuestion}
             onDelete={deleteQuestion}
-            canDelete={questions.length > 1}
+            canDelete={isEditingNewQuestion || questions.length > 1}
          />
       </>
    );
