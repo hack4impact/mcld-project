@@ -1,7 +1,12 @@
-import { ExtraQuestionOption, extraQuestions, forms, services} from "@/lib/db/schema";
+import {
+   ExtraQuestionOption,
+   extraQuestions,
+   forms,
+   services,
+} from "@/lib/db/schema";
 import { cacheTag } from "next/cache";
 import { db } from "@/lib/db";
-import { asc,desc, eq ,count} from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 export type ExtraQuestionType = "text" | "multiple_choices" | "checkboxes" | "user_agreement";
 
@@ -28,36 +33,32 @@ export type FormView = FormListItem & {
 
 const FORMS_TAG = "forms";
 export async function listForms(): Promise<FormListItem[]> {
-    "use cache";
-    cacheTag(FORMS_TAG);
+   "use cache";
+   cacheTag(FORMS_TAG);
 
-    const rows =  await db
-        .select()
-        .from(forms)
-        .orderBy(desc(forms.createdAt));
+   const rows = await db
+      .select({
+         id: forms.id,
+         name: forms.name,
+         createdAt: forms.createdAt,
+         updatedAt: forms.updatedAt,
+         questionCount: sql<number>`cast(count(distinct ${extraQuestions.id}) as integer)`,
+         attachedServiceCount: sql<number>`cast(count(distinct ${services.id}) as integer)`,
+      })
+      .from(forms)
+      .leftJoin(extraQuestions, eq(extraQuestions.formId, forms.id))
+      .leftJoin(services, eq(services.formId, forms.id))
+      .groupBy(forms.id, forms.name, forms.createdAt, forms.updatedAt)
+      .orderBy(desc(forms.createdAt));
 
-    return Promise.all(
-        rows.map(async (row) => {
-            const [questionRow] = await db
-                .select({ count: count() })
-                .from(extraQuestions)
-                .where(eq(extraQuestions.formId, row.id));
-
-            const [serviceRow] = await db
-                .select({ count: count() })
-                .from(services)
-                .where(eq(services.formId, row.id));
-            
-            return {
-                id: row.id,
-                name: row.name,
-                questionCount: questionRow?.count ?? 0,
-                attachedServiceCount: serviceRow?.count ?? 0,
-                createdAt: row.createdAt,
-                updatedAt: row.updatedAt,
-            }
-        })
-    )
+   return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      questionCount: Number(row.questionCount),
+      attachedServiceCount: Number(row.attachedServiceCount),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+   }));
 }
 
 
