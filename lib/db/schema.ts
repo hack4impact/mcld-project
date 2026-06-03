@@ -74,6 +74,8 @@ export const services = pgTable("services", {
    coachId: uuid("coach_id").references(() => profiles.id, {
       onDelete: "set null",
    }),
+   formId: uuid("form_id")
+      .references(() => forms.id, { onDelete: "set null" }),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -188,9 +190,10 @@ export const emergencyContacts = pgTable("emergency_contacts", {
 
 export const extraQuestions = pgTable("extra_questions", {
    id: uuid("id").primaryKey().defaultRandom(),
-   serviceId: uuid("service_id")
-      .references(() => services.id, { onDelete: "cascade" })
+   formId: uuid("form_id")
+      .references(() => forms.id, { onDelete: "cascade" })
       .notNull(),
+   sortOrder: integer("sort_order").notNull(),
    type: extraQuestionTypeEnum("type").notNull(),
    prompt: text("prompt").notNull(),
    options: jsonb("options").$type<ExtraQuestionOption[]>(),
@@ -210,3 +213,10 @@ export const extraQuestionAnswers = pgTable("extra_question_answers", {
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const forms = pgTable("forms", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   name: text("name").notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
