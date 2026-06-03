@@ -84,10 +84,16 @@ function parseUpdatePayload(formData: FormData) {
    return { ok: true as const, value: parsed.data };
 }
 
-async function insertQuestions(formId: string, questions: QuestionInput) {
+type FormDb = Pick<typeof db, "insert">;
+
+async function insertQuestions(
+   formId: string,
+   questions: QuestionInput,
+   client: FormDb = db,
+) {
    if (questions.length === 0) return;
 
-   await db.insert(extraQuestions).values(
+   await client.insert(extraQuestions).values(
       questions.map((q, index) => ({
          formId,
          sortOrder: index,
@@ -122,18 +128,22 @@ export async function createForm(
 
    const { name, questions } = parsed.value;
 
-   const [form] = await db
-      .insert(forms)
-      .values({
-         name,
-      })
-      .returning({ id: forms.id });
+   try {
+      await db.transaction(async (tx) => {
+         const [form] = await tx
+            .insert(forms)
+            .values({ name })
+            .returning({ id: forms.id });
 
-   if (!form) {
+         if (!form) {
+            throw new Error("Failed to create form");
+         }
+
+         await insertQuestions(form.id, questions, tx);
+      });
+   } catch {
       return { errors: { _form: ["Failed to create form. Please try again."] } };
    }
-
-   await insertQuestions(form.id, questions);
 
    bustFormsCache();
    return { message: "Form created." };
@@ -164,16 +174,24 @@ export async function updateForm(
       return { errors: { _form: ["Form not found"] } };
    }
 
-   await db
-      .update(forms)
-      .set({
-         name,
-         updatedAt: new Date(),
-      })
-      .where(eq(forms.id, form_id));
+   try {
+      await db.transaction(async (tx) => {
+         await tx
+            .update(forms)
+            .set({
+               name,
+               updatedAt: new Date(),
+            })
+            .where(eq(forms.id, form_id));
 
-   await db.delete(extraQuestions).where(eq(extraQuestions.formId, form_id));
-   await insertQuestions(form_id, questions);
+         await tx
+            .delete(extraQuestions)
+            .where(eq(extraQuestions.formId, form_id));
+         await insertQuestions(form_id, questions, tx);
+      });
+   } catch {
+      return { errors: { _form: ["Failed to update form. Please try again."] } };
+   }
 
    bustFormsCache();
    return { message: "Form updated." };
