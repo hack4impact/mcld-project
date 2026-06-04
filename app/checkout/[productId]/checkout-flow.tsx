@@ -27,15 +27,18 @@ import type { ServiceView } from "@/app/(authenticated)/services/queries";
 import type { ProductDiscountForUser } from "@/lib/stripe";
 
 import { checkoutServiceBooking, startPrivateLessonCheckout } from "../actions";
-import {
-   AvailabilityCalendar,
-   type AvailabilityRange,
-} from "./availability-calendar";
+import { AvailabilityCalendar } from "@/components/scheduling/availability-calendar";
+import type { TimeSlot, Weekday } from "@/lib/scheduling/time-slot";
 
 type CheckoutFlowProps = {
    service: ServiceView;
    discount: ProductDiscountForUser | null;
 };
+
+const AVAILABILITY_WEEKS = 2;
+const AVAILABILITY_DAYS: Weekday[] = ["mon", "tue", "wed", "thu", "fri"];
+const AVAILABILITY_START_HOUR = 8;
+const AVAILABILITY_END_HOUR = 20;
 
 function formatPrice(cents: number | null, currency: string | null) {
    if (cents === null) return "—";
@@ -127,9 +130,12 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
       "confirm",
    );
    const [submitting, setSubmitting] = React.useState(false);
-   const [availabilities, setAvailabilities] = React.useState<
-      AvailabilityRange[]
-   >([]);
+   const [availabilities, setAvailabilities] = React.useState<TimeSlot[]>([]);
+   const [anchor, setAnchor] = React.useState<Date | null>(null);
+
+   React.useEffect(() => {
+      setAnchor(new Date());
+   }, []);
 
    const isPrivateLesson = service.type === "private_lessons";
    const pricing = buildPricing(service, discount);
@@ -199,7 +205,7 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
          )}
 
          {step === "confirm" ? (
-            <Card className="overflow-hidden">
+            <Card className="mx-auto w-full max-w-xl overflow-hidden">
                <CardHeader className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
                      <h1 className="font-heading text-2xl font-semibold leading-tight">
@@ -288,6 +294,11 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
                </CardHeader>
                <CardContent>
                   <AvailabilityCalendar
+                     weeks={AVAILABILITY_WEEKS}
+                     daysOfWeek={AVAILABILITY_DAYS}
+                     startHour={AVAILABILITY_START_HOUR}
+                     endHour={AVAILABILITY_END_HOUR}
+                     anchor={anchor}
                      value={availabilities}
                      onChange={setAvailabilities}
                   />
