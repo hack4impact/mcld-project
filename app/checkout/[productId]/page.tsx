@@ -34,7 +34,7 @@ export default async function CheckoutPage({
    });
 
    return (
-      <div className="w-full max-w-xl">
+      <div className="mx-auto w-full max-w-4xl">
          <CheckoutFlow service={service} discount={discount} />
       </div>
    );
