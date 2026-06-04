@@ -9,11 +9,13 @@ export function FormsTable({ forms }: { forms: FormListItem[] }) {
    const [editing, setEditing] = React.useState<FormListItem | null>(null);
 
    return (
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-         <div className="flex w-full min-w-0 shrink-0 justify-end pb-2">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+         <div className="flex w-full min-w-0 shrink-0 justify-end p-0.5 pb-2">
             <FormDialog mode="add" />
          </div>
-         <FormsDataTable forms={forms} onEdit={setEditing} />
+         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <FormsDataTable forms={forms} onEdit={setEditing} />
+         </div>
          <FormDialog
             mode="edit"
             form={editing}

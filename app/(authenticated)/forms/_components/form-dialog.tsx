@@ -185,7 +185,7 @@ export function FormDialog(props: Props) {
          <Dialog {...dialogControl}>
             {!isEdit && (
                <DialogTrigger asChild>
-                  <Button>
+                  <Button className="border-primary bg-clip-border hover:border-primary/80 hover:bg-primary/80 active:translate-y-0">
                      <Plus />
                      Add form
                   </Button>
