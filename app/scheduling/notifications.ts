@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { coachingSessions } from "@/lib/db/schema";
 import { getService } from "@/app/(authenticated)/services/queries";
-import { appUrl, sendEmail } from "@/lib/email/client";
+import { appUrl, formatAddress, sendEmail } from "@/lib/email/client";
 import {
    clientPickEmail,
    coachInviteEmail,
@@ -60,7 +60,11 @@ export async function notifyCoachOfBooking(sessionId: string): Promise<void> {
          clientSlots: (session.selectedTimeSlots as TimeSlot[]) ?? [],
          url: appUrl(`/scheduling/coach/${token}`),
       });
-      await sendEmail({ to: coach.email, ...email });
+      await sendEmail({
+         to: coach.email,
+         replyTo: client ? formatAddress(client.name, client.email) : undefined,
+         ...email,
+      });
    } catch (e) {
       console.error("[notifyCoachOfBooking]", e);
    }
@@ -106,7 +110,11 @@ export async function notifyClientToPick(sessionId: string): Promise<void> {
          overlap,
          url: appUrl(`/scheduling/confirm/${token}`),
       });
-      await sendEmail({ to: client.email, ...email });
+      await sendEmail({
+         to: client.email,
+         replyTo: coach ? formatAddress(coach.name, coach.email) : undefined,
+         ...email,
+      });
    } catch (e) {
       console.error("[notifyClientToPick]", e);
    }
@@ -130,6 +138,7 @@ export async function notifyBothConfirmed(
       if (client && coach) {
          await sendEmail({
             to: client.email,
+            replyTo: formatAddress(coach.name, coach.email),
             ...confirmationEmail({
                recipientName: client.name,
                otherPartyName: coach.name,
@@ -139,6 +148,7 @@ export async function notifyBothConfirmed(
          });
          await sendEmail({
             to: coach.email,
+            replyTo: formatAddress(client.name, client.email),
             ...confirmationEmail({
                recipientName: coach.name,
                otherPartyName: client.name,

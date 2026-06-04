@@ -31,6 +31,7 @@ export type SendEmailParams = {
    subject: string;
    html: string;
    text?: string;
+   replyTo?: string;
 };
 
 export async function sendEmail({
@@ -38,9 +39,14 @@ export async function sendEmail({
    subject,
    html,
    text,
+   replyTo,
 }: SendEmailParams): Promise<void> {
    const from = process.env.EMAIL_FROM;
-   await getTransporter().sendMail({ from, to, subject, html, text });
+   await getTransporter().sendMail({ from, to, subject, html, text, replyTo });
+}
+
+export function formatAddress(name: string, email: string): string {
+   return `${name} <${email}>`;
 }
 
 export function appUrl(path: string): string {
