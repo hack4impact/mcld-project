@@ -8,7 +8,9 @@ import {
    boolean,
    jsonb,
    date,
+   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export type ProgramSlot = { dayOfWeek: number; time: string };
 
@@ -62,6 +64,13 @@ export const profiles = pgTable("profiles", {
    lastLoginAt: timestamp('last_login_at').defaultNow().notNull()
 });
 
+export const forms = pgTable("forms", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   name: text("name").notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const services = pgTable("services", {
    id: uuid("id").primaryKey().defaultRandom(),
    type: serviceTypeEnum("type").notNull(),
@@ -74,25 +83,38 @@ export const services = pgTable("services", {
    coachId: uuid("coach_id").references(() => profiles.id, {
       onDelete: "set null",
    }),
+   formId: uuid("form_id").references(() => forms.id, { onDelete: "set null" }),
+   isForChildren: boolean("is_for_children").notNull().default(false),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const serviceBookings = pgTable("service_bookings", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   userId: uuid("user_id")
-      .references(() => profiles.id, { onDelete: "cascade" })
-      .notNull(),
-   serviceId: uuid("service_id")
-      .references(() => services.id, { onDelete: "cascade" })
-      .notNull(),
-   status: bookingStatusEnum("status").notNull().default("pending"),
-   notes: text("notes"),
-   isActive: boolean("is_active").notNull().default(true),
-   stripeOrderId: text("stripe_order_id").unique(),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const serviceBookings = pgTable(
+   "service_bookings",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      userId: uuid("user_id")
+         .references(() => profiles.id, { onDelete: "cascade" })
+         .notNull(),
+      serviceId: uuid("service_id")
+         .references(() => services.id, { onDelete: "cascade" })
+         .notNull(),
+      childId: uuid("child_id").references(() => children.id, {
+         onDelete: "cascade",
+      }),
+      status: bookingStatusEnum("status").notNull().default("pending"),
+      notes: text("notes"),
+      isActive: boolean("is_active").notNull().default(true),
+      stripeOrderId: text("stripe_order_id").unique(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   },
+   (t) => [
+      uniqueIndex("service_bookings_service_id_child_id_idx")
+         .on(t.serviceId, t.childId)
+         .where(sql`${t.childId} is not null`),
+   ],
+);
 
 export const webinars = pgTable("webinars", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -117,11 +139,17 @@ export const coachingSessions = pgTable("coaching_sessions", {
    userId: uuid("user_id")
       .references(() => profiles.id, { onDelete: "cascade" })
       .notNull(),
+   childId: uuid("child_id").references(() => children.id, {
+      onDelete: "cascade",
+   }),
    scheduledAt: timestamp("scheduled_at"),
    status: sessionStatusEnum("status").notNull().default("pending"),
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
    selectedTimeSlots: jsonb("selected_time_slots").notNull(),
+   coachTimeSlots: jsonb("coach_time_slots"),
+   coachToken: text("coach_token").unique(),
+   clientToken: text("client_token").unique(),
    stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -188,12 +216,13 @@ export const emergencyContacts = pgTable("emergency_contacts", {
 
 export const extraQuestions = pgTable("extra_questions", {
    id: uuid("id").primaryKey().defaultRandom(),
-   serviceId: uuid("service_id")
-      .references(() => services.id, { onDelete: "cascade" })
+   formId: uuid("form_id")
+      .references(() => forms.id, { onDelete: "cascade" })
       .notNull(),
    type: extraQuestionTypeEnum("type").notNull(),
    prompt: text("prompt").notNull(),
    options: jsonb("options").$type<ExtraQuestionOption[]>(),
+   sortOrder: integer("sort_order").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
