@@ -13,7 +13,7 @@ export function ServicesTabs() {
    const pathname = usePathname();
 
    return (
-      <div className="flex gap-8 border-b border-[#d4e4ed] px-6">
+      <div className="flex gap-8 px-6">
          {tabs.map((tab) => {
             const isActive = pathname.startsWith(tab.href);
             return (

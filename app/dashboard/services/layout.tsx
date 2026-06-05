@@ -7,6 +7,7 @@ export default function ServicesLayout({
 }) {
    return (
       <div className="flex flex-col">
+         <div className="h-8 shrink-0" aria-hidden />
          <ServicesTabs />
          {children}
       </div>
