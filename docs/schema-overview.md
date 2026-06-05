@@ -7,19 +7,31 @@ erDiagram
         text first_name
         text last_name
         role role
+        text stripe_customer_id
+        timestamp last_login_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    forms {
+        uuid id PK
+        text name
         timestamp created_at
         timestamp updated_at
     }
 
     services {
         uuid id PK
-        text title
-        text description
         service_type type
-        jsonb scheduled_at "null for coaching_session"
+        date start_date "null for private_lessons"
+        date end_date "null for private_lessons"
+        jsonb slots "array of {dayOfWeek, time}; null for private_lessons"
         int duration_minutes
-        int price
-        boolean is_active
+        text stripe_product_id
+        service_status status
+        uuid coach_id FK "null for programs"
+        uuid form_id FK "nullable"
+        boolean is_for_children
         timestamp created_at
         timestamp updated_at
     }
@@ -28,9 +40,11 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid service_id FK
+        uuid child_id FK "nullable; null means adult registration"
         booking_status status
         text notes
         boolean is_active
+        text stripe_order_id
         timestamp created_at
         timestamp updated_at
     }
@@ -52,12 +66,41 @@ erDiagram
         uuid service_id FK
         uuid coach_id FK
         uuid user_id FK
-        timestamp scheduled_at
-        int duration_minutes
+        uuid child_id FK "nullable; null means adult registration"
+        timestamp scheduled_at "set when slot is confirmed"
         session_status status
         text meeting_url
         text notes
         jsonb selected_time_slots "array of {start, end} objects"
+        jsonb coach_time_slots
+        text coach_token
+        text client_token
+        text stripe_order_id
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    subscriptions {
+        uuid id PK
+        uuid user_id FK
+        text stripe_subscription_id
+        text status
+        text stripe_price_id
+        boolean cancel_at_period_end
+        text payment_method_brand
+        text payment_method_last4
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    purchases {
+        uuid id PK
+        uuid user_id FK
+        text stripe_price_id
+        text stripe_session_id
+        text product_name
+        int amount
+        text currency
         timestamp created_at
         timestamp updated_at
     }
@@ -89,10 +132,11 @@ erDiagram
 
     extra_questions {
         uuid id PK
-        uuid service_id FK
+        uuid form_id FK
         extra_question_type type
         text prompt
         jsonb options
+        int sort_order
         timestamp created_at
         timestamp updated_at
     }
@@ -108,24 +152,37 @@ erDiagram
 
     profiles ||--o{ service_bookings : "books"
     services ||--o{ service_bookings : "booked via"
+    children |o--o{ service_bookings : "registered for"
     profiles ||--o{ coaching_sessions : "coaches"
     profiles ||--o{ coaching_sessions : "attends"
     services ||--o{ coaching_sessions : "fulfilled by"
+    children |o--o{ coaching_sessions : "registered for"
     profiles ||--o{ children : "parent of"
     children ||--o{ emergency_contacts : "has"
-    services ||--o{ extra_questions : "defines"
+    profiles ||--o| subscriptions : "has"
+    profiles ||--o{ purchases : "makes"
+    profiles |o--o{ services : "coaches"
+    forms ||--o{ extra_questions : "contains"
+    services }o--o| forms : "uses"
     extra_questions ||--o{ extra_question_answers : "answered via"
     children ||--o{ extra_question_answers : "submits"
 ```
+
+## Indexes
+
+| Table | Index | Type | Condition |
+|---|---|---|---|
+| `service_bookings` | `service_bookings_service_id_child_id_idx` | Unique (partial) | `WHERE child_id IS NOT NULL` — prevents the same child from registering for the same program twice |
 
 ## Enums
 
 | Enum | Values |
 |---|---|
 | `role` | `user`, `admin`, `coach` |
-| `service_type` | `coaching_session`, `booking` |
-| `booking_status` | `pending`, `confirmed`, `cancelled` |
+| `service_type` | `private_lessons`, `programs` |
+| `service_status` | `active`, `disabled`, `archived`, `deleted` |
+| `booking_status` | `awaiting_payment`, `pending`, `confirmed`, `cancelled` |
+| `session_status` | `awaiting_payment`, `pending`, `confirmed`, `cancelled`, `completed` |
 | `webinar_tier` | `free`, `premium` |
-| `session_status` | `pending`, `confirmed`, `cancelled`, `completed` |
 | `gender` | `male`, `female`, `prefer_not_to_say` |
 | `extra_question_type` | `text`, `multiple_choices`, `checkboxes`, `user_agreement` |
