@@ -62,7 +62,7 @@ export async function syncStripeData(stripeCustomerId: string) {
                cancelAtPeriodEnd: false,
                paymentMethodBrand: null,
                paymentMethodLast4: null,
-               updatedAt: new Date(),
+               updatedAt: new Date().toISOString(),
             },
          });
       return { status: "none" as const };
@@ -79,7 +79,7 @@ export async function syncStripeData(stripeCustomerId: string) {
       cancelAtPeriodEnd: sub.cancel_at_period_end,
       paymentMethodBrand: paymentMethod?.card?.brand ?? null,
       paymentMethodLast4: paymentMethod?.card?.last4 ?? null,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
    };
 
    await db
