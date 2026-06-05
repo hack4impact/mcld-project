@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import type { ServiceStatusFilter } from "@/lib/services/list-services";
+import {
+   parseStatusFilter,
+   type ServiceStatusFilter,
+} from "@/lib/services/service-types";
 
 const filters: { label: string; value: ServiceStatusFilter }[] = [
    { label: "All", value: "all" },
@@ -15,18 +18,14 @@ const filters: { label: string; value: ServiceStatusFilter }[] = [
 export function StatusFilter() {
    const pathname = usePathname();
    const searchParams = useSearchParams();
-   const current = (searchParams.get("status") as ServiceStatusFilter) || "all";
+   const current = parseStatusFilter(searchParams.get("status"));
 
    return (
       <div className="flex flex-wrap gap-2">
          {filters.map((filter) => {
             const params = new URLSearchParams(searchParams.toString());
             params.set("status", filter.value);
-            if (filter.value === "all") {
-               params.delete("page");
-            } else {
-               params.delete("page");
-            }
+            params.delete("page");
             const href = `${pathname}?${params.toString()}`;
             const isActive = current === filter.value;
 

@@ -32,6 +32,17 @@ export const serviceFormSchema = z
                path: ["endDate"],
             });
          }
+         if (
+            data.startDate &&
+            data.endDate &&
+            data.endDate < data.startDate
+         ) {
+            ctx.addIssue({
+               code: z.ZodIssueCode.custom,
+               message: "End date must be on or after start date",
+               path: ["endDate"],
+            });
+         }
       }
    });
 

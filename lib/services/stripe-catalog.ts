@@ -1,14 +1,13 @@
+import "server-only";
+
+import { cache } from "react";
 import { stripe } from "@/lib/stripe";
+import type { StripeCatalogDetails } from "@/lib/services/service-types";
 import type Stripe from "stripe";
 
-const DEFAULT_CURRENCY = "cad";
+export type { StripeCatalogDetails } from "@/lib/services/service-types";
 
-export type StripeCatalogDetails = {
-   name: string;
-   description: string;
-   priceCents: number;
-   currency: string;
-};
+const DEFAULT_CURRENCY = "cad";
 
 export async function createStripeCatalogItem(input: {
    name: string;
@@ -65,26 +64,30 @@ export async function updateStripeCatalogItem(input: {
    return price.id;
 }
 
-export async function getStripeCatalogDetails(
-   productId: string,
-): Promise<StripeCatalogDetails> {
-   const product = await stripe.products.retrieve(productId, {
-      expand: ["default_price"],
-   });
-
-   const defaultPrice = product.default_price as Stripe.Price | string | null;
-   const price =
-      typeof defaultPrice === "string"
-         ? await stripe.prices.retrieve(defaultPrice)
-         : defaultPrice;
-
-   return {
-      name: product.name,
-      description: product.description ?? "",
-      priceCents: price?.unit_amount ?? 0,
-      currency: price?.currency ?? DEFAULT_CURRENCY,
-   };
+export async function deactivateStripeProduct(productId: string) {
+   await stripe.products.update(productId, { active: false });
 }
+
+export const getStripeCatalogDetails = cache(
+   async (productId: string): Promise<StripeCatalogDetails> => {
+      const product = await stripe.products.retrieve(productId, {
+         expand: ["default_price"],
+      });
+
+      const defaultPrice = product.default_price as Stripe.Price | string | null;
+      const price =
+         typeof defaultPrice === "string"
+            ? await stripe.prices.retrieve(defaultPrice)
+            : defaultPrice;
+
+      return {
+         name: product.name,
+         description: product.description ?? "",
+         priceCents: price?.unit_amount ?? 0,
+         currency: price?.currency ?? DEFAULT_CURRENCY,
+      };
+   },
+);
 
 export function formatPrice(cents: number, currency: string) {
    return new Intl.NumberFormat("en-CA", {

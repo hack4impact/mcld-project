@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect } from "react";
 import {
    saveService,
    type ServiceActionState,
@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ServiceType } from "@/lib/services/list-services";
+import type { ServiceType } from "@/lib/services/service-types";
 import { cn } from "@/lib/utils";
 
 type Coach = { id: string; firstName: string; lastName: string };
@@ -41,19 +41,12 @@ export function ServiceFormDialog({
 }: ServiceFormDialogProps) {
    const isEdit = Boolean(service);
    const [state, formAction, pending] = useActionState(saveService, initialState);
-   const [schedulingMode, setSchedulingMode] = useState<"preset" | "client-led">(
-      type === "programs" ? "preset" : "client-led",
-   );
 
    useEffect(() => {
       if (state?.success) {
          onClose();
       }
    }, [state?.success, onClose]);
-
-   useEffect(() => {
-      setSchedulingMode(type === "programs" ? "preset" : "client-led");
-   }, [type, open]);
 
    if (!open) {
       return null;
@@ -69,12 +62,21 @@ export function ServiceFormDialog({
            : "Add private lesson";
 
    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div
+         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         onClick={onClose}
+         onKeyDown={(event) => {
+            if (event.key === "Escape") {
+               onClose();
+            }
+         }}
+      >
          <div
             className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="service-form-title"
+            onClick={(event) => event.stopPropagation()}
          >
             <div className="mb-6 flex items-center justify-between">
                <h2
@@ -159,39 +161,28 @@ export function ServiceFormDialog({
                      Scheduling
                   </legend>
                   {type === "programs" ? (
-                     <>
-                        <label className="flex items-center gap-2 text-sm">
-                           <input
-                              type="radio"
-                              name="schedulingMode"
-                              checked={schedulingMode === "preset"}
-                              onChange={() => setSchedulingMode("preset")}
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                           <Label htmlFor="startDate">Start date</Label>
+                           <Input
+                              id="startDate"
+                              name="startDate"
+                              type="date"
+                              required
+                              defaultValue={service?.startDate ?? undefined}
                            />
-                           Preset dates (program runs between start and end)
-                        </label>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div className="space-y-2">
-                              <Label htmlFor="startDate">Start date</Label>
-                              <Input
-                                 id="startDate"
-                                 name="startDate"
-                                 type="date"
-                                 required={schedulingMode === "preset"}
-                                 defaultValue={service?.startDate ?? undefined}
-                              />
-                           </div>
-                           <div className="space-y-2">
-                              <Label htmlFor="endDate">End date</Label>
-                              <Input
-                                 id="endDate"
-                                 name="endDate"
-                                 type="date"
-                                 required={schedulingMode === "preset"}
-                                 defaultValue={service?.endDate ?? undefined}
-                              />
-                           </div>
                         </div>
-                     </>
+                        <div className="space-y-2">
+                           <Label htmlFor="endDate">End date</Label>
+                           <Input
+                              id="endDate"
+                              name="endDate"
+                              type="date"
+                              required
+                              defaultValue={service?.endDate ?? undefined}
+                           />
+                        </div>
+                     </div>
                   ) : (
                      <>
                         <p className="text-sm text-[#6b8fa3]">

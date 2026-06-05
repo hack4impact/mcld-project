@@ -9,8 +9,9 @@ import { StatusFilter } from "@/components/dashboard/status-filter";
 import { Button } from "@/components/ui/button";
 import type {
    ServiceListItem,
+   ServiceStatus,
    ServiceType,
-} from "@/lib/services/list-services";
+} from "@/lib/services/service-types";
 import { cn } from "@/lib/utils";
 
 type Coach = { id: string; firstName: string; lastName: string };
@@ -35,7 +36,7 @@ function formatDate(value: string | null) {
    });
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: ServiceStatus }) {
    const isActive = status === "active";
    return (
       <span className="inline-flex items-center gap-2 text-sm">
@@ -166,7 +167,6 @@ export function ServicesList({
                            <td className="px-4 py-4">
                               <ServiceRowActions
                                  serviceId={item.id}
-                                 type={type}
                                  status={item.status}
                                  onEdit={() => openEdit(item)}
                               />

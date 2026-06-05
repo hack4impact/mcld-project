@@ -1,10 +1,14 @@
-import { render, screen } from "@testing-library/react";
 import DashboardPage from "@/app/dashboard/page";
 
+const redirect = jest.fn();
+
+jest.mock("next/navigation", () => ({
+   redirect: (...args: unknown[]) => redirect(...args),
+}));
+
 describe("jest setup", () => {
-  it("runs React + Testing Library", async () =>  {
-    const jsx = await DashboardPage();
-    render(jsx);
-    expect(screen.getByText("You are admin")).toBeInTheDocument();
-  });
+   it("redirects the dashboard root to programs", () => {
+      DashboardPage();
+      expect(redirect).toHaveBeenCalledWith("/dashboard/services/programs");
+   });
 });

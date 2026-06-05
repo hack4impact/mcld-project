@@ -1,10 +1,6 @@
-import { Suspense } from "react";
 import { ServicesList } from "@/components/dashboard/services-list";
-import {
-   listCoaches,
-   listServices,
-   type ServiceStatusFilter,
-} from "@/lib/services/list-services";
+import { listCoaches, listServices } from "@/lib/services/list-services";
+import { parseStatusFilter } from "@/lib/services/service-types";
 
 type PageProps = {
    searchParams: Promise<{
@@ -15,7 +11,7 @@ type PageProps = {
 
 export default async function PrivateLessonsPage({ searchParams }: PageProps) {
    const params = await searchParams;
-   const statusFilter = (params.status as ServiceStatusFilter) || "all";
+   const statusFilter = parseStatusFilter(params.status);
    const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
 
    const [result, coaches] = await Promise.all([
@@ -28,17 +24,15 @@ export default async function PrivateLessonsPage({ searchParams }: PageProps) {
    ]);
 
    return (
-      <Suspense fallback={<div className="p-6">Loading lessons…</div>}>
-         <ServicesList
-            type="private_lessons"
-            title="Private Lessons"
-            items={result.items}
-            total={result.total}
-            page={result.page}
-            pageSize={result.pageSize}
-            totalPages={result.totalPages}
-            coaches={coaches}
-         />
-      </Suspense>
+      <ServicesList
+         type="private_lessons"
+         title="Private Lessons"
+         items={result.items}
+         total={result.total}
+         page={result.page}
+         pageSize={result.pageSize}
+         totalPages={result.totalPages}
+         coaches={coaches}
+      />
    );
 }

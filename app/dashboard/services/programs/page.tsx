@@ -1,9 +1,6 @@
-import { Suspense } from "react";
 import { ServicesList } from "@/components/dashboard/services-list";
-import {
-   listServices,
-   type ServiceStatusFilter,
-} from "@/lib/services/list-services";
+import { listServices } from "@/lib/services/list-services";
+import { parseStatusFilter } from "@/lib/services/service-types";
 
 type PageProps = {
    searchParams: Promise<{
@@ -14,7 +11,7 @@ type PageProps = {
 
 export default async function ProgramsPage({ searchParams }: PageProps) {
    const params = await searchParams;
-   const statusFilter = (params.status as ServiceStatusFilter) || "all";
+   const statusFilter = parseStatusFilter(params.status);
    const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
 
    const result = await listServices({
@@ -24,17 +21,15 @@ export default async function ProgramsPage({ searchParams }: PageProps) {
    });
 
    return (
-      <Suspense fallback={<div className="p-6">Loading programs…</div>}>
-         <ServicesList
-            type="programs"
-            title="Programs"
-            items={result.items}
-            total={result.total}
-            page={result.page}
-            pageSize={result.pageSize}
-            totalPages={result.totalPages}
-            coaches={[]}
-         />
-      </Suspense>
+      <ServicesList
+         type="programs"
+         title="Programs"
+         items={result.items}
+         total={result.total}
+         page={result.page}
+         pageSize={result.pageSize}
+         totalPages={result.totalPages}
+         coaches={[]}
+      />
    );
 }

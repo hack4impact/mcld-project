@@ -1,29 +1,27 @@
+import "server-only";
+
 import { and, count, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { profiles, services } from "@/lib/db/schema";
 import {
    formatPrice,
    getStripeCatalogDetails,
-   type StripeCatalogDetails,
 } from "@/lib/services/stripe-catalog";
+import {
+   PAGE_SIZE,
+   type ServiceListItem,
+   type ServiceStatus,
+   type ServiceStatusFilter,
+   type ServiceType,
+} from "@/lib/services/service-types";
 
-export type ServiceType = "programs" | "private_lessons";
-export type ServiceStatusFilter = "all" | "active" | "disabled" | "archived";
-
-export type ServiceListItem = {
-   id: string;
-   type: ServiceType;
-   status: string;
-   durationMinutes: number;
-   startDate: string | null;
-   endDate: string | null;
-   coachId: string | null;
-   stripeProductId: string;
-   catalog: StripeCatalogDetails;
-   priceLabel: string;
-};
-
-const PAGE_SIZE = 10;
+export type {
+   ServiceListItem,
+   ServiceStatus,
+   ServiceStatusFilter,
+   ServiceType,
+} from "@/lib/services/service-types";
+export { PAGE_SIZE, parseStatusFilter } from "@/lib/services/service-types";
 
 function statusCondition(filter: ServiceStatusFilter) {
    switch (filter) {
@@ -67,7 +65,7 @@ export async function listServices(input: {
          return {
             id: row.id,
             type: row.type as ServiceType,
-            status: row.status,
+            status: row.status as ServiceStatus,
             durationMinutes: row.durationMinutes,
             startDate: row.startDate,
             endDate: row.endDate,
@@ -112,5 +110,3 @@ export async function listCoaches() {
       .from(profiles)
       .where(eq(profiles.role, "coach"));
 }
-
-export { PAGE_SIZE };

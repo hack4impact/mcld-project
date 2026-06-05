@@ -8,6 +8,7 @@ import { services } from "@/lib/db/schema";
 import { getServiceById } from "@/lib/services/list-services";
 import {
    createStripeCatalogItem,
+   deactivateStripeProduct,
    updateStripeCatalogItem,
 } from "@/lib/services/stripe-catalog";
 import {
@@ -20,10 +21,22 @@ export type ServiceActionState = {
    success?: boolean;
 } | null;
 
-function revalidateServicePaths(type: "programs" | "private_lessons") {
-   revalidatePath(`/dashboard/services/${type}`);
+function revalidateServicePaths() {
    revalidatePath("/dashboard/services/programs");
    revalidatePath("/dashboard/services/private-lessons");
+}
+
+function validationErrorMessage(
+   fieldErrors: Record<string, string[] | undefined>,
+) {
+   return (
+      fieldErrors.name?.[0] ??
+      fieldErrors.priceDollars?.[0] ??
+      fieldErrors.durationMinutes?.[0] ??
+      fieldErrors.startDate?.[0] ??
+      fieldErrors.endDate?.[0] ??
+      "Invalid form data"
+   );
 }
 
 export async function saveService(
@@ -45,21 +58,19 @@ export async function createService(
 
    const parsed = parseServiceForm(formData);
    if (!parsed.success) {
-      const message =
-         parsed.error.flatten().fieldErrors.name?.[0] ??
-         parsed.error.flatten().fieldErrors.priceDollars?.[0] ??
-         "Invalid form data";
-      return { error: message };
+      return { error: validationErrorMessage(parsed.error.flatten().fieldErrors) };
    }
 
    const data = parsed.data;
+   let productId: string | undefined;
 
    try {
-      const { productId } = await createStripeCatalogItem({
+      const created = await createStripeCatalogItem({
          name: data.name,
          description: data.description,
          priceCents: dollarsToCents(data.priceDollars),
       });
+      productId = created.productId;
 
       await db.insert(services).values({
          type: data.type,
@@ -74,9 +85,16 @@ export async function createService(
                : null,
       });
 
-      revalidateServicePaths(data.type);
+      revalidateServicePaths();
       return { success: true };
    } catch (err) {
+      if (productId) {
+         try {
+            await deactivateStripeProduct(productId);
+         } catch (cleanupErr) {
+            console.error("createService cleanup", cleanupErr);
+         }
+      }
       console.error("createService", err);
       return {
          error:
@@ -98,7 +116,7 @@ export async function updateService(
 
    const parsed = parseServiceForm(formData);
    if (!parsed.success) {
-      return { error: "Invalid form data" };
+      return { error: validationErrorMessage(parsed.error.flatten().fieldErrors) };
    }
 
    const data = parsed.data;
@@ -108,12 +126,19 @@ export async function updateService(
       return { error: "Service not found" };
    }
 
+   if (existing.row.type !== data.type) {
+      return { error: "Service type cannot be changed" };
+   }
+
+   const newPriceCents = dollarsToCents(data.priceDollars);
+   const priceChanged = existing.catalog.priceCents !== newPriceCents;
+
    try {
       await updateStripeCatalogItem({
          productId: existing.row.stripeProductId,
          name: data.name,
          description: data.description,
-         priceCents: dollarsToCents(data.priceDollars),
+         priceCents: priceChanged ? newPriceCents : undefined,
       });
 
       await db
@@ -130,7 +155,7 @@ export async function updateService(
          })
          .where(eq(services.id, serviceId));
 
-      revalidateServicePaths(data.type);
+      revalidateServicePaths();
       return { success: true };
    } catch (err) {
       console.error("updateService", err);
@@ -141,19 +166,21 @@ export async function updateService(
    }
 }
 
+type MutableServiceStatus = "active" | "disabled" | "archived";
+
 const ALLOWED_STATUS_TRANSITIONS: Record<
-   "active" | "disabled" | "archived",
-   Array<"active" | "disabled" | "archived">
+   MutableServiceStatus | "deleted",
+   MutableServiceStatus[]
 > = {
    active: ["disabled"],
    disabled: ["active", "archived"],
    archived: [],
+   deleted: [],
 };
 
 export async function updateServiceStatus(
    serviceId: string,
-   status: "active" | "disabled" | "archived",
-   type: "programs" | "private_lessons",
+   status: MutableServiceStatus,
 ): Promise<ServiceActionState> {
    await requireAdmin();
 
@@ -181,7 +208,7 @@ export async function updateServiceStatus(
          })
          .where(eq(services.id, serviceId));
 
-      revalidateServicePaths(type);
+      revalidateServicePaths();
       return { success: true };
    } catch (err) {
       console.error("updateServiceStatus", err);
