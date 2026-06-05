@@ -44,7 +44,7 @@ export function ServiceRowActions({
                onClick={onEdit}
                aria-label="Edit service"
             >
-               <Pencil className="size-4 text-[#1a3d52]" />
+               <Pencil className="size-4 text-foreground" />
             </Button>
 
             {status === "active" && (
@@ -56,7 +56,7 @@ export function ServiceRowActions({
                   onClick={() => setStatus("disabled")}
                   aria-label="Disable service"
                >
-                  <Ban className="size-4 text-[#1a3d52]" />
+                  <Ban className="size-4 text-foreground" />
                </Button>
             )}
 
@@ -80,7 +80,7 @@ export function ServiceRowActions({
                      onClick={() => setStatus("archived")}
                      aria-label="Archive service"
                   >
-                     <Archive className="size-4 text-[#1a3d52]" />
+                     <Archive className="size-4 text-foreground" />
                   </Button>
                </>
             )}

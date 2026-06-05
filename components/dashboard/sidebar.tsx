@@ -16,12 +16,12 @@ export function DashboardSidebar() {
    const pathname = usePathname();
 
    return (
-      <aside className="flex w-56 shrink-0 flex-col bg-[#c8dce8] px-4 py-8 lg:w-64">
+      <aside className="flex w-56 shrink-0 flex-col bg-sidebar px-4 py-8 lg:w-64">
          <div className="mb-10 px-2">
-            <p className="text-xs font-semibold tracking-wide text-[#1a3d52]">
+            <p className="text-xs font-semibold tracking-wide text-sidebar-foreground">
                Montreal Centre for
             </p>
-            <p className="text-xs font-semibold tracking-wide text-[#1a3d52]">
+            <p className="text-xs font-semibold tracking-wide text-sidebar-foreground">
                Learning Disabilities
             </p>
          </div>
@@ -43,8 +43,8 @@ export function DashboardSidebar() {
                      className={cn(
                         "rounded px-3 py-2.5 text-sm font-semibold tracking-wide uppercase transition-colors",
                         isActive
-                           ? "bg-white/70 text-[#1a3d52]"
-                           : "text-[#2d5f7a] hover:bg-white/40",
+                           ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
+                           : "text-sidebar-foreground/80 hover:bg-sidebar-accent/40",
                      )}
                   >
                      {item.label}

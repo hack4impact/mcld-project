@@ -72,7 +72,7 @@ export function ServiceFormDialog({
          }}
       >
          <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-card p-6 shadow-xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="service-form-title"
@@ -81,14 +81,14 @@ export function ServiceFormDialog({
             <div className="mb-6 flex items-center justify-between">
                <h2
                   id="service-form-title"
-                  className="text-lg font-bold text-[#1a3d52]"
+                  className="text-lg font-bold text-foreground"
                >
                   {title}
                </h2>
                <button
                   type="button"
                   onClick={onClose}
-                  className="text-[#6b8fa3] hover:text-[#1a3d52]"
+                  className="text-muted-foreground hover:text-foreground"
                   aria-label="Close"
                >
                   ✕
@@ -156,8 +156,8 @@ export function ServiceFormDialog({
                   </div>
                </div>
 
-               <fieldset className="space-y-3 rounded-lg border border-[#d4e4ed] p-4">
-                  <legend className="px-1 text-sm font-semibold text-[#1a3d52]">
+               <fieldset className="space-y-3 rounded-lg border border-border p-4">
+                  <legend className="px-1 text-sm font-semibold text-foreground">
                      Scheduling
                   </legend>
                   {type === "programs" ? (
@@ -185,7 +185,7 @@ export function ServiceFormDialog({
                      </div>
                   ) : (
                      <>
-                        <p className="text-sm text-[#6b8fa3]">
+                        <p className="text-sm text-muted-foreground">
                            Client-led scheduling — the client proposes times;
                            sessions are tracked in coaching sessions.
                         </p>

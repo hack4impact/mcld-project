@@ -36,8 +36,8 @@ export function StatusFilter() {
                   className={cn(
                      "rounded border px-4 py-1.5 text-sm font-medium transition-colors",
                      isActive
-                        ? "border-[#1a3d52] bg-[#1a3d52] text-white"
-                        : "border-[#c5dce8] bg-white text-[#1a3d52] hover:bg-[#f0f7fa]",
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-foreground hover:bg-muted",
                   )}
                >
                   {filter.label}

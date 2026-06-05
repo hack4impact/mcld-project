@@ -23,8 +23,8 @@ export function ServicesTabs() {
                   className={cn(
                      "border-b-2 pb-3 text-sm font-bold tracking-wide uppercase transition-colors",
                      isActive
-                        ? "border-[#1a3d52] text-[#1a3d52]"
-                        : "border-transparent text-[#6b8fa3] hover:text-[#1a3d52]",
+                        ? "border-primary text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                >
                   {tab.label}

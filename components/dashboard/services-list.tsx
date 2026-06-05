@@ -88,22 +88,18 @@ export function ServicesList({
    return (
       <>
          <div className="flex flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-2xl font-bold text-[#1a3d52]">{title}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                <StatusFilter />
-               <Button
-                  type="button"
-                  onClick={openCreate}
-                  className="bg-[#1a3d52] text-white hover:bg-[#2d5f7a]"
-               >
+               <Button type="button" onClick={openCreate}>
                   Add {type === "programs" ? "program" : "lesson"}
                </Button>
             </div>
          </div>
 
-         <div className="mx-6 overflow-hidden rounded-lg border border-[#d4e4ed] bg-white">
+         <div className="mx-6 overflow-hidden rounded-lg border border-border bg-card">
             <table className="w-full text-left text-sm">
-               <thead className="border-b border-[#d4e4ed] bg-[#f0f7fa] text-xs font-bold tracking-wide text-[#1a3d52] uppercase">
+               <thead className="border-b border-border bg-muted text-xs font-bold tracking-wide text-foreground uppercase">
                   <tr>
                      <th className="px-4 py-3">
                         {type === "programs" ? "Program" : "Lesson"}
@@ -124,7 +120,7 @@ export function ServicesList({
                      <tr>
                         <td
                            colSpan={type === "programs" ? 6 : 4}
-                           className="px-4 py-12 text-center text-[#6b8fa3]"
+                           className="px-4 py-12 text-center text-muted-foreground"
                         >
                            No services found. Add one to get started.
                         </td>
@@ -133,16 +129,16 @@ export function ServicesList({
                      items.map((item) => (
                         <tr
                            key={item.id}
-                           className="border-b border-[#eef4f7] last:border-0"
+                           className="border-b border-border/60 last:border-0"
                         >
                            <td className="px-4 py-4">
                               <div className="flex items-center gap-3">
-                                 <div className="size-12 shrink-0 rounded bg-[#d4e4ed]" />
+                                 <div className="size-12 shrink-0 rounded bg-border" />
                                  <div>
-                                    <p className="font-semibold text-[#1a3d52]">
+                                    <p className="font-semibold text-foreground">
                                        {item.catalog.name}
                                     </p>
-                                    <p className="text-xs text-[#6b8fa3]">
+                                    <p className="text-xs text-muted-foreground">
                                        {item.durationMinutes} min
                                     </p>
                                  </div>
@@ -153,15 +149,15 @@ export function ServicesList({
                            </td>
                            {type === "programs" && (
                               <>
-                                 <td className="px-4 py-4 text-[#1a3d52]">
+                                 <td className="px-4 py-4 text-foreground">
                                     {formatDate(item.startDate)}
                                  </td>
-                                 <td className="px-4 py-4 text-[#1a3d52]">
+                                 <td className="px-4 py-4 text-foreground">
                                     {formatDate(item.endDate)}
                                  </td>
                               </>
                            )}
-                           <td className="px-4 py-4 text-[#1a3d52]">
+                           <td className="px-4 py-4 text-foreground">
                               {item.priceLabel}
                            </td>
                            <td className="px-4 py-4">
@@ -178,7 +174,7 @@ export function ServicesList({
             </table>
          </div>
 
-         <div className="flex flex-col items-center justify-between gap-4 px-6 py-4 text-sm text-[#6b8fa3] sm:flex-row">
+         <div className="flex flex-col items-center justify-between gap-4 px-6 py-4 text-sm text-muted-foreground sm:flex-row">
             <p>
                Showing {showingFrom}–{showingTo} of {total}{" "}
                {type === "programs" ? "programs" : "lessons"}
@@ -193,7 +189,7 @@ export function ServicesList({
                      Previous
                   </Button>
                )}
-               <span className="px-2 font-medium text-[#1a3d52]">
+               <span className="px-2 font-medium text-foreground">
                   {page} / {totalPages}
                </span>
                {page < totalPages ? (
