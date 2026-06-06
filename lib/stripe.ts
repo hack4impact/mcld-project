@@ -182,6 +182,7 @@ export async function createPrice(
       unit_amount: amountCents,
       currency: "cad",
    });
+   await stripe.products.update(productId, { default_price: price.id });
    return { priceId: price.id };
 }
 
@@ -195,6 +196,21 @@ export async function deactivateActivePricesForProduct(
    });
    for (const p of prices.data) {
       await stripe.prices.update(p.id, { active: false });
+   }
+}
+
+export async function listActivePriceIds(productId: string): Promise<string[]> {
+   const prices = await stripe.prices.list({
+      product: productId,
+      active: true,
+      limit: 100,
+   });
+   return prices.data.map((p) => p.id);
+}
+
+export async function deactivatePrices(priceIds: string[]): Promise<void> {
+   for (const id of priceIds) {
+      await stripe.prices.update(id, { active: false });
    }
 }
 
