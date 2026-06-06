@@ -11,6 +11,7 @@ import {
    createPrice,
    createProduct,
    deactivateActivePricesForProduct,
+   getStripeServiceData,
    updateProduct,
 } from "@/lib/stripe";
 
@@ -165,6 +166,7 @@ export async function createService(
    // so they still run when baseFields fails on unrelated fields.
    const typeRaw = formData.get("type")?.toString();
    let scheduledAtValue: ProgramSchedule | null = null;
+   let coachIdValue: string | null = null;
    if (typeRaw === "programs") {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -175,6 +177,7 @@ export async function createService(
    } else if (typeRaw === "private_lessons") {
       const coach = parseCoachId(formData);
       if (!coach.ok) Object.assign(errors, coach.errors);
+      else coachIdValue = coach.value;
    }
 
    if (Object.keys(errors).length > 0) {
@@ -203,6 +206,7 @@ export async function createService(
          slots: scheduledAtValue?.slots ?? null,
          durationMinutes: duration_minutes,
          stripeProductId: productId,
+         coachId: coachIdValue,
          status: "active",
       });
    } catch (e) {
@@ -307,6 +311,15 @@ export async function updateService(
       }
    }
 
+   // Private lessons can be reassigned to a different coach, but the coach
+   // remains mandatory: an empty/invalid value is rejected.
+   let coachIdValue: string | undefined;
+   if (row.type === "private_lessons" && formData.has("coach_id")) {
+      const coach = parseCoachId(formData);
+      if (!coach.ok) Object.assign(errors, coach.errors);
+      else coachIdValue = coach.value;
+   }
+
    if (Object.keys(errors).length > 0) {
       return { errors };
    }
@@ -321,14 +334,21 @@ export async function updateService(
       });
 
       if (cents !== undefined) {
-         // Stripe Prices are immutable: deactivate the current active
-         // price(s) and create a new one at the new amount.
-         await deactivateActivePricesForProduct(row.stripeProductId);
-         await createPrice(row.stripeProductId, cents);
+         // The edit form always submits the price, so only swap it when the
+         // amount actually changed. Recreating an unchanged price needlessly
+         // archives the product's default price, which Stripe rejects.
+         const current = await getStripeServiceData(row.stripeProductId);
+         if (current?.priceCents !== cents) {
+            // Stripe Prices are immutable: deactivate the current active
+            // price(s) and create a new one at the new amount.
+            await deactivateActivePricesForProduct(row.stripeProductId);
+            await createPrice(row.stripeProductId, cents);
+         }
       }
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
       if (duration_minutes !== undefined) dbPatch.durationMinutes = duration_minutes;
+      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
       if (scheduledAtValue !== undefined) {
          dbPatch.startDate = scheduledAtValue.startDate;
          dbPatch.endDate = scheduledAtValue.endDate;

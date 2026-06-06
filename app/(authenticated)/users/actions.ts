@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db";
-import { profiles } from "@/lib/db/schema";
+import { profiles, services } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import type { Role } from "@/lib/roles";
@@ -186,4 +187,62 @@ export async function createUserAdmin(
 
    revalidatePath(USERS_PATH);
    return { message: "User created.", data: { user_id: userId } };
+}
+
+const deleteUserAdminSchema = z.object({
+   user_id: z.string().uuid(),
+});
+
+export async function deleteUserAdmin(
+   _prev: UserAdminActionState,
+   formData: FormData,
+): Promise<UserAdminActionState> {
+   try {
+      await requireAdmin();
+   } catch {
+      return { errors: { _form: ["Unauthorized"] } };
+   }
+
+   const parsed = deleteUserAdminSchema.safeParse({
+      user_id: formData.get("user_id"),
+   });
+
+   if (!parsed.success) {
+      return { errors: parsed.error.flatten().fieldErrors };
+   }
+
+   const { user_id } = parsed.data;
+
+   // A coach assigned to a private lesson cannot be deleted: the lesson must
+   // always have a coach (enforced in the DB too via FK restrict + check).
+   const assigned = await db
+      .select({ id: services.id })
+      .from(services)
+      .where(
+         and(
+            eq(services.coachId, user_id),
+            eq(services.type, "private_lessons"),
+         ),
+      )
+      .limit(1);
+
+   if (assigned.length > 0) {
+      return {
+         errors: {
+            _form: [
+               "This coach is assigned to one or more private lessons. Reassign those lessons to another coach before deleting the account.",
+            ],
+         },
+      };
+   }
+
+   const admin = createAdminClient();
+   const { error: authError } = await admin.auth.admin.deleteUser(user_id);
+
+   if (authError) {
+      return { errors: { _form: [authError.message] } };
+   }
+
+   revalidatePath(USERS_PATH);
+   return { message: "User deleted." };
 }

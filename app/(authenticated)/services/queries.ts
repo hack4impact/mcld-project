@@ -18,6 +18,7 @@ export type ServiceView = {
    durationMinutes: number;
    status: ServiceStatus;
    stripeProductId: string;
+   coachId: string | null;
    createdAt: Date;
    updatedAt: Date;
    title: string | null;
@@ -46,6 +47,7 @@ async function buildServiceView(row: typeof services.$inferSelect): Promise<Serv
       durationMinutes: row.durationMinutes,
       status: row.status,
       stripeProductId: row.stripeProductId,
+      coachId: row.coachId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       title: stripeData?.title ?? null,
