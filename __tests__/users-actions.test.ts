@@ -3,7 +3,7 @@
  */
 import { deleteUserAdmin } from "@/app/(authenticated)/users/actions";
 
-// --- db mock (chainable select builder) ------------------------------------
+// db mock
 const selectLimit = jest.fn();
 const selectWhere = jest.fn(() => ({ limit: selectLimit }));
 const selectFrom = jest.fn(() => ({ where: selectWhere }));
@@ -15,7 +15,7 @@ jest.mock("@/lib/db", () => ({
    },
 }));
 
-// --- supabase admin mock ----------------------------------------------------
+// supabase admin mock
 const deleteUser = jest.fn();
 jest.mock("@/utils/supabase/admin", () => ({
    createAdminClient: () => ({
@@ -23,7 +23,7 @@ jest.mock("@/utils/supabase/admin", () => ({
    }),
 }));
 
-// --- auth + cache + stripe mocks -------------------------------------------
+// auth + cache + stripe mocks
 const requireAdmin = jest.fn();
 jest.mock("@/lib/auth/require-admin", () => ({
    requireAdmin: (...args: unknown[]) => requireAdmin(...args),
@@ -32,7 +32,7 @@ jest.mock("@/lib/auth/require-admin", () => ({
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
 // actions.ts imports grantComplimentarySubscription from @/lib/stripe, which
-// instantiates the Stripe client at module load — mock it away.
+// instantiates the Stripe client at module load.
 jest.mock("@/lib/stripe", () => ({
    grantComplimentarySubscription: jest.fn(),
 }));

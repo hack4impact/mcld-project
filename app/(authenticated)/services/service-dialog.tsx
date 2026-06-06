@@ -370,8 +370,11 @@ export function ServiceDialog(props: Props) {
                   <div className="grid grid-cols-2 gap-3">
                      <div className="flex flex-col gap-1.5">
                         <Label htmlFor="type">Type</Label>
+                        {/* React 19 resets the <form> after every action, 
+                            which reverts a Radix Select's native <select name> 
+                            to its first option without re-syncing the controlled value. */}
+                        <input type="hidden" name="type" value={type} />
                         <Select
-                           name="type"
                            value={type}
                            onValueChange={(v) =>
                               setType(v as "programs" | "private_lessons")

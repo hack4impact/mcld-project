@@ -120,7 +120,11 @@ function parseProgramSchedule(formData: FormData): ParseResult<ProgramSchedule> 
 
 function parseCoachId(formData: FormData): ParseResult<string> {
    const raw = field(formData, "coach_id");
-   if (!raw) return { ok: false, errors: { coach_id: ["Select a coach"] } };
+   if (!raw)
+      return {
+         ok: false,
+         errors: { coach_id: ["A coach is required for private lessons"] },
+      };
    const result = z.string().uuid().safeParse(raw);
    if (!result.success) {
       return { ok: false, errors: { coach_id: ["Invalid coach"] } };

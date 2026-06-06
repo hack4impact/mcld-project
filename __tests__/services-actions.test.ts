@@ -6,7 +6,7 @@ import {
    updateService,
 } from "@/app/(authenticated)/services/actions";
 
-// --- db mock (chainable query builder) -------------------------------------
+// db mock
 const insertValues = jest.fn().mockResolvedValue(undefined);
 const insert = jest.fn(() => ({ values: insertValues })) as jest.Mock;
 
@@ -27,7 +27,7 @@ jest.mock("@/lib/db", () => ({
    },
 }));
 
-// --- stripe mock ------------------------------------------------------------
+// stripe mock
 const createProduct = jest.fn();
 const createPrice = jest.fn();
 const updateProduct = jest.fn();
@@ -43,7 +43,7 @@ jest.mock("@/lib/stripe", () => ({
    getStripeServiceData: (...args: unknown[]) => getStripeServiceData(...args),
 }));
 
-// --- auth + cache mocks -----------------------------------------------------
+// auth + cache mocks
 const requireAdmin = jest.fn();
 jest.mock("@/lib/auth/require-admin", () => ({
    requireAdmin: (...args: unknown[]) => requireAdmin(...args),
