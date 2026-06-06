@@ -10,7 +10,8 @@ import { cadStringToCents } from "@/lib/money";
 import {
    createPrice,
    createProduct,
-   deactivateActivePricesForProduct,
+   deactivatePrices,
+   listActivePriceIds,
    updateProduct,
 } from "@/lib/stripe";
 
@@ -321,10 +322,11 @@ export async function updateService(
       });
 
       if (cents !== undefined) {
-         // Stripe Prices are immutable: deactivate the current active
-         // price(s) and create a new one at the new amount.
-         await deactivateActivePricesForProduct(row.stripeProductId);
-         await createPrice(row.stripeProductId, cents);
+         const { priceId } = await createPrice(row.stripeProductId, cents);
+         const oldPriceIds = (await listActivePriceIds(row.stripeProductId)).filter(
+            (id) => id !== priceId,
+         );
+         await deactivatePrices(oldPriceIds);
       }
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
