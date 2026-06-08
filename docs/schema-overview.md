@@ -130,10 +130,10 @@ erDiagram
         timestamp updated_at
     }
 
-    extra_questions {
+    form_questions {
         uuid id PK
         uuid form_id FK
-        extra_question_type type
+        form_question_type type
         text prompt
         jsonb options
         int sort_order
@@ -141,9 +141,9 @@ erDiagram
         timestamp updated_at
     }
 
-    extra_question_answers {
+    form_question_answers {
         uuid id PK
-        uuid extra_question_id FK
+        uuid form_question_id FK
         uuid child_id FK
         text answer "text[]"
         timestamp created_at
@@ -162,10 +162,10 @@ erDiagram
     profiles ||--o| subscriptions : "has"
     profiles ||--o{ purchases : "makes"
     profiles |o--o{ services : "coaches"
-    forms ||--o{ extra_questions : "contains"
+    forms ||--o{ form_questions : "contains"
     services }o--o| forms : "uses"
-    extra_questions ||--o{ extra_question_answers : "answered via"
-    children ||--o{ extra_question_answers : "submits"
+    form_questions ||--o{ form_question_answers : "answered via"
+    children ||--o{ form_question_answers : "submits"
 ```
 
 ## Indexes
@@ -185,4 +185,4 @@ erDiagram
 | `session_status` | `awaiting_payment`, `pending`, `confirmed`, `cancelled`, `completed` |
 | `webinar_tier` | `free`, `premium` |
 | `gender` | `male`, `female`, `prefer_not_to_say` |
-| `extra_question_type` | `text`, `multiple_choices`, `checkboxes`, `user_agreement` |
+| `form_question_type` | `text`, `multiple_choices`, `checkboxes`, `user_agreement` |

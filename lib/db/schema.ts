@@ -14,7 +14,7 @@ import { sql } from "drizzle-orm";
 
 export type ProgramSlot = { dayOfWeek: number; time: string };
 
-export type ExtraQuestionOption = {
+export type FormQuestionOption = {
    id: string;
    title: string;
    description?: string;
@@ -46,7 +46,7 @@ export const serviceStatusEnum = pgEnum("service_status", [
    "disabled",
 ]);
 export const genderEnum = pgEnum("gender", ["male", "female", "prefer_not_to_say"]);
-export const extraQuestionTypeEnum = pgEnum("extra_question_type", [
+export const formQuestionTypeEnum = pgEnum("form_question_type", [
    "text",
    "multiple_choices",
    "checkboxes",
@@ -214,23 +214,23 @@ export const emergencyContacts = pgTable("emergency_contacts", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const extraQuestions = pgTable("extra_questions", {
+export const formQuestions = pgTable("form_questions", {
    id: uuid("id").primaryKey().defaultRandom(),
    formId: uuid("form_id")
       .references(() => forms.id, { onDelete: "cascade" })
       .notNull(),
-   type: extraQuestionTypeEnum("type").notNull(),
+   type: formQuestionTypeEnum("type").notNull(),
    prompt: text("prompt").notNull(),
-   options: jsonb("options").$type<ExtraQuestionOption[]>(),
+   options: jsonb("options").$type<FormQuestionOption[]>(),
    sortOrder: integer("sort_order").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const extraQuestionAnswers = pgTable("extra_question_answers", {
+export const formQuestionAnswers = pgTable("form_question_answers", {
    id: uuid("id").primaryKey().defaultRandom(),
-   extraQuestionId: uuid("extra_question_id")
-      .references(() => extraQuestions.id, { onDelete: "cascade" })
+   formQuestionId: uuid("form_question_id")
+      .references(() => formQuestions.id, { onDelete: "cascade" })
       .notNull(),
    childId: uuid("child_id")
       .references(() => children.id, { onDelete: "cascade" })
