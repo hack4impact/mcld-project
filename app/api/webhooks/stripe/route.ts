@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
+import { notifyCoachOfBooking } from "@/app/scheduling/notifications";
 
 const allowedEvents: Stripe.Event.Type[] = [
    "checkout.session.completed",
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       const metadata = session.metadata ?? {};
 
       if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
-         await db
+         const updated = await db
             .update(coachingSessions)
             .set({ status: "pending", stripeOrderId: session.id })
             .where(
@@ -59,7 +60,13 @@ export async function POST(request: NextRequest) {
                   eq(coachingSessions.id, metadata.coachingSessionId),
                   eq(coachingSessions.status, "awaiting_payment"),
                ),
-            );
+            )
+            .returning({ id: coachingSessions.id });
+
+         const transitioned = updated[0];
+         if (transitioned) {
+            await notifyCoachOfBooking(transitioned.id);
+         }
          return NextResponse.json({ received: true });
       }
 

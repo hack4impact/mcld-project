@@ -29,6 +29,7 @@ type AvailabilityCalendarProps = {
    anchor: Date | null;
    value: TimeSlot[];
    onChange: (slots: TimeSlot[]) => void;
+   referenceValue?: TimeSlot[];
    className?: string;
 };
 
@@ -54,8 +55,13 @@ export function AvailabilityCalendar({
    anchor,
    value,
    onChange,
+   referenceValue,
    className,
 }: AvailabilityCalendarProps) {
+   const reference = React.useMemo(
+      () => new Set(timeSlotsToKeys(referenceValue ?? [])),
+      [referenceValue],
+   );
    const selected = React.useMemo(
       () => new Set(timeSlotsToKeys(value)),
       [value],
@@ -336,6 +342,8 @@ export function AvailabilityCalendar({
                                     isDragPreview &&
                                     drag.mode === "remove" &&
                                     wasSelectedAtDragStart;
+                                 const inReference = reference.has(key);
+                                 const isOverlap = isSelected && inReference;
 
                                  return (
                                     <button
@@ -345,8 +353,14 @@ export function AvailabilityCalendar({
                                        className={cn(
                                           "h-3 w-full border-t border-l border-border/40 transition-colors select-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring",
                                           quarter === 0 && "border-t-border",
+                                          inReference &&
+                                             !isSelected &&
+                                             "bg-emerald-100",
                                           isSelected &&
+                                             !inReference &&
                                              "bg-ring hover:bg-ring/90",
+                                          isOverlap &&
+                                             "bg-emerald-500 hover:bg-emerald-500/90",
                                           (isAddPreview || isRemovePreview) &&
                                              "border border-dashed border-ring bg-ring/25",
                                        )}
