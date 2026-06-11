@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, syncStripeData } from "@/lib/stripe";
+import { deleteCouponIfExhausted, stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
-import { profiles, purchases } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import {
+   coachingSessions,
+   profiles,
+   purchases,
+   serviceBookings,
+} from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
+import { notifyCoachOfBooking } from "@/app/scheduling/notifications";
 
 const allowedEvents: Stripe.Event.Type[] = [
    "checkout.session.completed",
@@ -43,6 +49,47 @@ export async function POST(request: NextRequest) {
 
    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata ?? {};
+
+      if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
+         const updated = await db
+            .update(coachingSessions)
+            .set({ status: "pending", stripeOrderId: session.id })
+            .where(
+               and(
+                  eq(coachingSessions.id, metadata.coachingSessionId),
+                  eq(coachingSessions.status, "awaiting_payment"),
+               ),
+            )
+            .returning({ id: coachingSessions.id });
+
+         const transitioned = updated[0];
+         if (transitioned) {
+            await notifyCoachOfBooking(transitioned.id);
+         }
+         return NextResponse.json({ received: true });
+      }
+
+      if (metadata.type === "program" && metadata.bookingId) {
+         await db
+            .update(serviceBookings)
+            .set({ status: "confirmed", stripeOrderId: session.id })
+            .where(
+               and(
+                  eq(serviceBookings.id, metadata.bookingId),
+                  eq(serviceBookings.status, "awaiting_payment"),
+               ),
+            );
+         return NextResponse.json({ received: true });
+      }
+
+      for (const d of session.discounts ?? []) {
+         const couponId =
+            typeof d.coupon === "string" ? d.coupon : d.coupon?.id;
+         if (couponId) {
+            await deleteCouponIfExhausted(couponId);
+         }
+      }
 
       if (session.mode === "payment" && session.customer) {
          const customerId = session.customer as string;

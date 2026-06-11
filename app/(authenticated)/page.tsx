@@ -1,7 +1,7 @@
+import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
-import { signout } from "./login/actions";
+import { signout } from "@/app/login/actions";
 import { getSubscriptionDetails } from "@/lib/stripe";
-import { hasUserPurchased } from "@/lib/purchases";
 import {
    Card,
    CardContent,
@@ -15,7 +15,15 @@ import { CheckoutButton } from "@/components/subscribe-button";
 const SUBSCRIPTION_PRICE_ID = process.env.STRIPE_PRICE_ID!;
 const PRODUCT_PRICE_ID = process.env.STRIPE_PRODUCT_PRICE_ID!;
 
-export default async function Page() {
+export default function Page() {
+   return (
+      <Suspense>
+         <HomeContent />
+      </Suspense>
+   );
+}
+
+async function HomeContent() {
    const supabase = await createClient();
    const {
       data: { user },
@@ -23,15 +31,13 @@ export default async function Page() {
 
    if (!user) return null;
 
-   const [subscription, ownsProduct] = await Promise.all([
-      getSubscriptionDetails(user.id),
-      hasUserPurchased(user.id, PRODUCT_PRICE_ID),
-   ]);
+   const [subscription] = await Promise.all([getSubscriptionDetails(user.id)]);
+   const ownsProduct = false;
 
    return (
-      <main className="flex min-h-screen items-center justify-center p-4">
-         <div className="w-full max-w-md space-y-4">
-            <Card>
+      <main className="min-h-screen p-4 w-full">
+         <div className="flex flex-row gap-4 w-full">
+            <Card className="flex-1">
                <CardHeader>
                   <CardTitle className="text-2xl">Welcome</CardTitle>
                   <CardDescription>You are signed in as</CardDescription>
@@ -46,7 +52,7 @@ export default async function Page() {
                </CardContent>
             </Card>
 
-            <Card>
+            <Card className="flex-1">
                <CardHeader>
                   <CardTitle>Subscription</CardTitle>
                   <CardDescription>
@@ -107,7 +113,7 @@ export default async function Page() {
                </CardContent>
             </Card>
 
-            <Card>
+            <Card className="flex-1">
                <CardHeader>
                   <CardTitle>Product</CardTitle>
                   <CardDescription>

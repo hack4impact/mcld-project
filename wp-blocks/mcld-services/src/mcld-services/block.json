@@ -1,0 +1,25 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "mcld/mcld-services",
+	"version": "0.1.0",
+	"title": "Mcld Services",
+	"category": "widgets",
+	"icon": "smiley",
+	"description": "Displays active services from the MCLD dashboard.",
+	"example": {},
+	"supports": {
+		"html": false
+	},
+	"attributes": {
+		"apiUrl": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"textdomain": "mcld-services",
+	"render": "file:./render.php",
+	"editorScript": "file:./index.js",
+	"editorStyle": "file:./index.css",
+	"style": "file:./style-index.css"
+}

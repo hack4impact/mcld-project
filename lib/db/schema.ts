@@ -7,24 +7,48 @@ import {
    integer,
    boolean,
    jsonb,
+   date,
 } from "drizzle-orm/pg-core";
+
+export type ProgramSlot = { dayOfWeek: number; time: string };
+
+export type ExtraQuestionOption = {
+   id: string;
+   title: string;
+   description?: string;
+};
 
 export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
 export const serviceTypeEnum = pgEnum("service_type", [
-   "coaching_session",
-   "booking",
+   "private_lessons",
+   "programs",
 ]);
 export const bookingStatusEnum = pgEnum("booking_status", [
+   "awaiting_payment",
    "pending",
    "confirmed",
    "cancelled",
 ]);
 export const webinarTierEnum = pgEnum("webinar_tier", ["free", "premium"]);
 export const sessionStatusEnum = pgEnum("session_status", [
+   "awaiting_payment",
    "pending",
    "confirmed",
    "cancelled",
    "completed",
+]);
+export const serviceStatusEnum = pgEnum("service_status", [
+   "active",
+   "archived",
+   "deleted",
+   "disabled",
+]);
+export const genderEnum = pgEnum("gender", ["male", "female", "prefer_not_to_say"]);
+export const extraQuestionTypeEnum = pgEnum("extra_question_type", [
+   "text",
+   "multiple_choices",
+   "checkboxes",
+   "user_agreement",
 ]);
 
 export const profiles = pgTable("profiles", {
@@ -35,17 +59,23 @@ export const profiles = pgTable("profiles", {
    stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   lastLoginAt: timestamp('last_login_at').defaultNow().notNull()
 });
 
 export const services = pgTable("services", {
    id: uuid("id").primaryKey().defaultRandom(),
-   title: text("title").notNull(),
-   description: text("description"),
    type: serviceTypeEnum("type").notNull(),
-   scheduledAt: jsonb("scheduled_at"),
+   startDate: date("start_date", { mode: "string" }),
+   endDate: date("end_date", { mode: "string" }),
+   slots: jsonb("slots").$type<ProgramSlot[]>(),
    durationMinutes: integer("duration_minutes").notNull(),
-   price: integer("price").notNull().default(0),
-   isActive: boolean("is_active").notNull().default(true),
+   stripeProductId: text("stripe_product_id").notNull(),
+   status: serviceStatusEnum("status").notNull().default("active"),
+   coachId: uuid("coach_id").references(() => profiles.id, {
+      onDelete: "set null",
+   }),
+   formId: uuid("form_id")
+      .references(() => forms.id, { onDelete: "set null" }),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -61,6 +91,7 @@ export const serviceBookings = pgTable("service_bookings", {
    status: bookingStatusEnum("status").notNull().default("pending"),
    notes: text("notes"),
    isActive: boolean("is_active").notNull().default(true),
+   stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -89,11 +120,14 @@ export const coachingSessions = pgTable("coaching_sessions", {
       .references(() => profiles.id, { onDelete: "cascade" })
       .notNull(),
    scheduledAt: timestamp("scheduled_at"),
-   durationMinutes: integer("duration_minutes").notNull().default(60),
    status: sessionStatusEnum("status").notNull().default("pending"),
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
    selectedTimeSlots: jsonb("selected_time_slots").notNull(),
+   coachTimeSlots: jsonb("coach_time_slots"),
+   coachToken: text("coach_token").unique(),
+   clientToken: text("client_token").unique(),
+   stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -127,3 +161,65 @@ export const purchases = pgTable("purchases", {
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const children = pgTable("children", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   parentId: uuid("parent_id")
+      .references(() => profiles.id, { onDelete: "cascade" })
+      .notNull(),
+   gender: genderEnum("gender").notNull(),
+   firstName: text("first_name").notNull(),
+   lastName: text("last_name").notNull(),
+   dob: date("dob", { mode: "string" }).notNull(),
+   allergies: text("allergies"),
+   medicalConditions: text("medical_conditions"),
+   medications: text("medications"),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const emergencyContacts = pgTable("emergency_contacts", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   childId: uuid("child_id")
+      .references(() => children.id, { onDelete: "cascade" })
+      .notNull(),
+   fullName: text("full_name").notNull(),
+   emailAddress: text("email_address").notNull(),
+   phoneNumber: text("phone_number").notNull(),
+   relationship: text("relationship").notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const extraQuestions = pgTable("extra_questions", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   formId: uuid("form_id")
+      .references(() => forms.id, { onDelete: "cascade" })
+      .notNull(),
+   sortOrder: integer("sort_order").notNull(),
+   type: extraQuestionTypeEnum("type").notNull(),
+   prompt: text("prompt").notNull(),
+   options: jsonb("options").$type<ExtraQuestionOption[]>(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const extraQuestionAnswers = pgTable("extra_question_answers", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   extraQuestionId: uuid("extra_question_id")
+      .references(() => extraQuestions.id, { onDelete: "cascade" })
+      .notNull(),
+   childId: uuid("child_id")
+      .references(() => children.id, { onDelete: "cascade" })
+      .notNull(),
+   answer: text("answer").array().notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const forms = pgTable("forms", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   name: text("name").notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
