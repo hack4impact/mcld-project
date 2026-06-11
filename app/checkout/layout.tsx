@@ -45,8 +45,9 @@ export default function CheckoutLayout({
                      <Image
                         src="/logo.png"
                         alt="MCLD"
-                        width={120}
+                        width={97}
                         height={32}
+                        style={{ width: "auto", height: "auto" }}
                         priority
                      />
                   </Link>
