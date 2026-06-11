@@ -1,6 +1,3 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-
 import { CancelCross } from "./cancel-cross";
 
 export default function CheckoutCancelPage() {

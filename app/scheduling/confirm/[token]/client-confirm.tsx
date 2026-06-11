@@ -33,12 +33,6 @@ function formatWindow(slot: TimeSlot): string {
    return `${formatTime(start)} – ${formatTime(end)}`;
 }
 
-function formatBookable(slot: TimeSlot): string {
-   const start = new Date(slot.start);
-   const end = new Date(slot.end);
-   return `${formatTime(start)} – ${formatTime(end)}`;
-}
-
 function formatConfirmed(slot: TimeSlot): string {
    const start = new Date(slot.start);
    const end = new Date(slot.end);
@@ -176,7 +170,7 @@ export function ClientConfirm({
                   <SelectContent position="popper" className="max-h-60">
                      {options.map((slot) => (
                         <SelectItem key={slot.start} value={slot.start}>
-                           {formatBookable(slot)}
+                           {formatWindow(slot)}
                         </SelectItem>
                      ))}
                   </SelectContent>

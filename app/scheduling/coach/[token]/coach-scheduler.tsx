@@ -77,7 +77,10 @@ export function CoachScheduler({
    clientSlots: TimeSlot[];
    initialCoachSlots: TimeSlot[];
 }) {
-   const window = React.useMemo(() => deriveWindow(clientSlots), [clientSlots]);
+   const calendarWindow = React.useMemo(
+      () => deriveWindow(clientSlots),
+      [clientSlots],
+   );
    const [slots, setSlots] = React.useState<TimeSlot[]>(initialCoachSlots);
    const [state, setState] = React.useState<SubmitState>({ kind: "idle" });
 
@@ -104,7 +107,7 @@ export function CoachScheduler({
                Availability sent
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-               We've emailed {clientName} the {matchCount} matching{" "}
+               We&apos;ve emailed {clientName} the {matchCount} matching{" "}
                {matchCount === 1 ? "window" : "windows"} so they can confirm a
                time. You can close this page.
             </p>
@@ -118,11 +121,11 @@ export function CoachScheduler({
 
          <div className="overflow-hidden rounded-xl border border-border bg-card">
             <AvailabilityCalendar
-               weeks={window.weeks}
+               weeks={calendarWindow.weeks}
                daysOfWeek={ALL_DAYS}
-               startHour={window.startHour}
-               endHour={window.endHour}
-               anchor={window.anchor}
+               startHour={calendarWindow.startHour}
+               endHour={calendarWindow.endHour}
+               anchor={calendarWindow.anchor}
                value={slots}
                onChange={setSlots}
                referenceValue={clientSlots}
