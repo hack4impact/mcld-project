@@ -46,11 +46,29 @@ export function AppSidebar({
          className={cn("data-[side=left]:left-3 inset-y-3 h-auto", className)}
          {...props}
       >
-         <SidebarHeader className="flex flex-row items-center gap-2 px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-b group-data-[collapsible=icon]:border-b-gray-700">
+         <SidebarHeader className="flex h-16 flex-row items-center gap-2 px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:border-b group-data-[collapsible=icon]:border-b-gray-700">
             <div className="flex min-w-0 items-center gap-2 group-data-[collapsible=icon]:hidden">
-               <Image src="/logo.png" alt="Logo" width={200} height={200} />
+               <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  width={200}
+                  height={66}
+                  className="h-10 w-auto"
+                  priority
+               />
             </div>
-            <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:m-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex" />
+            <div className="group/logo relative hidden size-8 items-center justify-center group-data-[collapsible=icon]:flex">
+               <Image
+                  src="/small.png"
+                  alt="Logo"
+                  width={197}
+                  height={287}
+                  className="h-7 w-auto transition-opacity duration-200 group-hover/logo:opacity-0"
+                  priority
+               />
+               <SidebarTrigger className="absolute inset-0 size-8 opacity-0 transition-opacity duration-200 group-hover/logo:opacity-100" />
+            </div>
+            <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:hidden" />
          </SidebarHeader>
          <SidebarContent>
             <SidebarGroup>
