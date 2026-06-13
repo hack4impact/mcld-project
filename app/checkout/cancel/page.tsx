@@ -1,5 +1,6 @@
 import { CancelCross } from "./cancel-cross";
 
+
 export default function CheckoutCancelPage() {
    return (
       <div className="w-full max-w-md text-center">

@@ -13,6 +13,7 @@ import {
 import { DataTable } from "@/components/data-table";
 import { formatDate } from "@/lib/format";
 import { statusBadgeClass } from "@/lib/service-status";
+import { Badge } from "@/components/ui/badge";
 
 import { setServiceStatus } from "@/app/(authenticated)/services/actions";
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
@@ -60,6 +61,24 @@ export function ServicesDataTable({
                   {row.original.status}
                </span>
             ),
+         },{
+            id: "kids",
+            header: "For Children",
+            cell: ({ row }) => {
+               const s = row.original;
+               if (s.type !== "programs" || !s.isForChildren) {
+                  return (
+                     <Badge variant="outline" className="text-xs">
+                     No
+                  </Badge>
+                  )
+               }
+               return (
+                  <Badge variant="secondary" className="text-xs">
+                     Yes
+                  </Badge>
+               );
+            },
          },
          {
             id: "startDate",

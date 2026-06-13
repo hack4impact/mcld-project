@@ -12,6 +12,7 @@ import {
    createProduct,
    deactivateActivePricesForProduct,
    updateProduct,
+   getStripeServiceData
 } from "@/lib/stripe";
 
 export type ServiceActionState = {
@@ -127,6 +128,29 @@ function parseCoachId(formData: FormData): ParseResult<string> {
    return { ok: true, value: result.data };
 }
 
+function parseKidsProgramFields(
+   formData: FormData,
+   isProgram: boolean,
+): ParseResult<{ isForChildren: boolean; formId: string | null }> {
+   if (!isProgram) {
+      return { ok: true, value: { isForChildren: false, formId: null } };
+   }
+
+   const isForChildren = field(formData, "is_for_children") === "true";
+   const formIdRaw = field(formData, "form_id");
+   let formId: string | null = null;
+
+   if (isForChildren && formIdRaw && formIdRaw !== "none") {
+      const result = z.string().uuid().safeParse(formIdRaw);
+      if (!result.success) {
+         return { ok: false, errors: { form_id: ["Invalid form"] } };
+      }
+      formId = result.data;
+   }
+
+   return { ok: true, value: { isForChildren, formId } };
+}
+
 export async function createService(
    _prev: ServiceActionState,
    formData: FormData,
@@ -173,6 +197,8 @@ export async function createService(
       } else {
          scheduledAtValue = result.value;
       }
+      const kids = parseKidsProgramFields(formData, true);
+      if (!kids.ok) Object.assign(errors, kids.errors);
    } else if (typeRaw === "private_lessons") {
       const coach = parseCoachId(formData);
       if (!coach.ok) Object.assign(errors, coach.errors);
@@ -188,6 +214,11 @@ export async function createService(
    const description = parsed.data!.description.trim();
    const priceCents = cents as number;
 
+   const kidsResult = parseKidsProgramFields(formData, type === "programs");
+   const kidsFields = kidsResult.ok
+      ? kidsResult.value
+      : { isForChildren: false, formId: null };
+   
    let createdProductId: string | null = null;
    try {
       const { productId } = await createProduct({
@@ -206,6 +237,8 @@ export async function createService(
          durationMinutes: duration_minutes,
          stripeProductId: productId,
          coachId: coachIdValue,
+         isForChildren: kidsFields.isForChildren,
+         formId: kidsFields.formId,
          status: "active",
       });
    } catch (e) {
@@ -299,6 +332,7 @@ export async function updateService(
          },
       };
    }
+   
 
    let scheduledAtValue: ProgramSchedule | undefined;
    let coachIdValue: string | undefined;
@@ -315,6 +349,13 @@ export async function updateService(
       else coachIdValue = coach.value;
    }
 
+   let kidsFields: { isForChildren: boolean; formId: string | null } | undefined;
+   if (row.type === "programs" && formData.has("is_for_children")) {
+   const kids = parseKidsProgramFields(formData, true);
+   if (!kids.ok) Object.assign(errors, kids.errors);
+   else kidsFields = kids.value;
+}
+
    if (Object.keys(errors).length > 0) {
       return { errors };
    }
@@ -329,10 +370,13 @@ export async function updateService(
       });
 
       if (cents !== undefined) {
-         // Stripe Prices are immutable: deactivate the current active
-         // price(s) and create a new one at the new amount.
-         await deactivateActivePricesForProduct(row.stripeProductId);
-         await createPrice(row.stripeProductId, cents);
+         const stripeData = await getStripeServiceData(row.stripeProductId);
+         if (stripeData?.priceCents !== cents) {
+            // Stripe Prices are immutable: deactivate the current active
+            // price(s) and create a new one at the new amount.
+            await deactivateActivePricesForProduct(row.stripeProductId);
+            await createPrice(row.stripeProductId, cents);
+         }
       }
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
@@ -343,6 +387,11 @@ export async function updateService(
          dbPatch.slots = scheduledAtValue.slots;
       }
       if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
+
+      if (kidsFields !== undefined) {
+         dbPatch.isForChildren = kidsFields.isForChildren;
+         dbPatch.formId = kidsFields.formId;
+      }
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();

@@ -6,7 +6,9 @@ import { getProductDiscountForUser } from "@/lib/stripe";
 import { getService } from "@/app/(authenticated)/services/queries";
 import { listChildrenForParent,getEnrolledChildIdsForProgram } from "@/app/(authenticated)/children/queries";
 import { CheckoutFlow } from "./checkout-flow";
+import { getForm } from "@/app/(authenticated)/forms/queries";
 import { X } from "lucide-react";
+
 
 
 export default async function CheckoutPage({
@@ -41,9 +43,12 @@ export default async function CheckoutPage({
       productId: service.stripeProductId,
    });
 
+   const attachedForm =
+   service.formId ? await getForm(service.formId) : null;
+
    return (
       <div className="mx-auto w-full max-w-4xl">
-         <CheckoutFlow service={service} discount={discount} children={children} enrolledChildIds={enrolledChildIds}/>
+         <CheckoutFlow service={service} discount={discount} parentChildren={children} enrolledChildIds={enrolledChildIds} attachedForm={attachedForm?.questions.length ? attachedForm : null}/>
       </div>
    );
 }
