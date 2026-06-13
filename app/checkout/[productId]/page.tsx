@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/server";
 import { getProductDiscountForUser } from "@/lib/stripe";
 import { getService } from "@/app/(authenticated)/services/queries";
-
+import { listChildrenForParent,getEnrolledChildIdsForProgram } from "@/app/(authenticated)/children/queries";
 import { CheckoutFlow } from "./checkout-flow";
 import { X } from "lucide-react";
+
 
 export default async function CheckoutPage({
    params,
@@ -28,6 +29,13 @@ export default async function CheckoutPage({
       return <NotAvailable message="This product isn't available." />;
    }
 
+   const [children, enrolledChildIds] = await Promise.all([
+      listChildrenForParent(user.id),
+      service.isForChildren
+         ? getEnrolledChildIdsForProgram(productId, user.id)
+         : Promise.resolve([]),
+   ]);
+
    const discount = await getProductDiscountForUser({
       userId: user.id,
       productId: service.stripeProductId,
@@ -35,7 +43,7 @@ export default async function CheckoutPage({
 
    return (
       <div className="mx-auto w-full max-w-4xl">
-         <CheckoutFlow service={service} discount={discount} />
+         <CheckoutFlow service={service} discount={discount} children={children} enrolledChildIds={enrolledChildIds}/>
       </div>
    );
 }

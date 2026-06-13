@@ -5,7 +5,9 @@ import { and, eq } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
-import { coachingSessions, serviceBookings, services } from "@/lib/db/schema";
+import { children,coachingSessions, serviceBookings, services } from "@/lib/db/schema";
+import { getEnrolledChildIdsForProgram } from "@/app/(authenticated)/children/queries";
+
 import {
    getActiveCouponForCustomerProduct,
    getOrCreateStripeCustomer,
@@ -16,6 +18,7 @@ import {
    type Availability,
 } from "@/app/coaching/actions";
 import { createClient } from "@/utils/supabase/server";
+
 
 export type CheckoutResult = { url: string } | { error: string };
 
@@ -86,8 +89,10 @@ async function createStripeCheckoutSession(params: {
 
 export async function checkoutServiceBooking({
    serviceId,
+   childId,
 }: {
    serviceId: string;
+   childId?: string
 }): Promise<CheckoutResult> {
    const supabase = await createClient();
    const {
@@ -103,12 +108,30 @@ export async function checkoutServiceBooking({
       return { error: "Service is not available" };
    if (service.type !== "programs")
       return { error: "Service is not a program" };
+   if (service.isForChildren && !childId) {
+      return { error: "Select a child to enroll" };
+   }
+   if (!service.isForChildren && childId) {
+      return { error: "This service is not for children" };
+   }
+
+   if (childId) {
+      const child = await db.query.children.findFirst({
+         where: and(eq(children.id, childId), eq(children.parentId, user.id)),
+      });
+      if (!child) return { error: "Child not found" };
+      const enrolledIds = await getEnrolledChildIdsForProgram(serviceId, user.id);
+      if (enrolledIds.includes(childId)) {
+         return { error: "This child is already registered for this program" };
+      }
+   }
 
    const [row] = await db
       .insert(serviceBookings)
       .values({
          userId: user.id,
          serviceId: service.id,
+         childId: childId || null,
          status: "awaiting_payment",
       })
       .returning({ id: serviceBookings.id });

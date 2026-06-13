@@ -1,6 +1,7 @@
 import { listCoaches, listServices } from "./queries";
 import { ServicesTable } from "./services-table";
 
+
 export default async function ServicesPage() {
    const [services, coaches] = await Promise.all([
       listServices(),

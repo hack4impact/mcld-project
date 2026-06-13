@@ -74,7 +74,7 @@ export async function getEnrolledChildIdsForProgram(
                 eq(serviceBookings.serviceId, serviceId),
                 eq(serviceBookings.userId, parentId),
                 isNotNull(serviceBookings.childId),
-                inArray(serviceBookings.status, ["confirmed", "pending", "awaiting_payment"]),
+                inArray(serviceBookings.status, ["confirmed", "pending"]),
             )
         );
     return rows.map((r) => r.childId).filter((id): id is string => id !== null);
