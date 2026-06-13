@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/utils/supabase/server";
 import { listChildrenForParent } from "./queries";
-import { CreateChildDialog } from "./_components/create-child-dialog";
 import { ChildrenClient } from "./_components/children-client";
 
 export default function ChildrenPage() {

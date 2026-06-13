@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -41,11 +41,13 @@ export function EmergencyContactDialog({
    const [formKey, setFormKey] = useState(0);
    const [errors, setErrors] = useState<Record<string, string[]>>({});
 
-   useEffect(() => {
-      if (!open) return;
-      setFormKey((k) => k + 1);
-      setErrors({});
-   }, [open]);
+   function handleOpenChange(nextOpen: boolean) {
+      if (nextOpen) {
+         setFormKey((k) => k + 1);
+         setErrors({});
+      }
+      onOpenChange(nextOpen);
+   }
 
    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
       e.preventDefault();
@@ -72,11 +74,11 @@ export function EmergencyContactDialog({
       }
 
       onAdd({ full_name, email_address, phone_number, relationship });
-      onOpenChange(false);
+      handleOpenChange(false);
    }
 
    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
          <DialogContent className="sm:max-w-md">
             <DialogHeader>
                <DialogTitle>Add emergency contact</DialogTitle>
@@ -129,7 +131,7 @@ export function EmergencyContactDialog({
                   <Button
                      type="button"
                      variant="outline"
-                     onClick={() => onOpenChange(false)}
+                     onClick={() => handleOpenChange(false)}
                   >
                      Cancel
                   </Button>

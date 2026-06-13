@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,8 +48,21 @@ export function CreateChildDialog() {
    const [ecSectionOpen, setEcSectionOpen] = useState(true);
    const [addContactOpen, setAddContactOpen] = useState(false);
 
+   function resetForm() {
+      setGender("");
+      setDob("");
+      setEmergencyContacts([]);
+      setEcSectionOpen(true);
+      setFormKey((k) => k + 1);
+   }
+
+   function handleOpenChange(nextOpen: boolean) {
+      setOpen(nextOpen);
+      if (!nextOpen) resetForm();
+   }
+
    const boundFormAction = useCallback(
-      (prev: ChildActionState, formData: FormData) => {
+      async (prev: ChildActionState, formData: FormData) => {
          if (emergencyContacts.length === 0) {
             return {
                errors: {
@@ -62,10 +75,22 @@ export function CreateChildDialog() {
          formData.set(
             "emergency_contacts",
             JSON.stringify(
-               emergencyContacts.map(({ id: _id, ...contact }) => contact),
+               emergencyContacts.map(
+                  ({ full_name, email_address, phone_number, relationship }) => ({
+                     full_name,
+                     email_address,
+                     phone_number,
+                     relationship,
+                  }),
+               ),
             ),
          );
-         return createChild(prev, formData);
+         const result = await createChild(prev, formData);
+         if (result?.message && !result.errors) {
+            resetForm();
+            setOpen(false);
+         }
+         return result;
       },
       [emergencyContacts],
    );
@@ -74,16 +99,6 @@ export function CreateChildDialog() {
       boundFormAction,
       null,
    );
-
-   useEffect(() => {
-      if (!state?.message) return;
-      setOpen(false);
-      setGender("");
-      setDob("");
-      setEmergencyContacts([]);
-      setEcSectionOpen(true);
-      setFormKey((k) => k + 1);
-   }, [state?.message]);
 
    function handleAddContact(
       contact: Omit<DraftEmergencyContact, "id">,
@@ -101,7 +116,7 @@ export function CreateChildDialog() {
 
    return (
       <>
-         <Dialog open={open} onOpenChange={setOpen}>
+         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                <Button className="border-primary bg-clip-border hover:border-primary/80 hover:bg-primary/80 active:translate-y-0">
                   <Plus />
@@ -285,7 +300,7 @@ export function CreateChildDialog() {
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setOpen(false)}
+                            onClick={() => handleOpenChange(false)}
                             disabled={pending}
                         >
                             Cancel
