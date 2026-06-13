@@ -10,6 +10,7 @@ import {
    MonitorSmartphone,
    Settings,
    Form,
+   Baby,
 } from "lucide-react";
 import {
    Sidebar,
@@ -32,7 +33,9 @@ const navItems = [
    { title: "USERS", href: "/users", icon: Users },
    { title: "FINANCE", href: "/finance", icon: CreditCard },
    { title: "MEMBERSHIPS", href: "/memberships", icon: MonitorSmartphone },
-   { title: "FORMS" , href: "/forms", icon: Form}
+   { title: "FORMS" , href: "/forms", icon: Form },
+   { title: "CHILDREN" , href: "/children", icon: Baby },
+   
 ];
 
 export function AppSidebar({
