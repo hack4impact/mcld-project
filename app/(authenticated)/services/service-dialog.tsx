@@ -9,6 +9,7 @@ import { type DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
+import type { FormListItem } from "@/app/(authenticated)/forms/queries";
 import {
    Dialog,
    DialogClose,
@@ -26,6 +27,7 @@ import {
    PopoverContent,
    PopoverTrigger,
 } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
    Select,
    SelectContent,
@@ -48,14 +50,9 @@ import type {
    ServiceView,
 } from "@/app/(authenticated)/services/queries";
 
-type Props = { coaches: CoachOption[] } & (
+type Props = { coaches: CoachOption[]; forms: FormListItem[] } & (
    | { mode: "add" }
-   | {
-        mode: "edit";
-        service: ServiceView | null;
-        open: boolean;
-        onOpenChange: (open: boolean) => void;
-     }
+   | { mode: "edit"; service: ServiceView | null; open: boolean; onOpenChange: (open: boolean) => void }
 );
 
 const DAY_NAMES = [
@@ -243,7 +240,7 @@ function ProgramScheduleFields({
 export function ServiceDialog(props: Props) {
    const isEdit = props.mode === "edit";
    const service = isEdit ? props.service : null;
-   const { coaches } = props;
+   const { coaches, forms } = props;
 
    const [type, setType] = React.useState<"programs" | "private_lessons">(
       service?.type ?? "programs",
@@ -261,6 +258,12 @@ export function ServiceDialog(props: Props) {
    const [priceCad, setPriceCad] = React.useState<string>(
       centsToMoneyString(service?.priceCents ?? null),
    );
+
+   const [isForChildren, setIsForChildren] = React.useState(
+      service?.isForChildren ?? false,
+   );
+   const [formId, setFormId] = React.useState(service?.formId ?? "none");
+
    const [state, formAction, pending] = useActionState<
       ServiceActionState,
       FormData
@@ -274,6 +277,8 @@ export function ServiceDialog(props: Props) {
          setDescription(service.description ?? "");
          setDurationMinutes(String(service.durationMinutes ?? 60));
          setPriceCad(centsToMoneyString(service.priceCents));
+         setIsForChildren(service.isForChildren ?? false);
+         setFormId(service.formId ?? "none");
       }
    }, [service]);
 
@@ -293,6 +298,8 @@ export function ServiceDialog(props: Props) {
             setDescription("");
             setDurationMinutes("60");
             setPriceCad("");
+            setIsForChildren(false);
+            setFormId("none");
          }
       }
    }, [state, isEdit, props]);
@@ -375,9 +382,15 @@ export function ServiceDialog(props: Props) {
                         <Select
                            name="type"
                            value={type}
-                           onValueChange={(v) =>
-                              setType(v as "programs" | "private_lessons")
-                           }
+                           onValueChange={(v) => {
+                              const next = v as "programs" | "private_lessons";
+                              setType(next);
+                              if (next === "private_lessons") {
+                                 setIsForChildren(false);
+                                 setFormId("none");
+                              }
+                           
+                           }}
                         >
                            <SelectTrigger id="type" className="w-full">
                               <SelectValue />
@@ -433,6 +446,47 @@ export function ServiceDialog(props: Props) {
                         initial={initialSchedule}
                         errors={errors}
                      />
+                  )}
+
+                  {type === "programs" && (
+                     <>
+                        <input
+                           type="hidden"
+                           name="is_for_children"
+                           value={isForChildren ? "true" : "false"}
+                        />
+                        <div className="flex items-center gap-2">
+                        <Checkbox
+                           id="is_for_children"
+                           checked={isForChildren}
+                           onCheckedChange={(checked) => {
+                              setIsForChildren(checked === true);
+                              if (!checked) setFormId("none");
+                           }}
+                        />
+                           <Label htmlFor="is_for_children">For children</Label>
+                        </div>
+
+                        {isForChildren && (
+                           <div className="flex flex-col gap-1.5">
+                              <Label htmlFor="form_id">Attached form (optional)</Label>
+                              <Select name="form_id" value={formId} onValueChange={setFormId}>
+                                 <SelectTrigger id="form_id" className="w-full">
+                                    <SelectValue placeholder="No form" />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                    <SelectItem value="none">No form</SelectItem>
+                                    {forms.map((f) => (
+                                       <SelectItem key={f.id} value={f.id}>
+                                          {f.name}
+                                       </SelectItem>
+                                    ))}
+                                 </SelectContent>
+                              </Select>
+                              <FieldError messages={errors?.form_id} />
+                           </div>
+                        )}
+                     </>
                   )}
 
                   {type === "private_lessons" && (

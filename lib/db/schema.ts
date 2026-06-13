@@ -44,7 +44,7 @@ export const serviceStatusEnum = pgEnum("service_status", [
    "disabled",
 ]);
 export const genderEnum = pgEnum("gender", ["male", "female", "prefer_not_to_say"]);
-export const extraQuestionTypeEnum = pgEnum("extra_question_type", [
+export const extraQuestionTypeEnum = pgEnum("form_question_type", [
    "text",
    "multiple_choices",
    "checkboxes",
@@ -68,6 +68,7 @@ export const services = pgTable("services", {
    startDate: date("start_date", { mode: "string" }),
    endDate: date("end_date", { mode: "string" }),
    slots: jsonb("slots").$type<ProgramSlot[]>(),
+   isForChildren: boolean("is_for_children").notNull().default(false),
    durationMinutes: integer("duration_minutes").notNull(),
    stripeProductId: text("stripe_product_id").notNull(),
    status: serviceStatusEnum("status").notNull().default("active"),
@@ -88,6 +89,7 @@ export const serviceBookings = pgTable("service_bookings", {
    serviceId: uuid("service_id")
       .references(() => services.id, { onDelete: "cascade" })
       .notNull(),
+   childId: uuid("child_id").references(() => children.id, {onDelete: "cascade"}),
    status: bookingStatusEnum("status").notNull().default("pending"),
    notes: text("notes"),
    isActive: boolean("is_active").notNull().default(true),
@@ -191,7 +193,7 @@ export const emergencyContacts = pgTable("emergency_contacts", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const extraQuestions = pgTable("extra_questions", {
+export const extraQuestions = pgTable("form_questions", {
    id: uuid("id").primaryKey().defaultRandom(),
    formId: uuid("form_id")
       .references(() => forms.id, { onDelete: "cascade" })
@@ -204,9 +206,9 @@ export const extraQuestions = pgTable("extra_questions", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const extraQuestionAnswers = pgTable("extra_question_answers", {
+export const extraQuestionAnswers = pgTable("form_question_answers", {
    id: uuid("id").primaryKey().defaultRandom(),
-   extraQuestionId: uuid("extra_question_id")
+   extraQuestionId: uuid("form_question_id")
       .references(() => extraQuestions.id, { onDelete: "cascade" })
       .notNull(),
    childId: uuid("child_id")

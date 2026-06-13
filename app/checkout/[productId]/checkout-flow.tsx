@@ -13,6 +13,14 @@ import {
    CardFooter,
    CardHeader,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
    Stepper,
@@ -26,13 +34,23 @@ import {
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
 import type { ProductDiscountForUser } from "@/lib/stripe";
 
-import { checkoutServiceBooking, startPrivateLessonCheckout } from "../actions";
+import { checkoutServiceBooking,loadFormAnswersForChild, startPrivateLessonCheckout } from "../actions";
 import { AvailabilityCalendar } from "@/components/scheduling/availability-calendar";
 import type { TimeSlot, Weekday } from "@/lib/scheduling/time-slot";
-
+import type { ChildView } from "@/app/(authenticated)/children/queries";
+import type { FormView } from "@/app/(authenticated)/forms/queries";
+import {
+   CheckoutFormFields,
+   formAnswersToInput,
+   validateFormAnswersClient,
+   type FormAnswersState,
+} from "../_components/checkout-form-fields";
 type CheckoutFlowProps = {
    service: ServiceView;
    discount: ProductDiscountForUser | null;
+   parentChildren: ChildView[];
+   enrolledChildIds: string[];
+   attachedForm: FormView | null;
 };
 
 const AVAILABILITY_WEEKS = 2;
@@ -125,12 +143,14 @@ function PoweredByStripe() {
    );
 }
 
-export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
-   const [step, setStep] = React.useState<"confirm" | "availability">(
+export function CheckoutFlow({ service, discount, parentChildren,enrolledChildIds,attachedForm }: CheckoutFlowProps) {
+   const [step, setStep] = React.useState<"confirm" | "child" | "form" | "availability">(
       "confirm",
    );
    const [submitting, setSubmitting] = React.useState(false);
    const [availabilities, setAvailabilities] = React.useState<TimeSlot[]>([]);
+   const [selectedChildId, setSelectedChildId] = React.useState("");
+   const [formAnswers, setFormAnswers] = React.useState<FormAnswersState>({});
    const [anchor, setAnchor] = React.useState<Date | null>(null);
 
    React.useEffect(() => {
@@ -138,12 +158,45 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
    }, []);
 
    const isPrivateLesson = service.type === "private_lessons";
+   const needsChildStep =service.type === "programs" && service.isForChildren;
+   const needsFormStep = Boolean(attachedForm?.questions.length);
+
+   React.useEffect(() => {
+      if (!needsFormStep || !attachedForm || !selectedChildId) {
+         setFormAnswers({});
+         return;
+      }
+
+      let cancelled = false;
+      void loadFormAnswersForChild({
+         childId: selectedChildId,
+         questionIds: attachedForm.questions.map((q) => q.id),
+      }).then((existing) => {
+         if (!cancelled) setFormAnswers(existing);
+      });
+
+      return () => {
+         cancelled = true;
+      };
+   }, [selectedChildId, attachedForm, needsFormStep]);
+
    const pricing = buildPricing(service, discount);
    const showAvailabilityStep = isPrivateLesson;
+   const enrolledSet = React.useMemo(
+      () => new Set(enrolledChildIds),
+      [enrolledChildIds],
+   );
 
    async function handleProgramCheckout() {
       setSubmitting(true);
-      const result = await checkoutServiceBooking({ serviceId: service.id });
+      const result = await checkoutServiceBooking({
+         serviceId: service.id,
+         childId: selectedChildId || undefined,
+         formAnswers:
+            needsFormStep && attachedForm
+               ? formAnswersToInput(attachedForm.questions, formAnswers)
+               : undefined,
+      });
       if ("error" in result) {
          setSubmitting(false);
          toast.error(result.error);
@@ -173,6 +226,35 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
    function handleNextOnConfirm() {
       if (isPrivateLesson) {
          setStep("availability");
+         return;
+      }
+      if (needsChildStep) {
+         setStep("child");
+         return;
+      }
+      void handleProgramCheckout();
+   }
+
+   function handleChildStepContinue() {
+      if (!selectedChildId) {
+         toast.error("Select a child to enroll.");
+         return;
+      }
+      if (needsFormStep) {
+         setStep("form");
+         return;
+      }
+      void handleProgramCheckout();
+   }
+
+   function handleFormStepContinue() {
+      if (!attachedForm) return;
+      const error = validateFormAnswersClient(
+         attachedForm.questions,
+         formAnswers,
+      );
+      if (error) {
+         toast.error(error);
          return;
       }
       void handleProgramCheckout();
@@ -280,6 +362,95 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
                   </Button>
                </CardFooter>
             </Card>
+         ) : step === "child" ? (
+            <Card className="mx-auto w-full max-w-xl">
+               <CardHeader>
+                  <h2 className="font-heading text-xl font-semibold">Select a child</h2>
+               </CardHeader>
+               <CardContent className="space-y-4">
+                  {parentChildren.length === 0 ? (
+                     <p className="text-sm text-muted-foreground">
+                        You have no children on file.{" "}
+                        <Link href="/children" className="underline">
+                           Add a child
+                        </Link>{" "}
+                        first, then return here.
+                     </p>
+                  ) : (
+                     <div className="space-y-2">
+                        <Label htmlFor="checkout-child">Child</Label>
+                        <Select value={selectedChildId} onValueChange={setSelectedChildId}>
+                           <SelectTrigger id="checkout-child" className="w-full">
+                              <SelectValue placeholder="Select a child" />
+                           </SelectTrigger>
+                           <SelectContent>
+                              {parentChildren.map((child) => {
+                                 const enrolled = enrolledSet.has(child.id);
+                                 return (
+                                    <SelectItem
+                                       key={child.id}
+                                       value={child.id}
+                                       disabled={enrolled}
+                                    >
+                                       {child.firstName} {child.lastName}
+                                       {enrolled ? " (already enrolled)" : ""}
+                                    </SelectItem>
+                                 );
+                              })}
+                           </SelectContent>
+                        </Select>
+                     </div>
+                  )}
+               </CardContent>
+               <CardFooter className="flex-col gap-1 sm:flex-row sm:justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => setStep("confirm")} disabled={submitting}>
+                     <ArrowLeft className="mr-1 h-4 w-4" />
+                     Back
+                  </Button>
+                  <Button
+                     onClick={handleChildStepContinue}
+                     disabled={submitting || parentChildren.length === 0}
+                     size="lg"
+                     className="w-full sm:w-auto"
+                  >
+                     {submitting ? "Redirecting…" : needsFormStep ? "Continue" : "Continue to payment"}
+                  </Button>
+               </CardFooter>
+            </Card>
+         ) : step === "form" && attachedForm ? (
+            <Card className="mx-auto w-full max-w-xl">
+               <CardHeader>
+                  <h2 className="font-heading text-xl font-semibold">
+                     {attachedForm.name}
+                  </h2>
+               </CardHeader>
+               <CardContent>
+                  <CheckoutFormFields
+                     questions={attachedForm.questions}
+                     answers={formAnswers}
+                     onChange={setFormAnswers}
+                  />
+               </CardContent>
+               <CardFooter className="flex-col gap-1 sm:flex-row sm:justify-between">
+                  <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={() => setStep("child")}
+                     disabled={submitting}
+                  >
+                     <ArrowLeft className="mr-1 h-4 w-4" />
+                     Back
+                  </Button>
+                  <Button
+                     onClick={handleFormStepContinue}
+                     disabled={submitting}
+                     size="lg"
+                     className="w-full sm:w-auto"
+                  >
+                     {submitting ? "Redirecting…" : "Continue to payment"}
+                  </Button>
+               </CardFooter>
+            </Card>
          ) : (
             <Card>
                <CardHeader className="space-y-2">
@@ -303,13 +474,8 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
                      onChange={setAvailabilities}
                   />
                </CardContent>
-               <CardFooter className="flex-col gap-3 border-t bg-muted/40 px-6 py-4 sm:flex-row sm:justify-between">
-                  <Button
-                     variant="ghost"
-                     size="sm"
-                     onClick={() => setStep("confirm")}
-                     disabled={submitting}
-                  >
+               <CardFooter className="flex-col gap-1 sm:flex-row sm:justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => setStep("confirm")} disabled={submitting}>
                      <ArrowLeft className="mr-1 h-4 w-4" />
                      Back
                   </Button>

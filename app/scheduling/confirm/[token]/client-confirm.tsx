@@ -73,7 +73,10 @@ export function ClientConfirm({
    );
    const [state, setState] = React.useState<State>({ kind: "idle" });
 
-   const options = bookableByWindow[selectedWindow] ?? [];
+   const options = React.useMemo(
+      () => bookableByWindow[selectedWindow] ?? [],
+      [bookableByWindow, selectedWindow],
+   );
 
    React.useEffect(() => {
       setSelectedStart(null);

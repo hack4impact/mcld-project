@@ -451,12 +451,6 @@ export async function grantComplimentarySubscription(
 
    const customerId = await getOrCreateStripeCustomer(userId, email);
 
-   const existing = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "all",
-      limit: 1,
-   });
-
    const trialEndDate = new Date();
    trialEndDate.setMonth(trialEndDate.getMonth() + months);
 
