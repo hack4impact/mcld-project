@@ -217,14 +217,17 @@ export async function checkoutServiceBooking({
    }
 
    if (service.formId) {
-      if (!childId) return { error: "Select a child to enroll" };
-      if (!formAnswers?.length) return { error: "Complete the form" };
-      const formError = await saveFormAnswers(
-         service.formId,
-         childId,
-         formAnswers,
-      );
-      if (formError) return formError;
+      const form = await getForm(service.formId);
+      if (form?.questions.length) {
+         if (!childId) return { error: "Select a child to enroll" };
+         if (!formAnswers?.length) return { error: "Complete the form" };
+         const formError = await saveFormAnswers(
+            service.formId,
+            childId,
+            formAnswers,
+         );
+         if (formError) return formError;
+      }
    }
 
    await db
