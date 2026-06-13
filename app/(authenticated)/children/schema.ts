@@ -19,3 +19,7 @@ export const createChildSchema = z.object({
     emergency_contacts: z.array(emergencyContactSchema).min(1, "At least one emergency contact is required"),
 
 })
+
+export const updateChildSchema = createChildSchema.extend({
+    child_id: z.string().uuid(),
+})
