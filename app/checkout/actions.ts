@@ -237,6 +237,7 @@ export async function checkoutServiceBooking({
          eq(serviceBookings.userId, user.id),
          eq(serviceBookings.serviceId, service.id),
          eq(serviceBookings.status, "awaiting_payment"),
+         isNull(serviceBookings.stripeOrderId),
          childId
             ? eq(serviceBookings.childId, childId)
             : isNull(serviceBookings.childId),

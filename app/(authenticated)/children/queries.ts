@@ -1,4 +1,4 @@
-import {and, asc, eq, inArray, isNotNull} from "drizzle-orm";
+import {and, asc, eq, inArray, isNotNull, or} from "drizzle-orm";
 import { db } from "@/lib/db";
 import { children, emergencyContacts, serviceBookings} from "@/lib/db/schema";
 
@@ -68,13 +68,19 @@ export async function getEnrolledChildIdsForProgram(
     const rows = await db
         .select({childId: serviceBookings.childId})
         .from(serviceBookings)
-        .innerJoin(children, eq(serviceBookings.childId, children.id))
         .where(
             and(
                 eq(serviceBookings.serviceId, serviceId),
                 eq(serviceBookings.userId, parentId),
                 isNotNull(serviceBookings.childId),
-                inArray(serviceBookings.status, ["confirmed", "pending"]),
+                eq(serviceBookings.isActive, true),
+                or(
+                    inArray(serviceBookings.status, ["confirmed", "pending"]),
+                    and(
+                        eq(serviceBookings.status, "awaiting_payment"),
+                        isNotNull(serviceBookings.stripeOrderId),
+                    ),
+                ),
             )
         );
     return rows.map((r) => r.childId).filter((id): id is string => id !== null);
