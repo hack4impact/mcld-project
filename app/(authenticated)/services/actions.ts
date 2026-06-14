@@ -10,8 +10,8 @@ import { cadStringToCents } from "@/lib/money";
 import {
    createPrice,
    createProduct,
-   deactivatePrices,
-   listActivePriceIds,
+   getStripeServiceData,
+   replaceProductPrice,
    updateProduct,
 } from "@/lib/stripe";
 
@@ -330,11 +330,10 @@ export async function updateService(
       });
 
       if (cents !== undefined) {
-         const { priceId } = await createPrice(row.stripeProductId, cents);
-         const oldPriceIds = (await listActivePriceIds(row.stripeProductId)).filter(
-            (id) => id !== priceId,
-         );
-         await deactivatePrices(oldPriceIds);
+         const current = await getStripeServiceData(row.stripeProductId);
+         if (current?.priceCents !== cents) {
+            await replaceProductPrice(row.stripeProductId, cents);
+         }
       }
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
