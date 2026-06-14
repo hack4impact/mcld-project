@@ -6,6 +6,9 @@ import { getStripeServiceData } from "@/lib/stripe";
 import type { ProgramSchedule } from "@/app/(authenticated)/services/actions";
 
 const SERVICES_TAG = "services";
+
+const UUID_RE =
+   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COACHES_TAG = "coaches";
 
 export type ServiceStatus = "active" | "disabled" | "archived" | "deleted";
@@ -38,7 +41,9 @@ function rowToSchedule(
    };
 }
 
-async function buildServiceView(row: typeof services.$inferSelect): Promise<ServiceView> {
+async function buildServiceView(
+   row: typeof services.$inferSelect,
+): Promise<ServiceView> {
    const stripeData = await getStripeServiceData(row.stripeProductId);
    return {
       id: row.id,
@@ -94,6 +99,8 @@ export async function listServices(opts?: {
 export async function getService(id: string): Promise<ServiceView | null> {
    "use cache";
    cacheTag(SERVICES_TAG);
+
+   if (!UUID_RE.test(id)) return null;
 
    const [row] = await db
       .select()

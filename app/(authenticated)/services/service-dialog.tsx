@@ -442,15 +442,8 @@ export function ServiceDialog(props: Props) {
                         {/* Hidden input drives form submission so an unselected
                             coach submits "" (a Radix Select with `name` falls
                             back to its first option when nothing is chosen). */}
-                        <input
-                           type="hidden"
-                           name="coach_id"
-                           value={coachId}
-                        />
-                        <Select
-                           value={coachId}
-                           onValueChange={setCoachId}
-                        >
+                        <input type="hidden" name="coach_id" value={coachId} />
+                        <Select value={coachId} onValueChange={setCoachId}>
                            <SelectTrigger id="coach_id" className="w-full">
                               <SelectValue
                                  placeholder={

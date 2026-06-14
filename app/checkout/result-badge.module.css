@@ -1,0 +1,100 @@
+.badge {
+   transform-origin: center;
+   opacity: 0;
+   will-change: transform, opacity, filter;
+   animation:
+      fade 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+      rotate 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+      blur 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+      bob 450ms cubic-bezier(0.34, 1.35, 0.64, 1) forwards;
+}
+
+.badge svg {
+   display: block;
+   overflow: visible;
+}
+
+.check svg path {
+   stroke-dasharray: 30;
+   stroke-dashoffset: 30;
+   animation: draw 550ms cubic-bezier(0.22, 1, 0.36, 1) 80ms forwards;
+}
+
+.cross svg {
+   animation: shake 500ms cubic-bezier(0.22, 1, 0.36, 1) 420ms 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+   .badge,
+   .badge svg {
+      animation: none !important;
+   }
+   .badge {
+      opacity: 1;
+   }
+   .check svg path {
+      stroke-dashoffset: 0 !important;
+   }
+}
+
+@keyframes fade {
+   from {
+      opacity: 0;
+   }
+   to {
+      opacity: 1;
+   }
+}
+@keyframes rotate {
+   from {
+      transform: rotate(80deg);
+   }
+   to {
+      transform: rotate(0deg);
+   }
+}
+@keyframes blur {
+   from {
+      filter: blur(10px);
+   }
+   to {
+      filter: blur(0);
+   }
+}
+@keyframes bob {
+   from {
+      translate: 0 40px;
+   }
+   to {
+      translate: 0 0;
+   }
+}
+@keyframes draw {
+   to {
+      stroke-dashoffset: 0;
+   }
+}
+@keyframes shake {
+   0%,
+   100% {
+      transform: translateX(0);
+   }
+   15% {
+      transform: translateX(-6px);
+   }
+   30% {
+      transform: translateX(6px);
+   }
+   45% {
+      transform: translateX(-4.2px);
+   }
+   60% {
+      transform: translateX(4.2px);
+   }
+   75% {
+      transform: translateX(-2.4px);
+   }
+   90% {
+      transform: translateX(2.4px);
+   }
+}

@@ -11,6 +11,12 @@ export type ActionState = {
   errors: Partial<Record<string, string[]>>;
 } | null;
 
+function safeNextPath(raw: FormDataEntryValue | null): string {
+  if (typeof raw !== "string") return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
+  return raw;
+}
+
 export async function login(
   _prevState: ActionState,
   formData: FormData
@@ -32,7 +38,7 @@ export async function login(
   }
 
   await updateUserLastLoginAt(data.user.id);
-  redirect("/");
+  redirect(safeNextPath(formData.get("next")));
 }
 
 export async function signup(

@@ -107,6 +107,17 @@ export type SubscriptionDetails = {
    paymentMethodLast4: string | null;
 } | null;
 
+export async function userHasActiveSubscription(
+   userId: string,
+): Promise<boolean> {
+   const subscription = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.userId, userId),
+   });
+   return (
+      subscription?.status === "active" || subscription?.status === "trialing"
+   );
+}
+
 export async function getSubscriptionDetails(
    userId: string,
 ): Promise<SubscriptionDetails> {
@@ -206,9 +217,7 @@ export async function getStripeServiceData(
       stripe.prices.list({ product: productId, active: true, limit: 100 }),
    ]);
 
-   const latestPrice = prices.data.sort(
-      (a, b) => b.created - a.created,
-   )[0];
+   const latestPrice = prices.data.sort((a, b) => b.created - a.created)[0];
 
    return {
       title: product.name,
@@ -218,7 +227,11 @@ export async function getStripeServiceData(
    };
 }
 
-export async function listStripeServices(includeArchived = false): Promise<{ id: string; name: string; priceCents: number | null; active: boolean }[]> {
+export async function listStripeServices(
+   includeArchived = false,
+): Promise<
+   { id: string; name: string; priceCents: number | null; active: boolean }[]
+> {
    "use cache";
    cacheLife("hours");
    const activeFilter = includeArchived ? {} : { active: true };
@@ -230,7 +243,8 @@ export async function listStripeServices(includeArchived = false): Promise<{ id:
    const sortedPrices = [...prices.data].sort((a, b) => b.created - a.created);
    const priceMap = new Map<string, number | null>();
    for (const price of sortedPrices) {
-      const productId = typeof price.product === "string" ? price.product : price.product.id;
+      const productId =
+         typeof price.product === "string" ? price.product : price.product.id;
       if (!priceMap.has(productId)) {
          priceMap.set(productId, price.unit_amount);
       }
@@ -288,8 +302,7 @@ async function getManagedDiscountForCustomerProduct(
       if (metadata.customerId !== customerId) continue;
       if (!coupon.valid) continue;
 
-      const appliesToProducts = coupon.applies_to?.products ?? [];
-      if (!appliesToProducts.includes(productId)) continue;
+      if (metadata.productId !== productId) continue;
 
       return {
          couponId: coupon.id,
@@ -301,15 +314,15 @@ async function getManagedDiscountForCustomerProduct(
 
 export type ProductDiscountConfig =
    | {
-      percentOff: number;
-      amountOffCents?: never;
-      currency?: string;
-   }
+        percentOff: number;
+        amountOffCents?: never;
+        currency?: string;
+     }
    | {
-      percentOff?: never;
-      amountOffCents: number;
-      currency: string;
-   };
+        percentOff?: never;
+        amountOffCents: number;
+        currency: string;
+     };
 
 export async function applyProductDiscountToCustomer(input: {
    productId: string;
@@ -364,6 +377,39 @@ export async function getActiveCouponForCustomerProduct(input: {
    return managed?.couponId ?? null;
 }
 
+export type ProductDiscountForUser = {
+   percentOff: number | null;
+   amountOffCents: number | null;
+   currency: string | null;
+};
+
+export async function getProductDiscountForUser(input: {
+   userId: string;
+   productId: string;
+}): Promise<ProductDiscountForUser | null> {
+   const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, input.userId),
+   });
+   if (!profile?.stripeCustomerId) return null;
+
+   const coupons = await stripe.coupons.list({ limit: 100 });
+   for (const coupon of coupons.data) {
+      const metadata = coupon.metadata ?? {};
+      if (metadata.customerId !== profile.stripeCustomerId) continue;
+      if (!coupon.valid) continue;
+
+      if (metadata.productId !== input.productId) continue;
+
+      return {
+         percentOff: coupon.percent_off ?? null,
+         amountOffCents: coupon.amount_off ?? null,
+         currency: coupon.currency ?? null,
+      };
+   }
+
+   return null;
+}
+
 export async function removeProductDiscountFromCustomer(input: {
    productId: string;
    customerId: string;
@@ -391,8 +437,6 @@ export async function deleteCouponIfExhausted(couponId: string): Promise<void> {
    }
 }
 
-
-
 export async function grantComplimentarySubscription(
    userId: string,
    email: string,
@@ -413,18 +457,15 @@ export async function grantComplimentarySubscription(
       limit: 1,
    });
 
-  
-
    const trialEndDate = new Date();
    trialEndDate.setMonth(trialEndDate.getMonth() + months);
-
 
    const trialEndTimestamp = Math.floor(trialEndDate.getTime() / 1000);
 
    await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
-      trial_end: trialEndTimestamp, 
+      trial_end: trialEndTimestamp,
       trial_settings: {
          end_behavior: { missing_payment_method: "cancel" },
       },

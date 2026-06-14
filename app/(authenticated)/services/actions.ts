@@ -306,6 +306,7 @@ export async function updateService(
    }
 
    let scheduledAtValue: ProgramSchedule | undefined;
+   let coachIdValue: string | undefined;
    if (row.type === "programs" && formData.has("start_date")) {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -313,12 +314,9 @@ export async function updateService(
       } else {
          scheduledAtValue = result.value;
       }
-   }
-
-   // Private lessons can be reassigned to a different coach, but the coach
-   // remains mandatory: an empty/invalid value is rejected.
-   let coachIdValue: string | undefined;
-   if (row.type === "private_lessons" && formData.has("coach_id")) {
+   } else if (row.type === "private_lessons" && formData.has("coach_id")) {
+      // Private lessons can be reassigned to a different coach, but the coach
+      // remains mandatory: an empty/invalid value is rejected.
       const coach = parseCoachId(formData);
       if (!coach.ok) Object.assign(errors, coach.errors);
       else coachIdValue = coach.value;
@@ -358,6 +356,7 @@ export async function updateService(
          dbPatch.endDate = scheduledAtValue.endDate;
          dbPatch.slots = scheduledAtValue.slots;
       }
+      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();
