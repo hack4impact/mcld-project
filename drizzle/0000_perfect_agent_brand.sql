@@ -131,6 +131,7 @@ CREATE TABLE "services" (
 	"coach_id" uuid,
 	"form_id" uuid,
 	"is_for_children" boolean DEFAULT false NOT NULL,
+	"requires_subscription" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
