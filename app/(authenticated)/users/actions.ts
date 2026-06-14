@@ -10,13 +10,23 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import type { Role } from "@/lib/roles";
 import { ROLES } from "@/lib/roles";
 import { createUserAdminSchema, updateUserAdminSchema } from "./schema";
-import { grantComplimentarySubscription } from "@/lib/stripe";
+import { grantComplimentarySubscription , stripe} from "@/lib/stripe";
+import type Stripe from "stripe";
+import { getTransactionsSchema, createRefundSchema} from "./schema";
 
 export type UserAdminActionState = {
    errors?: Record<string, string[]>;
    message?: string;
    data?: Record<string, string>;
 } | null;
+
+export type RefundActionState = {
+   errors?: Record<string, string[]>;
+   message?: string;
+   status?: "succeeded" | "pending" | "failed";
+   refund?: TransactionRefund;
+   updatedTransaction? : UserTransaction;
+} | null
 
 const USERS_PATH = "/users";
 
@@ -245,4 +255,201 @@ export async function deleteUserAdmin(
 
    revalidatePath(USERS_PATH);
    return { message: "User deleted." };
+}
+
+export type TransactionRefund = {
+   id:string;
+   amount: number;
+   status:string | null;
+   created:number;
+}
+
+export type UserTransaction = {
+   id: string;
+   amount: number;
+   amountRefunded: number;
+   refunded: boolean;
+   created: number;
+   description: string;
+   paymentIntentId: string| null;
+   refunds: TransactionRefund[];
+   currency: string;
+}
+
+export type PaginatedTransactions = {
+   data: UserTransaction[];
+   hasMore: boolean;
+   firstId: string | null;
+   lastId: string | null;
+};
+
+export async function getUserTransactions(
+   input: {
+      customerId: string;
+      limit?:number;
+      startingAfter?: string;
+      endingBefore?:string;
+   }
+): Promise<PaginatedTransactions> {
+   await requireAdmin();
+
+   const parsed = getTransactionsSchema.parse(input)
+
+   const params: Stripe.ChargeListParams = {
+      customer: parsed.customerId,
+      limit: parsed.limit,
+      expand: ["data.refunds", "data.payment_intent"]
+   };
+
+   if(parsed.startingAfter){
+      params.starting_after = parsed.startingAfter;
+   } else if (parsed.endingBefore) {
+      params.ending_before = parsed.endingBefore;
+   }
+
+   const charges = await stripe.charges.list(params)
+
+   const data: UserTransaction[] = charges.data.map((charge)=> {
+      let description = charge.description || "";
+      if (!description && charge.payment_intent && typeof charge.payment_intent !== "string") {
+         description = 
+            charge.payment_intent.description ||
+            charge.payment_intent.metadata?.productName ||
+            charge.payment_intent.metadata?.description ||
+            ""
+         
+      }
+      if(!description) {
+         description = charge.metadata?.productName || charge.metadata?.description || "Payment";
+      }
+
+      const refunds = 
+         (charge as any).refunds?.data?.map((r:Stripe.Refund)=> ({
+            id: r.id,
+            amount: r.amount,
+            status: r.status,
+            created: r.created,
+         })) || [];
+
+      return {
+         id: charge.id,
+         amount: charge.amount,
+         amountRefunded: charge.amount_refunded,
+         refunded: charge.refunded,
+         created: charge.created,
+         description,
+         paymentIntentId:
+            typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id || null,
+         refunds,
+         currency: charge.currency
+      }
+
+   })
+
+   return {
+      data, 
+      hasMore: charges.has_more,
+      firstId: charges.data[0]?.id || null,
+      lastId: charges.data[charges.data.length -1]?.id || null
+   }
+}
+
+export async function createTransactionRefund(
+  _prev: RefundActionState,
+  formData: FormData
+): Promise<RefundActionState> {
+   try {
+      await requireAdmin();
+   } catch {
+      return {errors : { _form : ["Unauthorized"]}};
+   }
+
+   const amountRaw = formData.get("amountCents");
+   const amountCents = amountRaw? Number(amountRaw): undefined;
+
+   const parsed = createRefundSchema.safeParse({
+      chargeId: formData.get("chargeId"),
+      amountCents,
+      idempotencyKey: formData.get("idempotencyKey"),
+   });
+
+   if (!parsed.success) {
+      return {errors : parsed.error.flatten().fieldErrors};
+   }
+   const {chargeId, amountCents: refundAmount, idempotencyKey} = parsed.data;
+
+
+   try {
+      const refundParams: Stripe.RefundCreateParams = {
+         charge:chargeId,
+      };
+
+      if (refundAmount !== undefined) {
+         refundParams.amount = refundAmount;
+      }
+
+      const refund = await stripe.refunds.create(refundParams, { idempotencyKey
+      })
+
+      const updatedCharge = await stripe.charges.retrieve(chargeId, {
+         expand: [ "refunds", "payment_intent"],
+      })
+
+      let description = updatedCharge.description || "";
+      if (!description && updatedCharge.payment_intent && typeof updatedCharge.payment_intent !== "string") {
+         description =
+            updatedCharge.payment_intent.description ||
+            updatedCharge.payment_intent.metadata?.productName ||
+            updatedCharge.payment_intent.metadata?.description ||
+            "";
+      }
+      if (!description) {
+         description = updatedCharge.metadata?.productName || updatedCharge.metadata?.description || "Payment";
+      }
+
+      const refunds =
+         updatedCharge.refunds?.data?.map((r: Stripe.Refund) => ({
+            id: r.id,
+            amount: r.amount,
+            status: r.status,
+            created: r.created,
+         })) || [];
+      
+      const updatedTransaction: UserTransaction = {
+         id: updatedCharge.id,
+         amount: updatedCharge.amount,
+         amountRefunded: updatedCharge.amount_refunded,
+         refunded: updatedCharge.refunded,
+         created: updatedCharge.created,
+         description,
+         paymentIntentId:
+            typeof updatedCharge.payment_intent === "string"
+               ? updatedCharge.payment_intent
+               : updatedCharge.payment_intent?.id || null,
+         refunds,
+         currency: updatedCharge.currency,
+
+      }
+
+      return {
+         message: refund.status === "succeeded" ? "Refund issued successfully." : "Refund pending.",
+         status: refund.status === "succeeded" ? "succeeded" : "pending",
+         refund: {
+            id: refund.id,
+            amount: refund.amount,
+            status: refund.status,
+            created: refund.created,
+         },
+         updatedTransaction,
+      };
+
+
+   } catch (error: any) {
+      return {
+         errors: {
+            _form: [error.message || "Failed to create refund."],
+         },
+         status: "failed",
+      };
+   }
 }
