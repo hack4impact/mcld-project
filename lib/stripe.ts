@@ -182,7 +182,55 @@ export async function createPrice(
       unit_amount: amountCents,
       currency: "cad",
    });
+
    return { priceId: price.id };
+}
+
+export async function replaceProductPrice(
+   productId: string,
+   amountCents: number,
+): Promise<{ priceId: string }> {
+   // get the current default price for the product
+   const product = await stripe.products.retrieve(productId, {
+      expand: ["default_price"],
+   });
+
+   const currentDefaultPrice =
+      typeof product.default_price === "string"
+         ? product.default_price
+         : product.default_price?.id;
+
+   // create the new price FIRST (rlly important)
+   const newPrice = await stripe.prices.create({
+      product: productId,
+      unit_amount: amountCents,
+      currency: "cad",
+   });
+
+   // set the new price as the product default
+   await stripe.products.update(productId, {
+      default_price: newPrice.id,
+   });
+
+   // archive old active prices but NEVER archive the new default price
+   const prices = await stripe.prices.list({
+      product: productId,
+      active: true,
+      limit: 100,
+   });
+
+   for (const p of prices.data) {
+      if (p.id !== newPrice.id && p.id !== currentDefaultPrice) {
+         await stripe.prices.update(p.id, { active: false });
+      }
+   }
+
+   // archive the old default price after default_price has been swapped
+   if (currentDefaultPrice && currentDefaultPrice !== newPrice.id) {
+      await stripe.prices.update(currentDefaultPrice, { active: false });
+   }
+
+   return { priceId: newPrice.id };
 }
 
 export async function deactivateActivePricesForProduct(
@@ -195,6 +243,21 @@ export async function deactivateActivePricesForProduct(
    });
    for (const p of prices.data) {
       await stripe.prices.update(p.id, { active: false });
+   }
+}
+
+export async function listActivePriceIds(productId: string): Promise<string[]> {
+   const prices = await stripe.prices.list({
+      product: productId,
+      active: true,
+      limit: 100,
+   });
+   return prices.data.map((p) => p.id);
+}
+
+export async function deactivatePrices(priceIds: string[]): Promise<void> {
+   for (const id of priceIds) {
+      await stripe.prices.update(id, { active: false });
    }
 }
 
