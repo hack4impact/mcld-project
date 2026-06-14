@@ -46,6 +46,7 @@ const baseFields = z.object({
    type: serviceTypeSchema,
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60),
    price_cad: z.string().min(1, "Price is required"),
+   requires_subscription: z.enum(["true", "false"]),
 });
 
 const ALLOWED_TRANSITIONS: Record<
@@ -145,6 +146,7 @@ export async function createService(
       type: formData.get("type"),
       duration_minutes: formData.get("duration_minutes"),
       price_cad: formData.get("price_cad"),
+      requires_subscription: formData.get("requires_subscription"),
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -184,7 +186,7 @@ export async function createService(
    }
 
    // Safe: we only reach here if baseFields parsed AND price validated.
-   const { title, type, duration_minutes } = parsed.data!;
+   const { title, type, duration_minutes, requires_subscription } = parsed.data!;
    const description = parsed.data!.description.trim();
    const priceCents = cents as number;
 
@@ -207,6 +209,7 @@ export async function createService(
          stripeProductId: productId,
          coachId: coachIdValue,
          status: "active",
+         requiresSubscription: requires_subscription === "true",
       });
    } catch (e) {
       if (createdProductId) {
@@ -239,6 +242,7 @@ const updateFields = z.object({
    description: z.string().min(1, "Description cannot be empty").max(1000).optional(),
    duration_minutes: z.coerce.number().int().min(1).max(24 * 60).optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
+   requires_subscription: z.enum(["true", "false"]).optional(),
 });
 
 export async function updateService(
@@ -259,6 +263,7 @@ export async function updateService(
       description: field(formData, "description") || undefined,
       duration_minutes: field(formData, "duration_minutes") || undefined,
       price_cad: field(formData, "price_cad") || undefined,
+      requires_subscription: field(formData, "requires_subscription") || undefined,
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -319,7 +324,8 @@ export async function updateService(
       return { errors };
    }
 
-   const { title, description, duration_minutes } = parsed.data!;
+   const { title, description, duration_minutes, requires_subscription } =
+      parsed.data!;
    const service_id = serviceId;
 
    try {
@@ -343,6 +349,9 @@ export async function updateService(
          dbPatch.slots = scheduledAtValue.slots;
       }
       if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
+      if (requires_subscription !== undefined) {
+         dbPatch.requiresSubscription = requires_subscription === "true";
+      }
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();

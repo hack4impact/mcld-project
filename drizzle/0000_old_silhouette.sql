@@ -56,6 +56,7 @@ CREATE TABLE "services" (
 	"duration_minutes" integer NOT NULL,
 	"price" integer DEFAULT 0 NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
+	"requires_subscription" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
