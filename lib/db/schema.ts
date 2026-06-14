@@ -222,7 +222,7 @@ export const formQuestions = pgTable("form_questions", {
    type: formQuestionTypeEnum("type").notNull(),
    prompt: text("prompt").notNull(),
    options: jsonb("options").$type<FormQuestionOption[]>(),
-   sortOrder: integer("sort_order").notNull(),
+   sortOrder: integer("sort_order").notNull().default(0),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

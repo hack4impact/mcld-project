@@ -50,8 +50,6 @@ next-env.d.ts
 *.swo
 *~
 
-# drizzle
-drizzle/meta/
 
 # supabase
 .supabase/
