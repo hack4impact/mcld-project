@@ -248,9 +248,7 @@ export function ServiceDialog(props: Props) {
    const [type, setType] = React.useState<"programs" | "private_lessons">(
       service?.type ?? "programs",
    );
-   const [coachId, setCoachId] = React.useState<string>(
-      service?.coachId ?? "",
-   );
+   const [coachId, setCoachId] = React.useState<string>(service?.coachId ?? "");
    const [title, setTitle] = React.useState<string>(service?.title ?? "");
    const [description, setDescription] = React.useState<string>(
       service?.description ?? "",
@@ -372,8 +370,11 @@ export function ServiceDialog(props: Props) {
                   <div className="grid grid-cols-2 gap-3">
                      <div className="flex flex-col gap-1.5">
                         <Label htmlFor="type">Type</Label>
+                        {/* React 19 resets the <form> after every action, 
+                            which reverts a Radix Select's native <select name> 
+                            to its first option without re-syncing the controlled value. */}
+                        <input type="hidden" name="type" value={type} />
                         <Select
-                           name="type"
                            value={type}
                            onValueChange={(v) =>
                               setType(v as "programs" | "private_lessons")
@@ -438,11 +439,11 @@ export function ServiceDialog(props: Props) {
                   {type === "private_lessons" && (
                      <div className="flex flex-col gap-1.5">
                         <Label htmlFor="coach_id">Coach</Label>
-                        <Select
-                           name="coach_id"
-                           value={coachId}
-                           onValueChange={setCoachId}
-                        >
+                        {/* Hidden input drives form submission so an unselected
+                            coach submits "" (a Radix Select with `name` falls
+                            back to its first option when nothing is chosen). */}
+                        <input type="hidden" name="coach_id" value={coachId} />
+                        <Select value={coachId} onValueChange={setCoachId}>
                            <SelectTrigger id="coach_id" className="w-full">
                               <SelectValue
                                  placeholder={
