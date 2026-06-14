@@ -76,6 +76,9 @@ export const services = pgTable("services", {
    }),
    formId: uuid("form_id")
       .references(() => forms.id, { onDelete: "set null" }),
+   requiresSubscription: boolean("requires_subscription")
+      .notNull()
+      .default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
