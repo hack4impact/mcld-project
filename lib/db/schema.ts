@@ -223,7 +223,6 @@ export const formQuestions = pgTable("form_questions", {
    formId: uuid("form_id")
       .references(() => forms.id, { onDelete: "cascade" })
       .notNull(),
-   sortOrder: integer("sort_order").notNull(),
    type: formQuestionTypeEnum("type").notNull(),
    prompt: text("prompt").notNull(),
    options: jsonb("options").$type<FormQuestionOption[]>(),
@@ -241,13 +240,6 @@ export const formQuestionAnswers = pgTable("form_question_answers", {
       .references(() => children.id, { onDelete: "cascade" })
       .notNull(),
    answer: text("answer").array().notNull(),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const forms = pgTable("forms", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   name: text("name").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
