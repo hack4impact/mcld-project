@@ -45,7 +45,11 @@ export const serviceStatusEnum = pgEnum("service_status", [
    "deleted",
    "disabled",
 ]);
-export const genderEnum = pgEnum("gender", ["male", "female", "prefer_not_to_say"]);
+export const genderEnum = pgEnum("gender", [
+   "male",
+   "female",
+   "prefer_not_to_say",
+]);
 export const formQuestionTypeEnum = pgEnum("form_question_type", [
    "text",
    "multiple_choices",
@@ -61,7 +65,7 @@ export const profiles = pgTable("profiles", {
    stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-   lastLoginAt: timestamp('last_login_at').defaultNow().notNull()
+   lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
 });
 
 export const forms = pgTable("forms", {
@@ -219,6 +223,7 @@ export const formQuestions = pgTable("form_questions", {
    formId: uuid("form_id")
       .references(() => forms.id, { onDelete: "cascade" })
       .notNull(),
+   sortOrder: integer("sort_order").notNull(),
    type: formQuestionTypeEnum("type").notNull(),
    prompt: text("prompt").notNull(),
    options: jsonb("options").$type<FormQuestionOption[]>(),
@@ -236,6 +241,13 @@ export const formQuestionAnswers = pgTable("form_question_answers", {
       .references(() => children.id, { onDelete: "cascade" })
       .notNull(),
    answer: text("answer").array().notNull(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const forms = pgTable("forms", {
+   id: uuid("id").primaryKey().defaultRandom(),
+   name: text("name").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

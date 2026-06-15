@@ -22,6 +22,7 @@ function FieldError({ errors }: { errors?: string[] }) {
 function LoginForm() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
+  const nextParam = searchParams.get("next") ?? "/";
   const [mode, setMode] = useState<"login" | "signup">("login");
 
   const [loginState, loginAction] = useActionState<ActionState, FormData>(
@@ -57,6 +58,7 @@ function LoginForm() {
           )}
 
           <form action={action} className="space-y-4" noValidate>
+            <input type="hidden" name="next" value={nextParam} />
             {mode === "signup" && (
               <div className="flex gap-3">
                 <div className="space-y-1 flex-1">
