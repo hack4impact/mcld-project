@@ -11,6 +11,7 @@ import {
    createPrice,
    createProduct,
    deactivateActivePricesForProduct,
+   getStripeServiceData,
    updateProduct,
 } from "@/lib/stripe";
 
@@ -119,7 +120,11 @@ function parseProgramSchedule(formData: FormData): ParseResult<ProgramSchedule> 
 
 function parseCoachId(formData: FormData): ParseResult<string> {
    const raw = field(formData, "coach_id");
-   if (!raw) return { ok: false, errors: { coach_id: ["Select a coach"] } };
+   if (!raw)
+      return {
+         ok: false,
+         errors: { coach_id: ["A coach is required for private lessons"] },
+      };
    const result = z.string().uuid().safeParse(raw);
    if (!result.success) {
       return { ok: false, errors: { coach_id: ["Invalid coach"] } };
@@ -310,6 +315,8 @@ export async function updateService(
          scheduledAtValue = result.value;
       }
    } else if (row.type === "private_lessons" && formData.has("coach_id")) {
+      // Private lessons can be reassigned to a different coach, but the coach
+      // remains mandatory: an empty/invalid value is rejected.
       const coach = parseCoachId(formData);
       if (!coach.ok) Object.assign(errors, coach.errors);
       else coachIdValue = coach.value;
@@ -329,14 +336,21 @@ export async function updateService(
       });
 
       if (cents !== undefined) {
-         // Stripe Prices are immutable: deactivate the current active
-         // price(s) and create a new one at the new amount.
-         await deactivateActivePricesForProduct(row.stripeProductId);
-         await createPrice(row.stripeProductId, cents);
+         // The edit form always submits the price, so only swap it when the
+         // amount actually changed. Recreating an unchanged price needlessly
+         // archives the product's default price, which Stripe rejects.
+         const current = await getStripeServiceData(row.stripeProductId);
+         if (current?.priceCents !== cents) {
+            // Stripe Prices are immutable: deactivate the current active
+            // price(s) and create a new one at the new amount.
+            await deactivateActivePricesForProduct(row.stripeProductId);
+            await createPrice(row.stripeProductId, cents);
+         }
       }
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
       if (duration_minutes !== undefined) dbPatch.durationMinutes = duration_minutes;
+      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
       if (scheduledAtValue !== undefined) {
          dbPatch.startDate = scheduledAtValue.startDate;
          dbPatch.endDate = scheduledAtValue.endDate;
