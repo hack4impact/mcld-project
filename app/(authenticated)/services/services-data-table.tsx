@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
-import { Archive, ArchiveRestore, Ban, Pencil, Power } from "lucide-react";
+import { Archive, ArchiveRestore, Ban, Pencil, Power, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -84,6 +85,16 @@ export function ServicesDataTable({
                const s = row.original;
                return (
                   <div className="flex items-center justify-end gap-0.5">
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon-sm" aria-label="View registered" asChild>
+                              <Link href={`/services/${s.id}`}>
+                                 <Users />
+                              </Link>
+                           </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>View registered</TooltipContent>
+                     </Tooltip>
                      {(s.status === "active" || s.status === "disabled") && (
                         <Tooltip>
                            <TooltipTrigger asChild>
