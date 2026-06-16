@@ -1,6 +1,6 @@
 import {
-   ExtraQuestionOption,
-   extraQuestions,
+   FormQuestionOption,
+   formQuestions,
    forms,
    services,
 } from "@/lib/db/schema";
@@ -8,14 +8,14 @@ import { cacheTag } from "next/cache";
 import { db } from "@/lib/db";
 import { asc, count, desc, eq, sql } from "drizzle-orm";
 
-export type ExtraQuestionType = "text" | "multiple_choices" | "checkboxes" | "user_agreement";
+export type FormQuestionType = "text" | "multiple_choices" | "checkboxes" | "user_agreement";
 
 export type QuestionView = {
     id: string;
     sortOrder: number;
-    type: ExtraQuestionType;
+    type: FormQuestionType;
     prompt: string;
-    options: ExtraQuestionOption[] | null;
+    options: FormQuestionOption[] | null;
 }
 
 export type FormListItem = {
@@ -42,11 +42,11 @@ export async function listForms(): Promise<FormListItem[]> {
          name: forms.name,
          createdAt: forms.createdAt,
          updatedAt: forms.updatedAt,
-         questionCount: sql<number>`cast(count(distinct ${extraQuestions.id}) as integer)`,
+         questionCount: sql<number>`cast(count(distinct ${formQuestions.id}) as integer)`,
          attachedServiceCount: sql<number>`cast(count(distinct ${services.id}) as integer)`,
       })
       .from(forms)
-      .leftJoin(extraQuestions, eq(extraQuestions.formId, forms.id))
+      .leftJoin(formQuestions, eq(formQuestions.formId, forms.id))
       .leftJoin(services, eq(services.formId, forms.id))
       .groupBy(forms.id, forms.name, forms.createdAt, forms.updatedAt)
       .orderBy(desc(forms.createdAt));
@@ -76,15 +76,15 @@ export async function getForm(id: string): Promise<FormView | null> {
   
     const questionRows = await db
       .select({
-        id: extraQuestions.id,
-        sortOrder: extraQuestions.sortOrder,
-        type: extraQuestions.type,
-        prompt: extraQuestions.prompt,
-        options: extraQuestions.options,
+        id: formQuestions.id,
+        sortOrder: formQuestions.sortOrder,
+        type: formQuestions.type,
+        prompt: formQuestions.prompt,
+        options: formQuestions.options,
       })
-      .from(extraQuestions)
-      .where(eq(extraQuestions.formId, id))
-      .orderBy(asc(extraQuestions.sortOrder));
+      .from(formQuestions)
+      .where(eq(formQuestions.formId, id))
+      .orderBy(asc(formQuestions.sortOrder));
   
     const [serviceRow] = await db
       .select({ count: count() })
