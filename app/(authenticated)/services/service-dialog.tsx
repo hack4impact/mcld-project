@@ -48,7 +48,9 @@ import type {
    ServiceView,
 } from "@/app/(authenticated)/services/queries";
 
-type Props = { coaches: CoachOption[] } & (
+type FormOption = { id: string; name: string };
+
+type Props = { coaches: CoachOption[]; forms: FormOption[] } & (
    | { mode: "add" }
    | {
         mode: "edit";
@@ -243,12 +245,16 @@ function ProgramScheduleFields({
 export function ServiceDialog(props: Props) {
    const isEdit = props.mode === "edit";
    const service = isEdit ? props.service : null;
-   const { coaches } = props;
+   const { coaches, forms } = props;
 
    const [type, setType] = React.useState<"programs" | "private_lessons">(
       service?.type ?? "programs",
    );
    const [coachId, setCoachId] = React.useState<string>(service?.coachId ?? "");
+   const [isForChildren, setIsForChildren] = React.useState<boolean>(
+      service?.isForChildren ?? false,
+   );
+   const [formId, setFormId] = React.useState<string>(service?.formId ?? "");
    const [title, setTitle] = React.useState<string>(service?.title ?? "");
    const [description, setDescription] = React.useState<string>(
       service?.description ?? "",
@@ -268,6 +274,8 @@ export function ServiceDialog(props: Props) {
       if (service) {
          setType(service.type);
          setCoachId(service.coachId ?? "");
+         setIsForChildren(service.isForChildren ?? false);
+         setFormId(service.formId ?? "");
          setTitle(service.title ?? "");
          setDescription(service.description ?? "");
          setDurationMinutes(String(service.durationMinutes ?? 60));
@@ -287,6 +295,8 @@ export function ServiceDialog(props: Props) {
             closeRef.current?.click();
             setType("programs");
             setCoachId("");
+            setIsForChildren(false);
+            setFormId("");
             setTitle("");
             setDescription("");
             setDurationMinutes("60");
@@ -428,6 +438,47 @@ export function ServiceDialog(props: Props) {
                      </ButtonGroup>
                      <FieldError messages={errors?.price_cad} />
                   </div>
+
+                  <div className="flex flex-col gap-1.5">
+                     <input
+                        type="hidden"
+                        name="is_for_children"
+                        value={String(isForChildren)}
+                     />
+                     <div className="flex items-center gap-2">
+                        <input
+                           id="is_for_children"
+                           type="checkbox"
+                           checked={isForChildren}
+                           onChange={(e) => setIsForChildren(e.target.checked)}
+                           className="size-4 rounded border-input accent-primary"
+                        />
+                        <Label htmlFor="is_for_children">For children</Label>
+                     </div>
+                  </div>
+
+                  {isForChildren && (
+                     <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="form_id">Form (optional)</Label>
+                        <input type="hidden" name="form_id" value={formId} />
+                        <Select
+                           value={formId || "none"}
+                           onValueChange={(v) => setFormId(v === "none" ? "" : v)}
+                        >
+                           <SelectTrigger id="form_id" className="w-full">
+                              <SelectValue placeholder="No form" />
+                           </SelectTrigger>
+                           <SelectContent>
+                              <SelectItem value="none">No form</SelectItem>
+                              {forms.map((f) => (
+                                 <SelectItem key={f.id} value={f.id}>
+                                    {f.name}
+                                 </SelectItem>
+                              ))}
+                           </SelectContent>
+                        </Select>
+                     </div>
+                  )}
 
                   {type === "programs" && (
                      <ProgramScheduleFields
