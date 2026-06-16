@@ -9,6 +9,7 @@ import {
    jsonb,
    date,
    uniqueIndex,
+   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -75,23 +76,37 @@ export const forms = pgTable("forms", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const services = pgTable("services", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   type: serviceTypeEnum("type").notNull(),
-   startDate: date("start_date", { mode: "string" }),
-   endDate: date("end_date", { mode: "string" }),
-   slots: jsonb("slots").$type<ProgramSlot[]>(),
-   durationMinutes: integer("duration_minutes").notNull(),
-   stripeProductId: text("stripe_product_id").notNull(),
-   status: serviceStatusEnum("status").notNull().default("active"),
-   coachId: uuid("coach_id").references(() => profiles.id, {
-      onDelete: "set null",
-   }),
-   formId: uuid("form_id").references(() => forms.id, { onDelete: "set null" }),
-   isForChildren: boolean("is_for_children").notNull().default(false),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const services = pgTable(
+   "services",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      type: serviceTypeEnum("type").notNull(),
+      startDate: date("start_date", { mode: "string" }),
+      endDate: date("end_date", { mode: "string" }),
+      slots: jsonb("slots").$type<ProgramSlot[]>(),
+      durationMinutes: integer("duration_minutes").notNull(),
+      stripeProductId: text("stripe_product_id").notNull(),
+      status: serviceStatusEnum("status").notNull().default("active"),
+      // restrict: a coach assigned to any service cannot be deleted while
+      // referenced. Combined with the check below this guarantees a private
+      // lesson always has a coach.
+      coachId: uuid("coach_id").references(() => profiles.id, {
+         onDelete: "restrict",
+      }),
+      formId: uuid("form_id")
+         .references(() => forms.id, { onDelete: "set null" }),
+      isForChildren: boolean("is_for_children").notNull().default(false),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   },
+   (t) => [
+      // Private lessons must have a coach; programs may be coachless.
+      check(
+         "services_private_lessons_require_coach",
+         sql`${t.type} <> 'private_lessons' OR ${t.coachId} IS NOT NULL`,
+      ),
+   ],
+);
 
 export const serviceBookings = pgTable(
    "service_bookings",
