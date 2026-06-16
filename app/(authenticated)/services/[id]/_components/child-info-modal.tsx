@@ -3,9 +3,11 @@
 import {
    Dialog,
    DialogContent,
+   DialogFooter,
    DialogHeader,
    DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/format";
 import type { KidRegistration } from "../queries";
@@ -15,6 +17,15 @@ const GENDER_LABELS: Record<string, string> = {
    female: "Female",
    prefer_not_to_say: "Prefer not to say",
 };
+
+function Row({ label, value }: { label: string; value: string }) {
+   return (
+      <div className="flex items-start justify-between gap-4 text-sm">
+         <span className="shrink-0 text-muted-foreground">{label}</span>
+         <span className="text-right">{value}</span>
+      </div>
+   );
+}
 
 export function ChildInfoModal({
    registration,
@@ -30,93 +41,80 @@ export function ChildInfoModal({
 
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+         <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-md">
             <DialogHeader>
                <DialogTitle>
                   {child.firstName} {child.lastName}
                </DialogTitle>
             </DialogHeader>
 
-            <div className="flex flex-col gap-5">
-               {/* Profile */}
-               <section className="flex flex-col gap-2">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                     Profile
-                  </h3>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                     <dt className="text-muted-foreground">Date of birth</dt>
-                     <dd>{formatDate(child.dob)}</dd>
-                     <dt className="text-muted-foreground">Gender</dt>
-                     <dd>{GENDER_LABELS[child.gender] ?? child.gender}</dd>
-                     {child.allergies && (
-                        <>
-                           <dt className="text-muted-foreground">Allergies</dt>
-                           <dd>{child.allergies}</dd>
-                        </>
-                     )}
-                     {child.medicalConditions && (
-                        <>
-                           <dt className="text-muted-foreground">Medical conditions</dt>
-                           <dd>{child.medicalConditions}</dd>
-                        </>
-                     )}
-                     {child.medications && (
-                        <>
-                           <dt className="text-muted-foreground">Medications</dt>
-                           <dd>{child.medications}</dd>
-                        </>
-                     )}
-                  </dl>
-               </section>
+            <div className="flex flex-col gap-4">
+               <div className="space-y-2">
+                  <Row label="Date of birth" value={formatDate(child.dob)} />
+                  <Row
+                     label="Gender"
+                     value={GENDER_LABELS[child.gender] ?? child.gender}
+                  />
+                  {child.allergies && (
+                     <Row label="Allergies" value={child.allergies} />
+                  )}
+                  {child.medicalConditions && (
+                     <Row label="Medical conditions" value={child.medicalConditions} />
+                  )}
+                  {child.medications && (
+                     <Row label="Medications" value={child.medications} />
+                  )}
+               </div>
 
-               {/* Emergency contacts */}
                {child.emergencyContacts.length > 0 && (
                   <>
                      <Separator />
-                     <section className="flex flex-col gap-2">
-                        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                           Emergency Contacts
-                        </h3>
-                        <ul className="flex flex-col gap-3">
-                           {child.emergencyContacts.map((ec, i) => (
-                              <li key={i} className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                                 <span className="text-muted-foreground">Name</span>
-                                 <span>{ec.fullName}</span>
-                                 <span className="text-muted-foreground">Relationship</span>
-                                 <span className="capitalize">{ec.relationship}</span>
-                                 <span className="text-muted-foreground">Email</span>
-                                 <span>{ec.emailAddress}</span>
-                                 <span className="text-muted-foreground">Phone</span>
-                                 <span>{ec.phoneNumber}</span>
-                              </li>
-                           ))}
-                        </ul>
-                     </section>
+                     <div className="space-y-3">
+                        <p className="text-sm font-medium">Emergency contacts</p>
+                        {child.emergencyContacts.map((ec, i) => (
+                           <div
+                              key={i}
+                              className={i > 0 ? "border-t border-border pt-3" : ""}
+                           >
+                              <p className="mb-1 text-sm font-medium">
+                                 {ec.fullName}{" "}
+                                 <span className="font-normal text-muted-foreground">
+                                    · {ec.relationship}
+                                 </span>
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                 {ec.emailAddress}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                 {ec.phoneNumber}
+                              </p>
+                           </div>
+                        ))}
+                     </div>
                   </>
                )}
 
-               {/* Form answers */}
                {formAnswers.length > 0 && (
                   <>
                      <Separator />
-                     <section className="flex flex-col gap-2">
-                        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                           Form Answers
-                        </h3>
-                        <ul className="flex flex-col gap-3">
-                           {formAnswers.map((qa, i) => (
-                              <li key={i} className="flex flex-col gap-0.5 text-sm">
-                                 <span className="font-medium">{qa.prompt}</span>
-                                 <span className="text-muted-foreground">
-                                    {qa.answer.join(", ")}
-                                 </span>
-                              </li>
-                           ))}
-                        </ul>
-                     </section>
+                     <div className="space-y-3">
+                        <p className="text-sm font-medium">Form answers</p>
+                        {formAnswers.map((qa, i) => (
+                           <div key={i}>
+                              <p className="text-sm text-muted-foreground">{qa.prompt}</p>
+                              <p className="mt-0.5 text-sm">{qa.answer.join(", ")}</p>
+                           </div>
+                        ))}
+                     </div>
                   </>
                )}
             </div>
+
+            <DialogFooter>
+               <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
+               </Button>
+            </DialogFooter>
          </DialogContent>
       </Dialog>
    );
