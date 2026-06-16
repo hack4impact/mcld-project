@@ -2,7 +2,7 @@
 
 const ROLE_LABELS: Record<string, string> = {
    admin: "Admin",
-   coach: "Coach",
+   coordinator: "Coordinator",
    user: "User",
 };
 

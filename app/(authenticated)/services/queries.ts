@@ -9,7 +9,7 @@ const SERVICES_TAG = "services";
 
 const UUID_RE =
    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const COACHES_TAG = "coaches";
+const COORDINATORS_TAG = "coordinators";
 
 export type ServiceStatus = "active" | "disabled" | "archived" | "deleted";
 export type ServiceType = "private_lessons" | "programs";
@@ -21,7 +21,7 @@ export type ServiceView = {
    durationMinutes: number;
    status: ServiceStatus;
    stripeProductId: string;
-   coachId: string | null;
+   coordinatorId: string | null;
    createdAt: Date;
    updatedAt: Date;
    title: string | null;
@@ -52,7 +52,7 @@ async function buildServiceView(
       durationMinutes: row.durationMinutes,
       status: row.status,
       stripeProductId: row.stripeProductId,
-      coachId: row.coachId,
+      coordinatorId: row.coordinatorId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       title: stripeData?.title ?? null,
@@ -111,21 +111,21 @@ export async function getService(id: string): Promise<ServiceView | null> {
    return buildServiceView(row);
 }
 
-export type CoachOption = {
+export type CoordinatorOption = {
    id: string;
    firstName: string;
    lastName: string;
 };
 
 /**
- * List all profiles with the `coach` role, ordered by name.
+ * List all profiles with the `coordinator` role, ordered by name.
  *
- * Cached via Next Cache Components; bust via the `coaches` tag when
- * coach assignments change.
+ * Cached via Next Cache Components; bust via the `coordinators` tag when
+ * coordinator assignments change.
  */
-export async function listCoaches(): Promise<CoachOption[]> {
+export async function listCoordinators(): Promise<CoordinatorOption[]> {
    "use cache";
-   cacheTag(COACHES_TAG);
+   cacheTag(COORDINATORS_TAG);
 
    return db
       .select({
@@ -134,6 +134,6 @@ export async function listCoaches(): Promise<CoachOption[]> {
          lastName: profiles.lastName,
       })
       .from(profiles)
-      .where(eq(profiles.role, "coach"))
+      .where(eq(profiles.role, "coordinator"))
       .orderBy(asc(profiles.firstName), asc(profiles.lastName));
 }

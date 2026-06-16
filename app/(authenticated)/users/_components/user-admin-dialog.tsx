@@ -247,7 +247,9 @@ function CreateUserFormContent({
                   </SelectTrigger>
                   <SelectContent>
                      <SelectItem value={ROLES.USER}>User</SelectItem>
-                     <SelectItem value={ROLES.COACH}>Coach</SelectItem>
+                     <SelectItem value={ROLES.COORDINATOR}>
+                        Coordinator
+                     </SelectItem>
                      <SelectItem value={ROLES.ADMIN}>Admin</SelectItem>
                   </SelectContent>
                </Select>
@@ -422,7 +424,9 @@ function EditUserFormContent({
                   </SelectTrigger>
                   <SelectContent>
                      <SelectItem value={ROLES.USER}>User</SelectItem>
-                     <SelectItem value={ROLES.COACH}>Coach</SelectItem>
+                     <SelectItem value={ROLES.COORDINATOR}>
+                        Coordinator
+                     </SelectItem>
                      <SelectItem value={ROLES.ADMIN}>Admin</SelectItem>
                   </SelectContent>
                </Select>

@@ -36,14 +36,15 @@ export async function submitAvailabilities({
       return { error: "Service is not available" };
    if (service.type !== "private_lessons")
       return { error: "Service is not a private lesson" };
-   if (!service.coachId) return { error: "Service has no coach assigned" };
+   if (!service.coordinatorId)
+      return { error: "Service has no coordinator assigned" };
 
    const [row] = await db
       .insert(coachingSessions)
       .values({
          userId: user.id,
          serviceId: service.id,
-         coachId: service.coachId,
+         coordinatorId: service.coordinatorId,
          selectedTimeSlots: availabilities,
          status: "awaiting_payment",
       })

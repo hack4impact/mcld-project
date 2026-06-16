@@ -54,8 +54,8 @@ jest.mock("next/cache", () => ({
    updateTag: jest.fn(),
 }));
 
-const COACH_A = "11111111-1111-1111-1111-111111111111";
-const COACH_B = "22222222-2222-2222-2222-222222222222";
+const COORDINATOR_A = "11111111-1111-1111-1111-111111111111";
+const COORDINATOR_B = "22222222-2222-2222-2222-222222222222";
 const SERVICE_ID = "33333333-3333-3333-3333-333333333333";
 
 function fd(obj: Record<string, string>): FormData {
@@ -75,7 +75,7 @@ beforeEach(() => {
 });
 
 describe("createService", () => {
-   it("rejects a private lesson without a coach", async () => {
+   it("rejects a private lesson without a coordinator", async () => {
       const result = await createService(
          null,
          fd({
@@ -87,12 +87,12 @@ describe("createService", () => {
          }),
       );
 
-      expect(result?.errors?.coach_id).toBeDefined();
+      expect(result?.errors?.coordinator_id).toBeDefined();
       expect(insert).not.toHaveBeenCalled();
       expect(createProduct).not.toHaveBeenCalled();
    });
 
-   it("persists the coach when creating a private lesson", async () => {
+   it("persists the coordinator when creating a private lesson", async () => {
       const result = await createService(
          null,
          fd({
@@ -101,17 +101,17 @@ describe("createService", () => {
             type: "private_lessons",
             duration_minutes: "60",
             price_cad: "50.00",
-            coach_id: COACH_A,
+            coordinator_id: COORDINATOR_A,
          }),
       );
 
       expect(result).toEqual({ message: "Service created." });
       expect(insertValues).toHaveBeenCalledWith(
-         expect.objectContaining({ type: "private_lessons", coachId: COACH_A }),
+         expect.objectContaining({ type: "private_lessons", coordinatorId: COORDINATOR_A }),
       );
    });
 
-   it("creates a program with no coach", async () => {
+   it("creates a program with no coordinator", async () => {
       const result = await createService(
          null,
          fd({
@@ -128,13 +128,13 @@ describe("createService", () => {
 
       expect(result).toEqual({ message: "Service created." });
       expect(insertValues).toHaveBeenCalledWith(
-         expect.objectContaining({ type: "programs", coachId: null }),
+         expect.objectContaining({ type: "programs", coordinatorId: null }),
       );
    });
 });
 
 describe("updateService", () => {
-   it("reassigns the coach on a private lesson", async () => {
+   it("reassigns the coordinator on a private lesson", async () => {
       selectLimit.mockResolvedValue([
          {
             id: SERVICE_ID,
@@ -146,12 +146,12 @@ describe("updateService", () => {
 
       const result = await updateService(
          null,
-         fd({ service_id: SERVICE_ID, coach_id: COACH_B }),
+         fd({ service_id: SERVICE_ID, coordinator_id: COORDINATOR_B }),
       );
 
       expect(result).toEqual({ message: "Service updated." });
       expect(updateSet).toHaveBeenCalledWith(
-         expect.objectContaining({ coachId: COACH_B }),
+         expect.objectContaining({ coordinatorId: COORDINATOR_B }),
       );
    });
 
@@ -168,7 +168,7 @@ describe("updateService", () => {
 
       const result = await updateService(
          null,
-         fd({ service_id: SERVICE_ID, coach_id: COACH_B, price_cad: "50.00" }),
+         fd({ service_id: SERVICE_ID, coordinator_id: COORDINATOR_B, price_cad: "50.00" }),
       );
 
       expect(result).toEqual({ message: "Service updated." });
@@ -197,7 +197,7 @@ describe("updateService", () => {
       expect(createPrice).toHaveBeenCalledWith("prod_1", 7500);
    });
 
-   it("rejects clearing the coach on a private lesson", async () => {
+   it("rejects clearing the coordinator on a private lesson", async () => {
       selectLimit.mockResolvedValue([
          {
             id: SERVICE_ID,
@@ -209,10 +209,10 @@ describe("updateService", () => {
 
       const result = await updateService(
          null,
-         fd({ service_id: SERVICE_ID, coach_id: "" }),
+         fd({ service_id: SERVICE_ID, coordinator_id: "" }),
       );
 
-      expect(result?.errors?.coach_id).toBeDefined();
+      expect(result?.errors?.coordinator_id).toBeDefined();
       expect(updateSet).not.toHaveBeenCalled();
    });
 });
