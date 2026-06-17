@@ -27,7 +27,9 @@ export default function AuthenticatedLayout({
    return (
       <TooltipProvider>
          <SidebarProvider>
-            <AppSidebar />
+            <Suspense fallback={null}>
+               <AppSidebar />
+            </Suspense>
             <SidebarInset>
                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
                   <Suspense fallback={null}>
