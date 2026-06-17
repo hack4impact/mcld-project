@@ -380,6 +380,26 @@ export async function createTransactionRefund(
 
 
    try {
+      const charge = await stripe.charges.retrieve(chargeId);
+      const remainingRefundable  = charge.amount - charge.amount_refunded;
+
+      if (remainingRefundable <= 0) {
+         return {
+            errors: { _form: ["This charge is already fully refunded."] },
+            status: "failed",
+         };
+      }
+
+      if (refundAmount !== undefined && refundAmount > remainingRefundable) {
+         return {
+            errors: {
+               _form: ["Refund amount exceeds the remaining refundable balance."],
+            },
+            status: "failed",
+         };
+      }
+
+
       const refundParams: Stripe.RefundCreateParams = {
          charge:chargeId,
       };
@@ -390,6 +410,16 @@ export async function createTransactionRefund(
 
       const refund = await stripe.refunds.create(refundParams, { idempotencyKey
       })
+
+      if (refund.status === "failed" || refund.status === "canceled") {
+         const reason = 
+            refund.failure_reason ??
+            refund.status;
+         return {
+            errors : { _form : [`Refund ${reason}.`]},
+            status: "failed",
+         }
+      }
 
       const updatedCharge = await stripe.charges.retrieve(chargeId, {
          expand: [ "refunds", "payment_intent"],
@@ -432,7 +462,10 @@ export async function createTransactionRefund(
       }
 
       return {
-         message: refund.status === "succeeded" ? "Refund issued successfully." : "Refund pending.",
+         message:
+            refund.status === "succeeded"
+               ? "Refund issued successfully."
+               : "Refund pending.",
          status: refund.status === "succeeded" ? "succeeded" : "pending",
          refund: {
             id: refund.id,
