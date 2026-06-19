@@ -125,8 +125,16 @@ export function UserTransactionsModal({
 
    const handlePrevPage = async () => {
       if (history.length === 0) return;
-      setHistory((prev) => prev.slice(0, -1)); 
-      await fetchTransactions({ endingBefore: cursors.firstId ?? undefined });
+
+      const newHistory = history.slice(0, -1);
+      setHistory(newHistory);
+
+      if (newHistory.length === 0) {
+         await fetchTransactions();
+      } else {
+         const prevPageCursors = newHistory[newHistory.length - 1];
+         await fetchTransactions({ startingAfter: prevPageCursors.lastId ?? undefined });
+      }
    };
 
    // Step 1: Validates and prompts the admin via confirmation dialog
