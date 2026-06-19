@@ -95,8 +95,8 @@ export function UserTransactionsModal({
                firstId: result.firstId,
                lastId: result.lastId,
             });
-         } catch (err: any) {
-            setError(err.message || "Failed to fetch transactions");
+         } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to fetch transactions");
          } finally {
             setLoading(false);
          }
@@ -125,7 +125,6 @@ export function UserTransactionsModal({
 
    const handlePrevPage = async () => {
       if (history.length === 0) return;
-      const prevCursors = history[history.length - 1];
       setHistory((prev) => prev.slice(0, -1)); 
       await fetchTransactions({ endingBefore: cursors.firstId ?? undefined });
    };
@@ -199,8 +198,8 @@ export function UserTransactionsModal({
          } else if (result?.status === "pending") {
             toast.info("Refund pending. The transaction will reconcile shortly.");
          }
-      } catch (err: any) {
-         toast.error(err.message || "Failed to process refund");
+      } catch (err) {
+         toast.error(err instanceof Error ? err.message : "Failed to process refund");
       } finally {
          setSubmitting(null);
       }

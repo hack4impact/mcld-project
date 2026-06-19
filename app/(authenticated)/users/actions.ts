@@ -323,8 +323,8 @@ export async function getUserTransactions(
          description = charge.metadata?.productName || charge.metadata?.description || "Payment";
       }
 
-      const refunds = 
-         (charge as any).refunds?.data?.map((r:Stripe.Refund)=> ({
+      const refunds =
+         charge.refunds?.data?.map((r) => ({
             id: r.id,
             amount: r.amount,
             status: r.status,
@@ -477,12 +477,12 @@ export async function createTransactionRefund(
       };
 
 
-   } catch (error: any) {
+   } catch (error) {
       return {
          errors: {
-            _form: [error.message || "Failed to create refund."],
+            _form: [error instanceof Error ? error.message : "Failed to create refund."],
          },
-         status: "failed",
+        status: "failed",
       };
    }
 }
