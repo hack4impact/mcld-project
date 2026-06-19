@@ -5,8 +5,6 @@ import {
    Loader2,
    ArrowLeft,
    ArrowRight,
-   ChevronDown,
-   ChevronRight,
 } from "lucide-react";
 import {
    Dialog,
@@ -39,8 +37,9 @@ import {
    TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { getUserTransactions, createTransactionRefund } from "@/app/(authenticated)/users/actions";
-import type { UserTransaction, TransactionRefund } from "@/app/(authenticated)/users/actions";
+import type { UserTransaction } from "@/app/(authenticated)/users/actions";
 
 export interface UserTransactionsModalProps {
    userName: string;
@@ -78,7 +77,6 @@ export function UserTransactionsModal({
       amountCents: number;
       displayAmount: string;
    } | null>(null);
-   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
 
    const fetchTransactions = React.useCallback(
       async (params?: { startingAfter?: string; endingBefore?: string }) => {
@@ -110,12 +108,10 @@ export function UserTransactionsModal({
       if (open && stripeCustomerId) {
          setHistory([]);
          setSelectedTransaction(null);
-         setExpandedIds(new Set());
          fetchTransactions();
       } else if (!open) {
          setTransactions([]);
          setSelectedTransaction(null);
-         setExpandedIds(new Set());
          setError(null);
       }
    }, [open, stripeCustomerId, fetchTransactions]);
@@ -132,18 +128,6 @@ export function UserTransactionsModal({
       const prevCursors = history[history.length - 1];
       setHistory((prev) => prev.slice(0, -1)); 
       await fetchTransactions({ endingBefore: cursors.firstId ?? undefined });
-   };
-
-   const toggleExpanded = (chargeId: string) => {
-      setExpandedIds((prev) => {
-         const next = new Set(prev);
-         if (next.has(chargeId)) {
-            next.delete(chargeId);
-         } else {
-            next.add(chargeId);
-         }
-         return next;
-      });
    };
 
    // Step 1: Validates and prompts the admin via confirmation dialog
@@ -240,10 +224,10 @@ export function UserTransactionsModal({
 
    function formatRefundStatus(t: UserTransaction): string {
       const total = formatAmount(t.amount, t.currency);
-      const remainingCents = t.amount = t.amountRefunded
+      const remainingCents = t.amount - t.amountRefunded
       const refundable = formatAmount(remainingCents, t.currency);
 
-      if (t.refunded || remainingCents <= 0) {
+      if (t.refunded || (t.amountRefunded > 0 && remainingCents <= 0)) {
          return "Fully refunded - nothing left to refund";
       }
       if (t.amountRefunded > 0){
@@ -251,6 +235,18 @@ export function UserTransactionsModal({
          return `${refunded} refunded of ${total} · ${refundable} refundable — partially refunded`;
       }
       return `Paid ${total} — no refunds`;
+   }
+
+   function formatRefundStatusShort(t: UserTransaction): string {
+      const remainingCents = t.amount - t.amountRefunded;
+
+      if (t.refunded || (t.amountRefunded > 0 && remainingCents <= 0)) {
+         return "Fully refunded";
+      }
+      if (t.amountRefunded > 0) {
+         return "Partially refunded";
+      }
+      return "Paid";
    }
 
     return (
@@ -282,7 +278,6 @@ export function UserTransactionsModal({
                      <Table>
                         <TableHeader>
                            <TableRow>
-                              <TableHead className="w-8" />
                               <TableHead className="text-xs font-medium text-muted-foreground">Date</TableHead>
                               <TableHead className="text-xs font-medium text-muted-foreground">Description</TableHead>
                               <TableHead className="text-xs font-medium text-muted-foreground">Amount</TableHead>
@@ -291,36 +286,12 @@ export function UserTransactionsModal({
                         </TableHeader>
                         <TableBody>
                            {transactions.map((t) => (
-                              <React.Fragment key={t.id}>
                                  <TableRow
+                                    key={t.id}
                                     className="hover:bg-muted/10 border-b border-border cursor-pointer"
                                     onClick={() => setSelectedTransaction(t)}
                                     title="Click to view details or issue a refund"
                                  >
-                                    <TableCell className="w-8 p-1">
-                                       {t.refunds.length > 0 ? (
-                                          <Button
-                                             type="button"
-                                             variant="ghost"
-                                             size="icon-sm"
-                                             aria-label={
-                                                expandedIds.has(t.id)
-                                                   ? "Collapse refund history"
-                                                   : "Expand refund history"
-                                             }
-                                             onClick={(e) => {
-                                                e.stopPropagation();
-                                                toggleExpanded(t.id);
-                                             }}
-                                          >
-                                             {expandedIds.has(t.id) ? (
-                                                <ChevronDown className="size-4" />
-                                             ) : (
-                                                <ChevronRight className="size-4" />
-                                             )}
-                                          </Button>
-                                       ) : null}
-                                    </TableCell>
                                     <TableCell className="text-xs font-normal text-muted-foreground whitespace-nowrap">
                                        {formatDate(t.created)}
                                     </TableCell>
@@ -331,28 +302,9 @@ export function UserTransactionsModal({
                                        {formatAmount(t.amount, t.currency)}
                                     </TableCell>
                                     <TableCell className="text-xs font-normal text-muted-foreground">
-                                       {formatRefundStatus(t)}
+                                       {formatRefundStatusShort(t)}
                                     </TableCell>
                                  </TableRow>
-                                 {expandedIds.has(t.id) && (
-                                    <TableRow className="bg-muted/5 hover:bg-muted/5">
-                                       <TableCell colSpan={5} className="py-2 px-4">
-                                          <ul className="flex flex-col gap-1.5">
-                                             {t.refunds.map((r) => (
-                                                <li
-                                                   key={r.id}
-                                                   className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-3"
-                                                >
-                                                   <span>{formatAmount(r.amount, t.currency)}</span>
-                                                   <span>{formatDate(r.created)}</span>
-                                                   <span className="capitalize">{r.status ?? "unknown"}</span>
-                                                </li>
-                                             ))}
-                                          </ul>
-                                       </TableCell>
-                                    </TableRow>
-                                 )}
-                              </React.Fragment>
                            ))}
                         </TableBody>
                      </Table>
@@ -427,6 +379,32 @@ export function UserTransactionsModal({
                         </span>
                      </div>
                   </div>
+
+                  {selectedTransaction.refunds.length > 0 && (
+                     <div className="flex flex-col gap-1.5 border-b border-border pb-4">
+                        <span className="text-xs font-medium text-muted-foreground">
+                           Refund history
+                        </span>
+                        <ul
+                           className={cn(
+                              "flex flex-col gap-1.5",
+                              selectedTransaction.refunds.length > 3 &&
+                                 "max-h-[4.5rem] overflow-y-auto pr-1"
+                           )}
+                        >
+                           {selectedTransaction.refunds.map((r) => (
+                              <li
+                                 key={r.id}
+                                 className="text-xs text-muted-foreground flex items-center gap-x-3"
+                              >
+                                 <span>{formatAmount(r.amount, selectedTransaction.currency)}</span>
+                                 <span>{formatDate(r.created)}</span>
+                                 <span className="capitalize">{r.status ?? "unknown"}</span>
+                              </li>
+                           ))}
+                        </ul>
+                     </div>
+                  )}
 
                   {/* Refund Inputs */}
                   {(selectedTransaction.amount - selectedTransaction.amountRefunded) > 0 ? (
