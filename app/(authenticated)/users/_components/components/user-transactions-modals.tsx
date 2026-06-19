@@ -79,7 +79,7 @@ export function UserTransactionsModal({
    } | null>(null);
 
    const fetchTransactions = React.useCallback(
-      async (params?: { startingAfter?: string; endingBefore?: string }) => {
+      async (params?: { startingAfter?: string }) => {
          if (!stripeCustomerId) return;
          setLoading(true);
          setError(null);
@@ -87,7 +87,6 @@ export function UserTransactionsModal({
             const result = await getUserTransactions({
                customerId: stripeCustomerId,
                startingAfter: params?.startingAfter,
-               endingBefore: params?.endingBefore,
             });
             setTransactions(result.data);
             setHasMore(result.hasMore);

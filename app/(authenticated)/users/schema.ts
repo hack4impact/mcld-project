@@ -26,7 +26,6 @@ export const getTransactionsSchema = z.object({
   customerId: z.string().min(1,"Customer ID is required"),
   limit: z.number().min(1).max(100).optional().default(10),
   startingAfter: z.string().optional(),
-  endingBefore: z.string().optional(),
 });
 
 export const createRefundSchema = z.object({

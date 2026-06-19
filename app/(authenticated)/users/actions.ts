@@ -288,7 +288,6 @@ export async function getUserTransactions(
       customerId: string;
       limit?:number;
       startingAfter?: string;
-      endingBefore?:string;
    }
 ): Promise<PaginatedTransactions> {
    await requireAdmin();
@@ -301,10 +300,8 @@ export async function getUserTransactions(
       expand: ["data.refunds", "data.payment_intent"]
    };
 
-   if(parsed.startingAfter){
+   if (parsed.startingAfter) {
       params.starting_after = parsed.startingAfter;
-   } else if (parsed.endingBefore) {
-      params.ending_before = parsed.endingBefore;
    }
 
    const charges = await stripe.charges.list(params)
