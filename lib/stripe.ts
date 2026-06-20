@@ -233,34 +233,6 @@ export async function replaceProductPrice(
    return { priceId: newPrice.id };
 }
 
-export async function deactivateActivePricesForProduct(
-   productId: string,
-): Promise<void> {
-   const prices = await stripe.prices.list({
-      product: productId,
-      active: true,
-      limit: 100,
-   });
-   for (const p of prices.data) {
-      await stripe.prices.update(p.id, { active: false });
-   }
-}
-
-export async function listActivePriceIds(productId: string): Promise<string[]> {
-   const prices = await stripe.prices.list({
-      product: productId,
-      active: true,
-      limit: 100,
-   });
-   return prices.data.map((p) => p.id);
-}
-
-export async function deactivatePrices(priceIds: string[]): Promise<void> {
-   for (const id of priceIds) {
-      await stripe.prices.update(id, { active: false });
-   }
-}
-
 export type StripeServiceData = {
    title: string;
    description: string;
