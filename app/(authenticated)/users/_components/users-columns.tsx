@@ -1,7 +1,6 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback} from "@/components/ui/avatar";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
 import { UserActionsCell } from "./user-actions-cell";
@@ -50,24 +49,6 @@ export function getUsersColumns(
             </span>
          </span>
       ),
-   },
-   {
-      id: "status",
-      header: "Status",
-      meta: { colWidth: "14%" },
-      cell: ({ row }) => {
-         const active = row.original.isActive;
-         return (
-            <Badge variant={active ? "default" : "secondary"} className="gap-1.5">
-               <span
-                  className={`h-2 w-2 rounded-full ${
-                     active ? "bg-green-500" : "bg-muted-foreground/50"
-                  }`}
-               />
-               {active ? "Active" : "Inactive"}
-            </Badge>
-         );
-      },
    },
    {
       id: "lastLoginAt",
