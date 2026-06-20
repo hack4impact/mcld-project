@@ -12,3 +12,9 @@ export function statusBadgeClass(status: ServiceStatus) {
          return "bg-muted text-muted-foreground";
    }
 }
+
+export function subscriptionBadgeClass(requiresSubscription: boolean) {
+   return requiresSubscription
+      ? "bg-blue-700/80 text-white"
+      : "bg-secondary/80 text-secondary-foreground";
+}

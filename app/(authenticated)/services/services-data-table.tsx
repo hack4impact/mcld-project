@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { DataTable } from "@/components/data-table";
 import { formatDate } from "@/lib/format";
-import { statusBadgeClass } from "@/lib/service-status";
+import { statusBadgeClass, subscriptionBadgeClass } from "@/lib/service-badges";
 
 import { setServiceStatus } from "@/app/(authenticated)/services/actions";
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
@@ -58,6 +58,20 @@ export function ServicesDataTable({
                   }
                >
                   {row.original.status}
+               </span>
+            ),
+         },
+         {
+            accessorKey: "requiresSubscription",
+            header: "Subscription",
+            cell: ({ row }) => (
+               <span
+                  className={
+                     "inline-flex rounded-full px-2 py-0.5 text-xs capitalize " +
+                     subscriptionBadgeClass(row.original.requiresSubscription)
+                  }
+               >
+                  {row.original.requiresSubscription ? "Required" : "Not required"}
                </span>
             ),
          },
