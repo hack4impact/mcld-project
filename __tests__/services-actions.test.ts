@@ -102,6 +102,7 @@ describe("createService", () => {
             duration_minutes: "60",
             price_cad: "50.00",
             coach_id: COACH_A,
+            requires_subscription: "true",
          }),
       );
 
@@ -123,6 +124,7 @@ describe("createService", () => {
             start_date: "2026-01-01",
             end_date: "2026-02-01",
             slots: JSON.stringify([{ dayOfWeek: 1, time: "10:00" }]),
+            requires_subscription: "true",
          }),
       );
 
