@@ -118,16 +118,18 @@ function parseProgramSchedule(formData: FormData): ParseResult<ProgramSchedule> 
    };
 }
 
-function parseCoachId(formData: FormData): ParseResult<string> {
-   const raw = field(formData, "coach_id");
+function parseCoordinatorId(formData: FormData): ParseResult<string> {
+   const raw = field(formData, "coordinator_id");
    if (!raw)
       return {
          ok: false,
-         errors: { coach_id: ["A coach is required for private lessons"] },
+         errors: {
+            coordinator_id: ["A coordinator is required for private lessons"],
+         },
       };
    const result = z.string().uuid().safeParse(raw);
    if (!result.success) {
-      return { ok: false, errors: { coach_id: ["Invalid coach"] } };
+      return { ok: false, errors: { coordinator_id: ["Invalid coordinator"] } };
    }
    return { ok: true, value: result.data };
 }
@@ -156,7 +158,7 @@ export async function createService(
    }
 
    // Validate price format independently so its error reports alongside
-   // schedule/coach errors instead of in a separate round-trip.
+   // schedule/coordinator errors instead of in a separate round-trip.
    const priceRaw = formData.get("price_cad")?.toString() ?? "";
    let cents: number | null = null;
    if (priceRaw && !errors.price_cad) {
@@ -166,11 +168,11 @@ export async function createService(
       }
    }
 
-   // Schedule / coach checks key off the submitted type, not parsed.data,
+   // Schedule / coordinator checks key off the submitted type, not parsed.data,
    // so they still run when baseFields fails on unrelated fields.
    const typeRaw = formData.get("type")?.toString();
    let scheduledAtValue: ProgramSchedule | null = null;
-   let coachIdValue: string | null = null;
+   let coordinatorIdValue: string | null = null;
    if (typeRaw === "programs") {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -179,9 +181,9 @@ export async function createService(
          scheduledAtValue = result.value;
       }
    } else if (typeRaw === "private_lessons") {
-      const coach = parseCoachId(formData);
-      if (!coach.ok) Object.assign(errors, coach.errors);
-      else coachIdValue = coach.value;
+      const coordinator = parseCoordinatorId(formData);
+      if (!coordinator.ok) Object.assign(errors, coordinator.errors);
+      else coordinatorIdValue = coordinator.value;
    }
 
    if (Object.keys(errors).length > 0) {
@@ -210,7 +212,7 @@ export async function createService(
          slots: scheduledAtValue?.slots ?? null,
          durationMinutes: duration_minutes,
          stripeProductId: productId,
-         coachId: coachIdValue,
+         coordinatorId: coordinatorIdValue,
          status: "active",
       });
    } catch (e) {
@@ -306,7 +308,7 @@ export async function updateService(
    }
 
    let scheduledAtValue: ProgramSchedule | undefined;
-   let coachIdValue: string | undefined;
+   let coordinatorIdValue: string | undefined;
    if (row.type === "programs" && formData.has("start_date")) {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -314,12 +316,15 @@ export async function updateService(
       } else {
          scheduledAtValue = result.value;
       }
-   } else if (row.type === "private_lessons" && formData.has("coach_id")) {
-      // Private lessons can be reassigned to a different coach, but the coach
-      // remains mandatory: an empty/invalid value is rejected.
-      const coach = parseCoachId(formData);
-      if (!coach.ok) Object.assign(errors, coach.errors);
-      else coachIdValue = coach.value;
+   } else if (
+      row.type === "private_lessons" &&
+      formData.has("coordinator_id")
+   ) {
+      // Private lessons can be reassigned to a different coordinator, but the
+      // coordinator remains mandatory: an empty/invalid value is rejected.
+      const coordinator = parseCoordinatorId(formData);
+      if (!coordinator.ok) Object.assign(errors, coordinator.errors);
+      else coordinatorIdValue = coordinator.value;
    }
 
    if (Object.keys(errors).length > 0) {
@@ -350,13 +355,13 @@ export async function updateService(
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
       if (duration_minutes !== undefined) dbPatch.durationMinutes = duration_minutes;
-      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
+      if (coordinatorIdValue !== undefined)
+         dbPatch.coordinatorId = coordinatorIdValue;
       if (scheduledAtValue !== undefined) {
          dbPatch.startDate = scheduledAtValue.startDate;
          dbPatch.endDate = scheduledAtValue.endDate;
          dbPatch.slots = scheduledAtValue.slots;
       }
-      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();

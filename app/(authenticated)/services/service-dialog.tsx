@@ -44,11 +44,11 @@ import {
    type ServiceActionState,
 } from "@/app/(authenticated)/services/actions";
 import type {
-   CoachOption,
+   CoordinatorOption,
    ServiceView,
 } from "@/app/(authenticated)/services/queries";
 
-type Props = { coaches: CoachOption[] } & (
+type Props = { coordinators: CoordinatorOption[] } & (
    | { mode: "add" }
    | {
         mode: "edit";
@@ -243,12 +243,14 @@ function ProgramScheduleFields({
 export function ServiceDialog(props: Props) {
    const isEdit = props.mode === "edit";
    const service = isEdit ? props.service : null;
-   const { coaches } = props;
+   const { coordinators } = props;
 
    const [type, setType] = React.useState<"programs" | "private_lessons">(
       service?.type ?? "programs",
    );
-   const [coachId, setCoachId] = React.useState<string>(service?.coachId ?? "");
+   const [coordinatorId, setCoordinatorId] = React.useState<string>(
+      service?.coordinatorId ?? "",
+   );
    const [title, setTitle] = React.useState<string>(service?.title ?? "");
    const [description, setDescription] = React.useState<string>(
       service?.description ?? "",
@@ -267,7 +269,7 @@ export function ServiceDialog(props: Props) {
    React.useEffect(() => {
       if (service) {
          setType(service.type);
-         setCoachId(service.coachId ?? "");
+         setCoordinatorId(service.coordinatorId ?? "");
          setTitle(service.title ?? "");
          setDescription(service.description ?? "");
          setDurationMinutes(String(service.durationMinutes ?? 60));
@@ -286,7 +288,7 @@ export function ServiceDialog(props: Props) {
          } else {
             closeRef.current?.click();
             setType("programs");
-            setCoachId("");
+            setCoordinatorId("");
             setTitle("");
             setDescription("");
             setDurationMinutes("60");
@@ -438,30 +440,37 @@ export function ServiceDialog(props: Props) {
 
                   {type === "private_lessons" && (
                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="coach_id">Coach</Label>
-                        {/* Hidden input drives form submission so an unselected
-                            coach submits "" (a Radix Select with `name` falls
-                            back to its first option when nothing is chosen). */}
-                        <input type="hidden" name="coach_id" value={coachId} />
-                        <Select value={coachId} onValueChange={setCoachId}>
-                           <SelectTrigger id="coach_id" className="w-full">
+                        <Label htmlFor="coordinator_id">Coordinator</Label>
+                        <input
+                           type="hidden"
+                           name="coordinator_id"
+                           value={coordinatorId}
+                        />
+                        <Select
+                           value={coordinatorId}
+                           onValueChange={setCoordinatorId}
+                        >
+                           <SelectTrigger
+                              id="coordinator_id"
+                              className="w-full"
+                           >
                               <SelectValue
                                  placeholder={
-                                    coaches.length === 0
-                                       ? "No coaches available"
-                                       : "Select a coach"
+                                    coordinators.length === 0
+                                       ? "No coordinators available"
+                                       : "Select a coordinator"
                                  }
                               />
                            </SelectTrigger>
                            <SelectContent>
-                              {coaches.map((c) => (
+                              {coordinators.map((c) => (
                                  <SelectItem key={c.id} value={c.id}>
                                     {c.firstName} {c.lastName}
                                  </SelectItem>
                               ))}
                            </SelectContent>
                         </Select>
-                        <FieldError messages={errors?.coach_id} />
+                        <FieldError messages={errors?.coordinator_id} />
                      </div>
                   )}
 

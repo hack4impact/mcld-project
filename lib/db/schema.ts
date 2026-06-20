@@ -21,7 +21,7 @@ export type FormQuestionOption = {
    description?: string;
 };
 
-export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
+export const roleEnum = pgEnum("role", ["user", "admin", "coordinator"]);
 export const serviceTypeEnum = pgEnum("service_type", [
    "private_lessons",
    "programs",
@@ -63,6 +63,10 @@ export const profiles = pgTable("profiles", {
    firstName: text("first_name").notNull(),
    lastName: text("last_name").notNull(),
    role: roleEnum("role").notNull().default("user"),
+   address: text("address"),
+   gender: genderEnum("gender"),
+   dob: date("dob", { mode: "string" }),
+   phone: text("phone"),
    stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -87,23 +91,20 @@ export const services = pgTable(
       durationMinutes: integer("duration_minutes").notNull(),
       stripeProductId: text("stripe_product_id").notNull(),
       status: serviceStatusEnum("status").notNull().default("active"),
-      // restrict: a coach assigned to any service cannot be deleted while
-      // referenced. Combined with the check below this guarantees a private
-      // lesson always has a coach.
-      coachId: uuid("coach_id").references(() => profiles.id, {
+      coordinatorId: uuid("coordinator_id").references(() => profiles.id, {
          onDelete: "restrict",
       }),
-      formId: uuid("form_id")
-         .references(() => forms.id, { onDelete: "set null" }),
+      formId: uuid("form_id").references(() => forms.id, {
+         onDelete: "set null",
+      }),
       isForChildren: boolean("is_for_children").notNull().default(false),
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().notNull(),
    },
    (t) => [
-      // Private lessons must have a coach; programs may be coachless.
       check(
-         "services_private_lessons_require_coach",
-         sql`${t.type} <> 'private_lessons' OR ${t.coachId} IS NOT NULL`,
+         "services_private_lessons_require_coordinator",
+         sql`${t.type} <> 'private_lessons' OR ${t.coordinatorId} IS NOT NULL`,
       ),
    ],
 );
@@ -152,7 +153,7 @@ export const coachingSessions = pgTable("coaching_sessions", {
    serviceId: uuid("service_id")
       .references(() => services.id, { onDelete: "cascade" })
       .notNull(),
-   coachId: uuid("coach_id")
+   coordinatorId: uuid("coordinator_id")
       .references(() => profiles.id, { onDelete: "cascade" })
       .notNull(),
    userId: uuid("user_id")
@@ -166,9 +167,6 @@ export const coachingSessions = pgTable("coaching_sessions", {
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
    selectedTimeSlots: jsonb("selected_time_slots").notNull(),
-   coachTimeSlots: jsonb("coach_time_slots"),
-   coachToken: text("coach_token").unique(),
-   clientToken: text("client_token").unique(),
    stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -6,16 +6,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ServiceDialog } from "./service-dialog";
 import { ServicesDataTable } from "./services-data-table";
-import type { CoachOption, ServiceView } from "./queries";
+import type { CoordinatorOption, ServiceView } from "./queries";
 
 type StatusTab = "all" | "active" | "disabled" | "archived";
 
 export function ServicesTable({
    services,
-   coaches,
+   coordinators,
 }: {
    services: ServiceView[];
-   coaches: CoachOption[];
+   coordinators: CoordinatorOption[];
 }) {
    const [tab, setTab] = React.useState<StatusTab>("active");
    const [editing, setEditing] = React.useState<ServiceView | null>(null);
@@ -42,7 +42,7 @@ export function ServicesTable({
                      </TabsTrigger>
                   ))}
                </TabsList>
-               <ServiceDialog mode="add" coaches={coaches} />
+               <ServiceDialog mode="add" coordinators={coordinators} />
             </div>
 
             <TabsContent value={tab}>
@@ -51,7 +51,7 @@ export function ServicesTable({
          </Tabs>
          <ServiceDialog
             mode="edit"
-            coaches={coaches}
+            coordinators={coordinators}
             service={editing}
             open={editing !== null}
             onOpenChange={(v) => {
