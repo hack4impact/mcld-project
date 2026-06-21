@@ -1,4 +1,4 @@
-import type { ExtraQuestionType } from "../queries";
+import type { FormQuestionType } from "../queries";
 
 export type DraftOption = {
    id: string;
@@ -8,12 +8,12 @@ export type DraftOption = {
 
 export type DraftQuestion = {
    clientId: string;
-   type: ExtraQuestionType;
+   type: FormQuestionType;
    prompt: string;
    options?: DraftOption[];
 };
 
-export const QUESTION_TYPE_LABELS: Record<ExtraQuestionType, string> = {
+export const QUESTION_TYPE_LABELS: Record<FormQuestionType, string> = {
    text: "Text",
    multiple_choices: "Multiple choice",
    checkboxes: "Checkboxes",
@@ -28,7 +28,7 @@ export function emptyQuestion(): DraftQuestion {
    };
 }
 
-export function needsOptions(type: ExtraQuestionType): boolean {
+export function needsOptions(type: FormQuestionType): boolean {
    return type === "multiple_choices" || type === "checkboxes";
 }
 
