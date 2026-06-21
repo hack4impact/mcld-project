@@ -386,7 +386,6 @@ export async function updateService(
          dbPatch.endDate = scheduledAtValue.endDate;
          dbPatch.slots = scheduledAtValue.slots;
       }
-      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
       if (requires_subscription !== undefined) {
          dbPatch.requiresSubscription = requires_subscription === "true";
       }
