@@ -34,7 +34,7 @@ export default function AuthenticatedLayout({
    return (
       <TooltipProvider>
          <SidebarProvider>
-            <Suspense fallback={<AppSidebar role={ROLES.USER} />}>
+            <Suspense fallback={null}>
                <Nav />
             </Suspense>
             <SidebarInset>

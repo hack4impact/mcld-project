@@ -38,6 +38,7 @@ const adminNavItems = [
 ];
 
 const coordinatorNavItems = [
+   { title: "OVERVIEW", href: "/", icon: LayoutGrid },
    { title: "SERVICES", href: "/services", icon: BookOpen },
    { title: "SCHEDULED LESSONS", href: "/scheduled-lessons", icon: CalendarClock },
 ];
