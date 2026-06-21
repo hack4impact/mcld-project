@@ -10,7 +10,9 @@ import {
    MonitorSmartphone,
    Settings,
    Form,
+   CalendarClock,
 } from "lucide-react";
+import { ROLES, type Role } from "@/lib/roles";
 import {
    Sidebar,
    SidebarContent,
@@ -26,20 +28,28 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+const adminNavItems = [
    { title: "OVERVIEW", href: "/", icon: LayoutGrid },
    { title: "SERVICES", href: "/services", icon: BookOpen },
    { title: "USERS", href: "/users", icon: Users },
    { title: "FINANCE", href: "/finance", icon: CreditCard },
    { title: "MEMBERSHIPS", href: "/memberships", icon: MonitorSmartphone },
-   { title: "FORMS" , href: "/forms", icon: Form}
+   { title: "FORMS", href: "/forms", icon: Form },
+];
+
+const coordinatorNavItems = [
+   { title: "SERVICES", href: "/services", icon: BookOpen },
+   { title: "SCHEDULED LESSONS", href: "/scheduled-lessons", icon: CalendarClock },
 ];
 
 export function AppSidebar({
+   role,
    className,
    ...props
-}: React.ComponentProps<typeof Sidebar>) {
+}: React.ComponentProps<typeof Sidebar> & { role: Role }) {
    const pathname = usePathname();
+   const navItems =
+      role === ROLES.COORDINATOR ? coordinatorNavItems : adminNavItems;
 
    return (
       <Sidebar

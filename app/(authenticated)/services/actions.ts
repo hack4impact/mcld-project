@@ -4,8 +4,22 @@ import { revalidatePath, updateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { services, type ProgramSlot as DbProgramSlot } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/auth/require-admin";
+import {
+   programCoordinators,
+   services,
+   type ProgramSlot as DbProgramSlot,
+} from "@/lib/db/schema";
+import {
+   getUserRole,
+   requireAdmin,
+} from "@/lib/auth/require-admin";
+import { ROLES } from "@/lib/roles";
+import { createClient } from "@/utils/supabase/server";
+import {
+   isServiceCoordinator,
+   listServiceRegistrations,
+   type ServiceRegistration,
+} from "@/app/(authenticated)/services/queries";
 import { cadStringToCents } from "@/lib/money";
 import {
    createPrice,
@@ -124,6 +138,56 @@ function parseProgramSchedule(
    };
 }
 
+/**
+ * Parse the optional `coordinator_ids` field for programs: a JSON array of
+ * coordinator UUIDs. Programs may have zero or more coordinators, so an empty
+ * or missing value is valid and yields an empty list.
+ */
+function parseCoordinatorIds(formData: FormData): ParseResult<string[]> {
+   const raw = field(formData, "coordinator_ids");
+   if (!raw) return { ok: true, value: [] };
+
+   let parsed: unknown;
+   try {
+      parsed = JSON.parse(raw);
+   } catch {
+      return {
+         ok: false,
+         errors: { coordinator_ids: ["Invalid coordinator selection"] },
+      };
+   }
+
+   const result = z.array(z.string().uuid()).safeParse(parsed);
+   if (!result.success) {
+      return {
+         ok: false,
+         errors: { coordinator_ids: ["Invalid coordinator selection"] },
+      };
+   }
+   // De-duplicate so the unique index never rejects a double-selection.
+   return { ok: true, value: [...new Set(result.data)] };
+}
+
+/**
+ * Replace the program-coordinator rows for a service with the given set.
+ */
+async function setProgramCoordinators(
+   serviceId: string,
+   coordinatorIds: string[],
+): Promise<void> {
+   await db
+      .delete(programCoordinators)
+      .where(eq(programCoordinators.serviceId, serviceId));
+   if (coordinatorIds.length > 0) {
+      await db.insert(programCoordinators).values(
+         coordinatorIds.map((coordinatorId) => ({
+            serviceId,
+            coordinatorId,
+         })),
+      );
+   }
+}
+
 function parseCoordinatorId(formData: FormData): ParseResult<string> {
    const raw = field(formData, "coordinator_id");
    if (!raw)
@@ -179,6 +243,7 @@ export async function createService(
    const typeRaw = formData.get("type")?.toString();
    let scheduledAtValue: ProgramSchedule | null = null;
    let coordinatorIdValue: string | null = null;
+   let coordinatorIdsValue: string[] = [];
    if (typeRaw === "programs") {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -186,6 +251,9 @@ export async function createService(
       } else {
          scheduledAtValue = result.value;
       }
+      const coordinators = parseCoordinatorIds(formData);
+      if (!coordinators.ok) Object.assign(errors, coordinators.errors);
+      else coordinatorIdsValue = coordinators.value;
    } else if (typeRaw === "private_lessons") {
       const coordinator = parseCoordinatorId(formData);
       if (!coordinator.ok) Object.assign(errors, coordinator.errors);
@@ -211,16 +279,23 @@ export async function createService(
 
       await createPrice(productId, priceCents);
 
-      await db.insert(services).values({
-         type,
-         startDate: scheduledAtValue?.startDate ?? null,
-         endDate: scheduledAtValue?.endDate ?? null,
-         slots: scheduledAtValue?.slots ?? null,
-         durationMinutes: duration_minutes,
-         stripeProductId: productId,
-         coordinatorId: coordinatorIdValue,
-         status: "active",
-      });
+      const [created] = await db
+         .insert(services)
+         .values({
+            type,
+            startDate: scheduledAtValue?.startDate ?? null,
+            endDate: scheduledAtValue?.endDate ?? null,
+            slots: scheduledAtValue?.slots ?? null,
+            durationMinutes: duration_minutes,
+            stripeProductId: productId,
+            coordinatorId: coordinatorIdValue,
+            status: "active",
+         })
+         .returning({ id: services.id });
+
+      if (type === "programs") {
+         await setProgramCoordinators(created.id, coordinatorIdsValue);
+      }
    } catch (e) {
       if (createdProductId) {
          try {
@@ -324,6 +399,7 @@ export async function updateService(
 
    let scheduledAtValue: ProgramSchedule | undefined;
    let coordinatorIdValue: string | undefined;
+   let coordinatorIdsValue: string[] | undefined;
    if (row.type === "programs" && formData.has("start_date")) {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -331,7 +407,13 @@ export async function updateService(
       } else {
          scheduledAtValue = result.value;
       }
-   } else if (
+   }
+   if (row.type === "programs" && formData.has("coordinator_ids")) {
+      const coordinators = parseCoordinatorIds(formData);
+      if (!coordinators.ok) Object.assign(errors, coordinators.errors);
+      else coordinatorIdsValue = coordinators.value;
+   }
+   if (
       row.type === "private_lessons" &&
       formData.has("coordinator_id")
    ) {
@@ -379,6 +461,10 @@ export async function updateService(
             .update(services)
             .set(dbPatch)
             .where(eq(services.id, service_id));
+      }
+
+      if (coordinatorIdsValue !== undefined) {
+         await setProgramCoordinators(service_id, coordinatorIdsValue);
       }
    } catch (e) {
       console.error(e);
@@ -465,4 +551,27 @@ export async function setServiceStatus(
 
    bustServicesCache();
    return { message: "Service status updated." };
+}
+
+/**
+ * On-demand fetch of a service's registrations for the read-only view.
+ * Admins may view any service; coordinators only services they coordinate.
+ */
+export async function fetchServiceRegistrations(
+   serviceId: string,
+): Promise<ServiceRegistration[]> {
+   const role = await getUserRole();
+   if (role === ROLES.ADMIN) {
+      return listServiceRegistrations(serviceId);
+   }
+   if (role === ROLES.COORDINATOR) {
+      const supabase = await createClient();
+      const {
+         data: { user },
+      } = await supabase.auth.getUser();
+      if (user && (await isServiceCoordinator(user.id, serviceId))) {
+         return listServiceRegistrations(serviceId);
+      }
+   }
+   throw new Error("Forbidden");
 }

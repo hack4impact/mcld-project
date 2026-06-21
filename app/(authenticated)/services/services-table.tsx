@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ServiceDialog } from "./service-dialog";
 import { ServicesDataTable } from "./services-data-table";
+import { RegistrationsDialog } from "./registrations-dialog";
 import type { CoordinatorOption, ServiceView } from "./queries";
 
 type StatusTab = "all" | "active" | "disabled" | "archived";
@@ -13,12 +14,15 @@ type StatusTab = "all" | "active" | "disabled" | "archived";
 export function ServicesTable({
    services,
    coordinators,
+   readOnly = false,
 }: {
    services: ServiceView[];
    coordinators: CoordinatorOption[];
+   readOnly?: boolean;
 }) {
    const [tab, setTab] = React.useState<StatusTab>("active");
    const [editing, setEditing] = React.useState<ServiceView | null>(null);
+   const [viewing, setViewing] = React.useState<ServiceView | null>(null);
    const statusTabs: StatusTab[] = ["all", "active", "disabled", "archived"];
 
    const filtered = React.useMemo(() => {
@@ -42,22 +46,39 @@ export function ServicesTable({
                      </TabsTrigger>
                   ))}
                </TabsList>
-               <ServiceDialog mode="add" coordinators={coordinators} />
+               {!readOnly && (
+                  <ServiceDialog mode="add" coordinators={coordinators} />
+               )}
             </div>
 
             <TabsContent value={tab}>
-               <ServicesDataTable services={filtered} onEdit={setEditing} />
+               <ServicesDataTable
+                  services={filtered}
+                  onEdit={setEditing}
+                  onViewRegistrations={setViewing}
+                  readOnly={readOnly}
+               />
             </TabsContent>
          </Tabs>
-         <ServiceDialog
-            mode="edit"
-            coordinators={coordinators}
-            service={editing}
-            open={editing !== null}
-            onOpenChange={(v) => {
-               if (!v) setEditing(null);
-            }}
-         />
+         {readOnly ? (
+            <RegistrationsDialog
+               service={viewing}
+               open={viewing !== null}
+               onOpenChange={(v) => {
+                  if (!v) setViewing(null);
+               }}
+            />
+         ) : (
+            <ServiceDialog
+               mode="edit"
+               coordinators={coordinators}
+               service={editing}
+               open={editing !== null}
+               onOpenChange={(v) => {
+                  if (!v) setEditing(null);
+               }}
+            />
+         )}
       </>
    );
 }

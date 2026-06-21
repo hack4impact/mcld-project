@@ -15,6 +15,13 @@
       "when": 1781590709369,
       "tag": "0001_magical_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781849600000,
+      "tag": "0002_coordinator_rename_and_dashboard",
+      "breakpoints": true
     }
   ]
 }

@@ -29,7 +29,7 @@ erDiagram
         int duration_minutes
         text stripe_product_id
         service_status status
-        uuid coach_id FK "null for programs"
+        uuid coordinator_id FK "private lessons only; programs use program_coordinators"
         uuid form_id FK "nullable"
         boolean is_for_children
         timestamp created_at
@@ -61,10 +61,10 @@ erDiagram
         timestamp updated_at
     }
 
-    coaching_sessions {
+    private_lesson_sessions {
         uuid id PK
         uuid service_id FK
-        uuid coach_id FK
+        uuid coordinator_id FK
         uuid user_id FK
         uuid child_id FK "nullable; null means adult registration"
         timestamp scheduled_at "set when slot is confirmed"
@@ -72,12 +72,16 @@ erDiagram
         text meeting_url
         text notes
         jsonb selected_time_slots "array of {start, end} objects"
-        jsonb coach_time_slots
-        text coach_token
-        text client_token
         text stripe_order_id
         timestamp created_at
         timestamp updated_at
+    }
+
+    program_coordinators {
+        uuid id PK
+        uuid service_id FK
+        uuid coordinator_id FK
+        timestamp created_at
     }
 
     subscriptions {
@@ -153,15 +157,17 @@ erDiagram
     profiles ||--o{ service_bookings : "books"
     services ||--o{ service_bookings : "booked via"
     children |o--o{ service_bookings : "registered for"
-    profiles ||--o{ coaching_sessions : "coaches"
-    profiles ||--o{ coaching_sessions : "attends"
-    services ||--o{ coaching_sessions : "fulfilled by"
-    children |o--o{ coaching_sessions : "registered for"
+    profiles ||--o{ private_lesson_sessions : "coordinates"
+    profiles ||--o{ private_lesson_sessions : "attends"
+    services ||--o{ private_lesson_sessions : "fulfilled by"
+    children |o--o{ private_lesson_sessions : "registered for"
     profiles ||--o{ children : "parent of"
     children ||--o{ emergency_contacts : "has"
     profiles ||--o| subscriptions : "has"
     profiles ||--o{ purchases : "makes"
-    profiles |o--o{ services : "coaches"
+    profiles |o--o{ services : "coordinates (private lessons)"
+    services ||--o{ program_coordinators : "assigned via"
+    profiles ||--o{ program_coordinators : "coordinates (programs)"
     forms ||--o{ form_questions : "contains"
     services }o--o| forms : "uses"
     form_questions ||--o{ form_question_answers : "answered via"
@@ -173,12 +179,13 @@ erDiagram
 | Table | Index | Type | Condition |
 |---|---|---|---|
 | `service_bookings` | `service_bookings_service_id_child_id_idx` | Unique (partial) | `WHERE child_id IS NOT NULL` — prevents the same child from registering for the same program twice |
+| `program_coordinators` | `program_coordinators_service_id_coordinator_id_idx` | Unique | prevents assigning the same coordinator to a program twice |
 
 ## Enums
 
 | Enum | Values |
 |---|---|
-| `role` | `user`, `admin`, `coach` |
+| `role` | `user`, `admin`, `coordinator` |
 | `service_type` | `private_lessons`, `programs` |
 | `service_status` | `active`, `disabled`, `archived`, `deleted` |
 | `booking_status` | `awaiting_payment`, `pending`, `confirmed`, `cancelled` |

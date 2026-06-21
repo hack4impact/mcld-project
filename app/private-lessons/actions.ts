@@ -3,13 +3,13 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { coachingSessions, services } from "@/lib/db/schema";
+import { privateLessonSessions, services } from "@/lib/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export type Availability = { start: string; end: string };
 
 export type SubmitAvailabilitiesResult =
-   | { coachingSessionId: string }
+   | { privateLessonSessionId: string }
    | { error: string };
 
 export async function submitAvailabilities({
@@ -40,7 +40,7 @@ export async function submitAvailabilities({
       return { error: "Service has no coordinator assigned" };
 
    const [row] = await db
-      .insert(coachingSessions)
+      .insert(privateLessonSessions)
       .values({
          userId: user.id,
          serviceId: service.id,
@@ -48,7 +48,7 @@ export async function submitAvailabilities({
          selectedTimeSlots: availabilities,
          status: "awaiting_payment",
       })
-      .returning({ id: coachingSessions.id });
+      .returning({ id: privateLessonSessions.id });
 
-   return { coachingSessionId: row.id };
+   return { privateLessonSessionId: row.id };
 }

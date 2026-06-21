@@ -1,5 +1,8 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { getUserRole } from "@/lib/auth/require-admin";
+import { ROLES } from "@/lib/roles";
 import { signout } from "@/app/login/actions";
 import { getSubscriptionDetails } from "@/lib/stripe";
 import {
@@ -30,6 +33,11 @@ async function HomeContent() {
    } = await supabase.auth.getUser();
 
    if (!user) return null;
+
+   // Coordinators have no overview tab — send them to their scoped dashboard.
+   if ((await getUserRole()) === ROLES.COORDINATOR) {
+      redirect("/services");
+   }
 
    const [subscription] = await Promise.all([getSubscriptionDetails(user.id)]);
    const ownsProduct = false;

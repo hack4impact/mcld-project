@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Archive, ArchiveRestore, Ban, Pencil, Power } from "lucide-react";
+import { Archive, ArchiveRestore, Ban, Pencil, Power, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,9 +20,13 @@ import type { ServiceView } from "@/app/(authenticated)/services/queries";
 export function ServicesDataTable({
    services,
    onEdit,
+   onViewRegistrations,
+   readOnly = false,
 }: {
    services: ServiceView[];
    onEdit: (service: ServiceView) => void;
+   onViewRegistrations?: (service: ServiceView) => void;
+   readOnly?: boolean;
 }) {
    const [pending, startTransition] = React.useTransition();
 
@@ -82,6 +86,25 @@ export function ServicesDataTable({
             header: () => <div className="text-right">Actions</div>,
             cell: ({ row }) => {
                const s = row.original;
+               if (readOnly) {
+                  return (
+                     <div className="flex items-center justify-end gap-0.5">
+                        <Tooltip>
+                           <TooltipTrigger asChild>
+                              <Button
+                                 variant="ghost"
+                                 size="icon-sm"
+                                 aria-label="View registrations"
+                                 onClick={() => onViewRegistrations?.(s)}
+                              >
+                                 <Users />
+                              </Button>
+                           </TooltipTrigger>
+                           <TooltipContent>View registrations</TooltipContent>
+                        </Tooltip>
+                     </div>
+                  );
+               }
                return (
                   <div className="flex items-center justify-end gap-0.5">
                      {(s.status === "active" || s.status === "disabled") && (
@@ -168,7 +191,7 @@ export function ServicesDataTable({
             },
          },
       ],
-      [pending, runStatus, onEdit],
+      [pending, runStatus, onEdit, onViewRegistrations, readOnly],
    );
 
    return (
