@@ -31,15 +31,14 @@ jest.mock("@/lib/db", () => ({
 const createProduct = jest.fn();
 const createPrice = jest.fn();
 const updateProduct = jest.fn();
-const deactivateActivePricesForProduct = jest.fn();
+const replaceProductPrice = jest.fn();
 const getStripeServiceData = jest.fn();
 
 jest.mock("@/lib/stripe", () => ({
    createProduct: (...args: unknown[]) => createProduct(...args),
    createPrice: (...args: unknown[]) => createPrice(...args),
    updateProduct: (...args: unknown[]) => updateProduct(...args),
-   deactivateActivePricesForProduct: (...args: unknown[]) =>
-      deactivateActivePricesForProduct(...args),
+   replaceProductPrice: (...args: unknown[]) => replaceProductPrice(...args),
    getStripeServiceData: (...args: unknown[]) => getStripeServiceData(...args),
 }));
 
@@ -70,7 +69,7 @@ beforeEach(() => {
    createProduct.mockResolvedValue({ productId: "prod_1" });
    createPrice.mockResolvedValue(undefined);
    updateProduct.mockResolvedValue(undefined);
-   deactivateActivePricesForProduct.mockResolvedValue(undefined);
+   replaceProductPrice.mockResolvedValue({ priceId: "price_new" });
    getStripeServiceData.mockResolvedValue({ priceCents: 5000 });
 });
 
@@ -172,8 +171,7 @@ describe("updateService", () => {
       );
 
       expect(result).toEqual({ message: "Service updated." });
-      expect(deactivateActivePricesForProduct).not.toHaveBeenCalled();
-      expect(createPrice).not.toHaveBeenCalled();
+      expect(replaceProductPrice).not.toHaveBeenCalled();
    });
 
    it("recreates the Stripe price when the amount changes", async () => {
@@ -193,8 +191,7 @@ describe("updateService", () => {
       );
 
       expect(result).toEqual({ message: "Service updated." });
-      expect(deactivateActivePricesForProduct).toHaveBeenCalled();
-      expect(createPrice).toHaveBeenCalledWith("prod_1", 7500);
+      expect(replaceProductPrice).toHaveBeenCalledWith("prod_1", 7500);
    });
 
    it("rejects clearing the coordinator on a private lesson", async () => {
