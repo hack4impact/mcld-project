@@ -51,10 +51,10 @@ export async function updateUserAdmin(
    }
 
    const admin = createAdminClient();
-   const { error: authError } = await admin.auth.admin.updateUserById(
-      user_id,
-      { email, app_metadata: { user_role: role } },
-   );
+   const { error: authError } = await admin.auth.admin.updateUserById(user_id, {
+      email,
+      app_metadata: { user_role: role },
+   });
 
    if (authError) {
       const message = /prod_|price_|stripe/i.test(authError.message)
@@ -67,15 +67,14 @@ export async function updateUserAdmin(
    }
 
    try {
-
       await db
          .update(profiles)
          .set({ role: role as Role, updatedAt: new Date() })
          .where(eq(profiles.id, user_id));
    } catch {
-      return  {
-         errors: { _form: ["Failed to update profile. Please try again."] }
-      }
+      return {
+         errors: { _form: ["Failed to update profile. Please try again."] },
+      };
    }
 
    revalidatePath(USERS_PATH);
@@ -106,14 +105,8 @@ export async function createUserAdmin(
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const {
-      first_name,
-      last_name,
-      email,
-      password,
-      role,
-      subscription_months,
-   } = parsed.data;
+   const { first_name, last_name, email, password, role, subscription_months } =
+      parsed.data;
 
    const admin = createAdminClient();
    const { data: authData, error: authError } =
@@ -212,15 +205,12 @@ export async function deleteUserAdmin(
    }
 
    const { user_id } = parsed.data;
-
-   // A coach assigned to a private lesson cannot be deleted: the lesson must
-   // always have a coach (enforced in the DB too via FK restrict + check).
    const assigned = await db
       .select({ id: services.id })
       .from(services)
       .where(
          and(
-            eq(services.coachId, user_id),
+            eq(services.coordinatorId, user_id),
             eq(services.type, "private_lessons"),
          ),
       )
@@ -230,7 +220,7 @@ export async function deleteUserAdmin(
       return {
          errors: {
             _form: [
-               "This coach is assigned to one or more private lessons. Reassign those lessons to another coach before deleting the account.",
+               "This coordinator is assigned to one or more private lessons. Reassign those lessons to another coordinator before deleting the account.",
             ],
          },
       };
