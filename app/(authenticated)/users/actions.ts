@@ -368,16 +368,29 @@ export async function createTransactionRefund(
       chargeId: formData.get("chargeId"),
       amountCents,
       idempotencyKey: formData.get("idempotencyKey"),
+      customerId: formData.get("customerId")
    });
 
    if (!parsed.success) {
       return {errors : parsed.error.flatten().fieldErrors};
    }
-   const {chargeId, amountCents: refundAmount, idempotencyKey} = parsed.data;
+   const {chargeId, amountCents: refundAmount, idempotencyKey, customerId} = parsed.data;
 
 
    try {
       const charge = await stripe.charges.retrieve(chargeId);
+      const chargeCustomerId =
+         typeof charge.customer === "string"
+            ? charge.customer
+            : charge.customer?.id ?? null;
+
+      if (chargeCustomerId !== customerId){
+         return {
+            errors: { _form: ["Charge does not belong to this customer."] },
+            status: "failed",
+         };
+      }
+
       const remainingRefundable  = charge.amount - charge.amount_refunded;
 
       if (remainingRefundable <= 0) {

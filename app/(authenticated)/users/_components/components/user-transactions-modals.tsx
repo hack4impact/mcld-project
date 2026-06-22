@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-   Loader2,
    ArrowLeft,
    ArrowRight,
 } from "lucide-react";
@@ -76,6 +75,7 @@ export function UserTransactionsModal({
       isFullRefund: boolean;
       amountCents: number;
       displayAmount: string;
+      idempotencyKey: string;
    } | null>(null);
 
    const fetchTransactions = React.useCallback(
@@ -157,32 +157,34 @@ export function UserTransactionsModal({
          displayAmount = formatAmount(refundAmountCents, currency);
       }
 
+      const idempotencyKey = typeof crypto.randomUUID === "function" 
+         ? crypto.randomUUID() 
+         : Math.random().toString(36).substring(2) + Date.now().toString(36);
+
       setConfirmRefund({
          chargeId,
          isFullRefund,
          amountCents: refundAmountCents,
          displayAmount,
+         idempotencyKey,
       });
    };
 
    // Step 2: Executes the refund Server Action after confirmation
    const executeRefund = async () => {
       if (!confirmRefund) return;
-      const { chargeId, isFullRefund, amountCents } = confirmRefund;
+      const { chargeId, isFullRefund, amountCents, idempotencyKey } = confirmRefund;
       setConfirmRefund(null); // Close confirmation immediately
-
-      const idempotency = typeof crypto.randomUUID === "function" 
-         ? crypto.randomUUID() 
-         : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
       setSubmitting(chargeId);
       try {
          const fd = new FormData();
          fd.append("chargeId", chargeId);
-         fd.append("idempotencyKey", idempotency);
+         fd.append("idempotencyKey", idempotencyKey);
          if (!isFullRefund) {
             fd.append("amountCents", String(amountCents));
          }
+         fd.append("customerId", stripeCustomerId)
 
          const result = await createTransactionRefund(null, fd);
 
@@ -463,7 +465,7 @@ export function UserTransactionsModal({
                         )}
                      >
                         {submitting === selectedTransaction.id ? (
-                           <Loader2 className="size-3 animate-spin mr-1.5" />
+                            <Spinner className="size-3 mr-1.5" />
                         ) : null}
                         Refund Partial
                      </Button>
@@ -498,7 +500,7 @@ export function UserTransactionsModal({
             </AlertDialogHeader>
             <AlertDialogFooter>
                <AlertDialogCancel onClick={() => setConfirmRefund(null)}>Cancel</AlertDialogCancel>
-               <AlertDialogAction onClick={executeRefund} className="bg-destructive hover:bg-destructive/90 text-white">
+               <AlertDialogAction variant="destructive" onClick={executeRefund}>
                   Confirm Refund
                </AlertDialogAction>
             </AlertDialogFooter>

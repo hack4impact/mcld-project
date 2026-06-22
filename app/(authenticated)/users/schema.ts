@@ -31,5 +31,6 @@ export const getTransactionsSchema = z.object({
 export const createRefundSchema = z.object({
   chargeId: z.string().min(1, "Charge ID is required"),
   amountCents: z.coerce.number().int().positive().optional(),
-  idempotencyKey: z.string().min(1,"Idempotency key is required")
+  idempotencyKey: z.string().min(1,"Idempotency key is required"),
+  customerId: z.string().min(1, "Customer ID is required")
 })

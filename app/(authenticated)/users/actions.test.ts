@@ -27,14 +27,19 @@ import {
     requireAdmin: (...args: unknown[]) => requireAdmin(...args),
  }));
  
+ const CUSTOMER_ID = "cus_123";
+
  function refundFormData(fields: Record<string, string>) {
     const fd = new FormData();
-    for (const [key, value] of Object.entries(fields)) {
+    for (const [key, value] of Object.entries({
+       customerId: CUSTOMER_ID,
+       ...fields,
+    })) {
        fd.append(key, value);
     }
     return fd;
  }
- 
+
  const sampleCharge = {
     id: "ch_test",
     amount: 5000,
@@ -98,8 +103,27 @@ import {
        expect(chargesRetrieve).not.toHaveBeenCalled();
     });
  
+    it("rejects when charge belongs to a different customer", async () => {
+       chargesRetrieve.mockResolvedValue({
+          customer: "cus_other",
+          amount: 5000,
+          amount_refunded: 0,
+       });
+
+       const result = await createTransactionRefund(
+          null,
+          refundFormData({ chargeId: "ch_test", idempotencyKey: "key-1" }),
+       );
+
+       expect(result?.errors?._form).toContain(
+          "Charge does not belong to this customer.",
+       );
+       expect(refundsCreate).not.toHaveBeenCalled();
+    });
+
     it("rejects when charge is already fully refunded", async () => {
        chargesRetrieve.mockResolvedValue({
+          customer: CUSTOMER_ID,
           amount: 5000,
           amount_refunded: 5000,
        });
@@ -117,6 +141,7 @@ import {
  
     it("rejects partial refund above remaining balance", async () => {
        chargesRetrieve.mockResolvedValue({
+          customer: CUSTOMER_ID,
           amount: 5000,
           amount_refunded: 1000,
        });
@@ -139,11 +164,13 @@ import {
     it("issues a full refund and returns updated transaction", async () => {
        chargesRetrieve
           .mockResolvedValueOnce({
+             customer: CUSTOMER_ID,
              amount: 5000,
              amount_refunded: 0,
           })
           .mockResolvedValueOnce({
              ...sampleCharge,
+             customer: CUSTOMER_ID,
              amount_refunded: 5000,
              refunded: true,
              refunds: {
