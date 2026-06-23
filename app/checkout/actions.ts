@@ -5,7 +5,11 @@ import { and, eq } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
-import { coachingSessions, serviceBookings, services } from "@/lib/db/schema";
+import {
+   privateLessonSessions,
+   serviceBookings,
+   services,
+} from "@/lib/db/schema";
 import {
    getActiveCouponForCustomerProduct,
    getOrCreateStripeCustomer,
@@ -14,7 +18,7 @@ import {
 import {
    submitAvailabilities,
    type Availability,
-} from "@/app/coaching/actions";
+} from "@/app/private-lessons/actions";
 import { createClient } from "@/utils/supabase/server";
 
 export type CheckoutResult = { url: string } | { error: string };
@@ -135,10 +139,10 @@ export async function checkoutServiceBooking({
    return { url: result.session.url! };
 }
 
-export async function checkoutCoachingSession({
-   coachingSessionId,
+export async function checkoutPrivateLessonSession({
+   privateLessonSessionId,
 }: {
-   coachingSessionId: string;
+   privateLessonSessionId: string;
 }): Promise<CheckoutResult> {
    const supabase = await createClient();
    const {
@@ -146,15 +150,15 @@ export async function checkoutCoachingSession({
    } = await supabase.auth.getUser();
    if (!user) return { error: "Not authenticated" };
 
-   const row = await db.query.coachingSessions.findFirst({
+   const row = await db.query.privateLessonSessions.findFirst({
       where: and(
-         eq(coachingSessions.id, coachingSessionId),
-         eq(coachingSessions.userId, user.id),
+         eq(privateLessonSessions.id, privateLessonSessionId),
+         eq(privateLessonSessions.userId, user.id),
       ),
    });
-   if (!row) return { error: "Coaching session not found" };
+   if (!row) return { error: "Private lesson session not found" };
    if (row.status !== "awaiting_payment")
-      return { error: "Coaching session is not awaiting payment" };
+      return { error: "Private lesson session is not awaiting payment" };
 
    const service = await db.query.services.findFirst({
       where: eq(services.id, row.serviceId),
@@ -167,18 +171,20 @@ export async function checkoutCoachingSession({
       stripeProductId: service.stripeProductId,
       metadata: {
          type: "private_lesson",
-         coachingSessionId: row.id,
+         privateLessonSessionId: row.id,
       },
    });
    if ("error" in result) {
-      await db.delete(coachingSessions).where(eq(coachingSessions.id, row.id));
+      await db
+         .delete(privateLessonSessions)
+         .where(eq(privateLessonSessions.id, row.id));
       return { error: result.error };
    }
 
    await db
-      .update(coachingSessions)
+      .update(privateLessonSessions)
       .set({ stripeOrderId: result.session.id })
-      .where(eq(coachingSessions.id, row.id));
+      .where(eq(privateLessonSessions.id, row.id));
 
    return { url: result.session.url! };
 }
@@ -193,7 +199,7 @@ export async function startPrivateLessonCheckout({
    const created = await submitAvailabilities({ serviceId, availabilities });
    if ("error" in created) return { error: created.error };
 
-   return checkoutCoachingSession({
-      coachingSessionId: created.coachingSessionId,
+   return checkoutPrivateLessonSession({
+      privateLessonSessionId: created.privateLessonSessionId,
    });
 }

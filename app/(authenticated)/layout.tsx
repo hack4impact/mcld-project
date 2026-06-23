@@ -5,6 +5,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppSidebar } from "@/components/app-sidebar";
+import { getUserRole } from "@/lib/auth/require-admin";
+import { ROLES, type Role } from "@/lib/roles";
 
 async function AuthGate({ children }: { children: React.ReactNode }) {
    const supabase = await createClient();
@@ -19,6 +21,11 @@ async function AuthGate({ children }: { children: React.ReactNode }) {
    return <>{children}</>;
 }
 
+async function Nav() {
+   const role = (await getUserRole()) ?? ROLES.USER;
+   return <AppSidebar role={role as Role} />;
+}
+
 export default function AuthenticatedLayout({
    children,
 }: {
@@ -27,7 +34,9 @@ export default function AuthenticatedLayout({
    return (
       <TooltipProvider>
          <SidebarProvider>
-            <AppSidebar />
+            <Suspense fallback={null}>
+               <Nav />
+            </Suspense>
             <SidebarInset>
                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
                   <Suspense fallback={null}>

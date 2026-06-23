@@ -9,7 +9,7 @@ erDiagram
         text first_name
         text last_name
         text stripe_customer_id "unique"
-        role role "user | admin | coach"
+        role role "user | admin | coordinator"
         timestamp created_at
         timestamp updated_at
         timestamp last_login_at
@@ -19,4 +19,4 @@ erDiagram
 ## Notes
 
 - `id` is **not** auto-generated — it is set to the corresponding `auth.users.id` from Supabase Auth.
-- `role` controls access: `user` is a regular member, `coach` can manage and lead sessions, `admin` has full access.
+- `role` controls access: `user` is a regular member, `coordinator` manages and leads the services they are assigned to (read-only dashboard scoped to those services), `admin` has full access.

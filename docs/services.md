@@ -3,8 +3,8 @@
 ## Services
 
 The central catalog of offerings on the platform. Two types:
-- **`booking`** — a fixed event with predetermined time slots set by the admin. Users buy it like a product with no input on timing. `scheduled_at` holds the time slots as a JSON array.
-- **`coaching_session`** — a coaching offering where the user proposes availability. `scheduled_at` is null — timing is handled through the `coaching_sessions` table.
+- **`programs`** — a scheduled offering with a weekly recurring schedule (`slots`) over a `start_date`/`end_date` range. One or more coordinators are assigned via the `program_coordinators` join table.
+- **`private_lessons`** — a one-on-one offering where the user proposes availability. Timing is handled through the `private_lesson_sessions` table, and a single coordinator is assigned via `services.coordinator_id`.
 
 ```mermaid
 erDiagram
@@ -12,8 +12,8 @@ erDiagram
         uuid id PK
         text title
         text description
-        service_type type "coaching_session | booking"
-        jsonb scheduled_at "array of {start, end} objects — null for coaching_session"
+        service_type type "programs | private_lessons"
+        uuid coordinator_id FK "private lessons only; programs use program_coordinators"
         int duration_minutes
         int price "in cents"
         boolean is_active

@@ -148,7 +148,27 @@ export const webinars = pgTable("webinars", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const coachingSessions = pgTable("coaching_sessions", {
+export const programCoordinators = pgTable(
+   "program_coordinators",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      serviceId: uuid("service_id")
+         .references(() => services.id, { onDelete: "cascade" })
+         .notNull(),
+      coordinatorId: uuid("coordinator_id")
+         .references(() => profiles.id, { onDelete: "restrict" })
+         .notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+   },
+   (t) => [
+      uniqueIndex("program_coordinators_service_id_coordinator_id_idx").on(
+         t.serviceId,
+         t.coordinatorId,
+      ),
+   ],
+);
+
+export const privateLessonSessions = pgTable("private_lesson_sessions", {
    id: uuid("id").primaryKey().defaultRandom(),
    serviceId: uuid("service_id")
       .references(() => services.id, { onDelete: "cascade" })
