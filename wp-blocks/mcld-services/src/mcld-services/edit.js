@@ -29,7 +29,7 @@ export default function Edit({ attributes, setAttributes }) {
 			.then(async (r) => {
 				const data = await r.json().catch(() => null);
 				if (!r.ok || !Array.isArray(data)) {
-					throw new Error('mattia is cooked');
+					throw new Error('Error');
 				}
 				return data;
 			})
