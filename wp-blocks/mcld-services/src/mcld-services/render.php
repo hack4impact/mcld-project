@@ -26,7 +26,7 @@ if (false === $services) {
 		if (!is_array($services)) {
 			$services = [];
 		}
-		set_transient($transient_key, $services, 60);
+		set_transient($transient_key, $services, 300);
 	}
 }
 
@@ -37,34 +37,46 @@ $services_json = wp_json_encode($services);
 	<div class="mcld-tabs" role="tablist">
 		<button
 			type="button"
+			id="mcld-tab-services"
 			class="mcld-tab is-active"
 			role="tab"
 			aria-selected="true"
+			aria-controls="mcld-panel-services"
 			data-tab="services"
 		>
 			<?= esc_html__('Services', 'mcld-services') ?>
 		</button>
 		<button
 			type="button"
+			id="mcld-tab-membership"
 			class="mcld-tab"
 			role="tab"
 			aria-selected="false"
+			aria-controls="mcld-panel-membership"
 			data-tab="membership"
 		>
 			<?= esc_html__('Membership', 'mcld-services') ?>
 		</button>
 		<button
 			type="button"
+			id="mcld-tab-donations"
 			class="mcld-tab"
 			role="tab"
 			aria-selected="false"
+			aria-controls="mcld-panel-donations"
 			data-tab="donations"
 		>
 			<?= esc_html__('Donations', 'mcld-services') ?>
 		</button>
 	</div>
 
-	<div class="mcld-panel" data-panel="services" role="tabpanel">
+	<div
+		id="mcld-panel-services"
+		class="mcld-panel"
+		data-panel="services"
+		role="tabpanel"
+		aria-labelledby="mcld-tab-services"
+	>
 		<div class="mcld-services-list">
 			<?php if (empty($services)): ?>
 				<p class="mcld-services-empty"><?= esc_html__('No active services available.', 'mcld-services') ?></p>
@@ -106,11 +118,25 @@ $services_json = wp_json_encode($services);
 		</div>
 	</div>
 
-	<div class="mcld-panel" data-panel="membership" role="tabpanel" hidden>
+	<div
+		id="mcld-panel-membership"
+		class="mcld-panel"
+		data-panel="membership"
+		role="tabpanel"
+		aria-labelledby="mcld-tab-membership"
+		hidden
+	>
 		<p><?= esc_html__('Coming soon.', 'mcld-services') ?></p>
 	</div>
 
-	<div class="mcld-panel" data-panel="donations" role="tabpanel" hidden>
+	<div
+		id="mcld-panel-donations"
+		class="mcld-panel"
+		data-panel="donations"
+		role="tabpanel"
+		aria-labelledby="mcld-tab-donations"
+		hidden
+	>
 		<p><?= esc_html__('Coming soon.', 'mcld-services') ?></p>
 	</div>
 

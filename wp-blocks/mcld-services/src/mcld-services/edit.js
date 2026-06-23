@@ -26,7 +26,13 @@ export default function Edit({ attributes, setAttributes }) {
 		setError(null);
 		setServices(null);
 		fetch(`${apiUrl.replace(/\/$/, '')}/api/public/services`)
-			.then((r) => r.json())
+			.then(async (r) => {
+				const data = await r.json().catch(() => null);
+				if (!r.ok || !Array.isArray(data)) {
+					throw new Error('mattia is cooked');
+				}
+				return data;
+			})
 			.then(setServices)
 			.catch(() =>
 				setError(__('Could not load services. Check the API URL.', 'mcld-services')),
@@ -60,9 +66,11 @@ export default function Edit({ attributes, setAttributes }) {
 						<button
 							key={tab.id}
 							type="button"
+							id={`mcld-tab-${tab.id}`}
 							className={`mcld-tab${activeTab === tab.id ? ' is-active' : ''}`}
 							role="tab"
 							aria-selected={activeTab === tab.id}
+							aria-controls={`mcld-panel-${tab.id}`}
 							onClick={() => setActiveTab(tab.id)}
 						>
 							{tab.label}
@@ -71,7 +79,13 @@ export default function Edit({ attributes, setAttributes }) {
 				</div>
 
 				{activeTab === 'services' && (
-					<div className="mcld-panel" data-panel="services">
+					<div
+						id="mcld-panel-services"
+						className="mcld-panel"
+						data-panel="services"
+						role="tabpanel"
+						aria-labelledby="mcld-tab-services"
+					>
 						{!apiUrl && (
 							<p>
 								{__(
@@ -101,13 +115,25 @@ export default function Edit({ attributes, setAttributes }) {
 				)}
 
 				{activeTab === 'membership' && (
-					<div className="mcld-panel" data-panel="membership">
+					<div
+						id="mcld-panel-membership"
+						className="mcld-panel"
+						data-panel="membership"
+						role="tabpanel"
+						aria-labelledby="mcld-tab-membership"
+					>
 						<p>{__('Coming soon.', 'mcld-services')}</p>
 					</div>
 				)}
 
 				{activeTab === 'donations' && (
-					<div className="mcld-panel" data-panel="donations">
+					<div
+						id="mcld-panel-donations"
+						className="mcld-panel"
+						data-panel="donations"
+						role="tabpanel"
+						aria-labelledby="mcld-tab-donations"
+					>
 						<p>{__('Coming soon.', 'mcld-services')}</p>
 					</div>
 				)}
