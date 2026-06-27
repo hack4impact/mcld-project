@@ -9,6 +9,7 @@ import { type DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
    Dialog,
    DialogClose,
@@ -261,6 +262,8 @@ export function ServiceDialog(props: Props) {
    const [priceCad, setPriceCad] = React.useState<string>(
       centsToMoneyString(service?.priceCents ?? null),
    );
+   const [requiresSubscription, setRequiresSubscription] =
+      React.useState<boolean>(service?.requiresSubscription ?? true);
    const [state, formAction, pending] = useActionState<
       ServiceActionState,
       FormData
@@ -274,6 +277,7 @@ export function ServiceDialog(props: Props) {
          setDescription(service.description ?? "");
          setDurationMinutes(String(service.durationMinutes ?? 60));
          setPriceCad(centsToMoneyString(service.priceCents));
+         setRequiresSubscription(service.requiresSubscription);
       }
    }, [service]);
 
@@ -293,6 +297,7 @@ export function ServiceDialog(props: Props) {
             setDescription("");
             setDurationMinutes("60");
             setPriceCad("");
+            setRequiresSubscription(true);
          }
       }
    }, [state, isEdit, props]);
@@ -429,6 +434,26 @@ export function ServiceDialog(props: Props) {
                         />
                      </ButtonGroup>
                      <FieldError messages={errors?.price_cad} />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                     <div className="flex items-center gap-2">
+                        <Checkbox
+                           id="requires_subscription"
+                           checked={requiresSubscription}
+                           onCheckedChange={(checked) =>
+                              setRequiresSubscription(checked === true)
+                           }
+                        />
+                        <input
+                           type="hidden"
+                           name="requires_subscription"
+                           value={requiresSubscription ? "true" : "false"}
+                        />
+                        <Label htmlFor="requires_subscription">
+                           Requires subscription
+                        </Label>
+                     </div>
                   </div>
 
                   {type === "programs" && (

@@ -28,6 +28,7 @@ export type ServiceView = {
    description: string | null;
    priceCents: number | null;
    priceCurrency: string | null;
+   requiresSubscription: boolean;
 };
 
 function rowToSchedule(
@@ -59,6 +60,7 @@ async function buildServiceView(
       description: stripeData?.description ?? null,
       priceCents: stripeData?.priceCents ?? null,
       priceCurrency: stripeData?.priceCurrency ?? null,
+      requiresSubscription: row.requiresSubscription,
    };
 }
 

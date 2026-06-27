@@ -8,13 +8,6 @@
       "when": 1781402843250,
       "tag": "0000_perfect_agent_brand",
       "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1781590709369,
-      "tag": "0001_magical_cloak",
-      "breakpoints": true
     }
   ]
 }
