@@ -11,12 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/format";
 import type { KidRegistration } from "../queries";
-
-const GENDER_LABELS: Record<string, string> = {
-   male: "Male",
-   female: "Female",
-   prefer_not_to_say: "Prefer not to say",
-};
+import { GENDER_LABELS } from "./constants";
 
 function Row({ label, value }: { label: string; value: string }) {
    return (

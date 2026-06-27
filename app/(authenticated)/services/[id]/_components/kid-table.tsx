@@ -14,19 +14,7 @@ import { UsersDataTable } from "@/app/(authenticated)/users/_components/users-da
 import { formatDate } from "@/lib/format";
 import type { KidRegistration } from "../queries";
 import { ChildInfoModal } from "./child-info-modal";
-
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-   confirmed: "default",
-   pending: "secondary",
-   awaiting_payment: "outline",
-   cancelled: "destructive",
-};
-
-const GENDER_LABELS: Record<string, string> = {
-   male: "Male",
-   female: "Female",
-   prefer_not_to_say: "Prefer not to say",
-};
+import { STATUS_VARIANT, GENDER_LABELS } from "./constants";
 
 export function KidTable({ registrations }: { registrations: KidRegistration[] }) {
    const [selected, setSelected] = useState<KidRegistration | null>(null);
