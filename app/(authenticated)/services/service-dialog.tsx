@@ -7,6 +7,7 @@ import { CalendarIcon, DollarSign, Plus, X } from "lucide-react";
 import { type DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -446,12 +447,10 @@ export function ServiceDialog(props: Props) {
                         value={String(isForChildren)}
                      />
                      <div className="flex items-center gap-2">
-                        <input
+                        <Checkbox
                            id="is_for_children"
-                           type="checkbox"
                            checked={isForChildren}
-                           onChange={(e) => setIsForChildren(e.target.checked)}
-                           className="size-4 rounded border-input accent-primary"
+                           onCheckedChange={(checked) => setIsForChildren(checked === true)}
                         />
                         <Label htmlFor="is_for_children">For children</Label>
                      </div>
