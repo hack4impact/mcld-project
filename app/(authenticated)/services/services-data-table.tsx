@@ -10,7 +10,7 @@ import {
    TooltipContent,
    TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DataTable } from "@/components/data-table";
+import { UsersDataTable } from "@/app/(authenticated)/users/_components/users-data-table";
 import { formatDate } from "@/lib/format";
 import { statusBadgeClass } from "@/lib/service-status";
 
@@ -172,7 +172,7 @@ export function ServicesDataTable({
    );
 
    return (
-      <DataTable
+      <UsersDataTable
          columns={columns}
          data={services}
          emptyMessage="No services found."

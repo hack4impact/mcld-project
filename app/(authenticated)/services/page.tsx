@@ -8,9 +8,11 @@ export default async function ServicesPage() {
    ]);
 
    return (
-      <main className="flex min-h-screen flex-col gap-6 p-8">
-         <h1 className="text-3xl font-bold">Services</h1>
-         <ServicesTable services={services} coordinators={coordinators} />
+      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
+         <h1 className="shrink-0 text-3xl font-bold">Services</h1>
+         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <ServicesTable services={services} coordinators={coordinators} />
+         </div>
       </main>
    );
 }

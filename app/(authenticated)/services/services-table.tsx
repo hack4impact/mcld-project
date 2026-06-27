@@ -28,13 +28,13 @@ export function ServicesTable({
    }, [services, tab]);
 
    return (
-      <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
          <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as StatusTab)}
-            className="w-full"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
          >
-            <div className="flex items-center justify-between">
+            <div className="flex shrink-0 items-center justify-between">
                <TabsList className="border border-border">
                   {statusTabs.map((status) => (
                      <TabsTrigger key={status} value={status}>
@@ -45,7 +45,10 @@ export function ServicesTable({
                <ServiceDialog mode="add" coordinators={coordinators} />
             </div>
 
-            <TabsContent value={tab}>
+            <TabsContent
+               value={tab}
+               className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
+            >
                <ServicesDataTable services={filtered} onEdit={setEditing} />
             </TabsContent>
          </Tabs>
@@ -58,6 +61,6 @@ export function ServicesTable({
                if (!v) setEditing(null);
             }}
          />
-      </>
+      </div>
    );
 }
