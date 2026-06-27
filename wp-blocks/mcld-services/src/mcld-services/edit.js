@@ -29,7 +29,7 @@ export default function Edit({ attributes, setAttributes }) {
 			.then(async (r) => {
 				const data = await r.json().catch(() => null);
 				if (!r.ok || !Array.isArray(data)) {
-					throw new Error('Error');
+					throw new Error('We couldn’t load the services right now. Please try again later or contact an administrator.');
 				}
 				return data;
 			})
