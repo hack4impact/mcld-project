@@ -13,7 +13,13 @@ export default function ServiceRegisteredPage({
    params: Promise<{ id: string }>;
 }) {
    return (
-      <Suspense fallback={<Spinner className="size-8 text-muted-foreground" />}>
+      <Suspense
+         fallback={
+            <div className="flex min-h-screen items-center justify-center">
+               <Spinner className="size-8 text-muted-foreground" />
+            </div>
+         }
+      >
          <PageContent params={params} />
       </Suspense>
    );
