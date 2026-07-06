@@ -7,9 +7,9 @@ import { CalendarIcon, DollarSign, Plus, X } from "lucide-react";
 import { type DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
    Dialog,
    DialogClose,
@@ -45,13 +45,13 @@ import {
    type ServiceActionState,
 } from "@/app/(authenticated)/services/actions";
 import type {
-   CoachOption,
+   CoordinatorOption,
    ServiceView,
 } from "@/app/(authenticated)/services/queries";
 
 type FormOption = { id: string; name: string };
 
-type Props = { coaches: CoachOption[]; forms: FormOption[] } & (
+type Props = { coordinators: CoordinatorOption[]; forms: FormOption[] } & (
    | { mode: "add" }
    | {
         mode: "edit";
@@ -246,12 +246,14 @@ function ProgramScheduleFields({
 export function ServiceDialog(props: Props) {
    const isEdit = props.mode === "edit";
    const service = isEdit ? props.service : null;
-   const { coaches, forms } = props;
+   const { coordinators, forms } = props;
 
    const [type, setType] = React.useState<"programs" | "private_lessons">(
       service?.type ?? "programs",
    );
-   const [coachId, setCoachId] = React.useState<string>(service?.coachId ?? "");
+   const [coordinatorId, setCoordinatorId] = React.useState<string>(
+      service?.coordinatorId ?? "",
+   );
    const [isForChildren, setIsForChildren] = React.useState<boolean>(
       service?.isForChildren ?? false,
    );
@@ -266,6 +268,8 @@ export function ServiceDialog(props: Props) {
    const [priceCad, setPriceCad] = React.useState<string>(
       centsToMoneyString(service?.priceCents ?? null),
    );
+   const [requiresSubscription, setRequiresSubscription] =
+      React.useState<boolean>(service?.requiresSubscription ?? true);
    const [state, formAction, pending] = useActionState<
       ServiceActionState,
       FormData
@@ -274,13 +278,14 @@ export function ServiceDialog(props: Props) {
    React.useEffect(() => {
       if (service) {
          setType(service.type);
-         setCoachId(service.coachId ?? "");
+         setCoordinatorId(service.coordinatorId ?? "");
          setIsForChildren(service.isForChildren ?? false);
          setFormId(service.formId ?? "");
          setTitle(service.title ?? "");
          setDescription(service.description ?? "");
          setDurationMinutes(String(service.durationMinutes ?? 60));
          setPriceCad(centsToMoneyString(service.priceCents));
+         setRequiresSubscription(service.requiresSubscription);
       }
    }, [service]);
 
@@ -295,13 +300,14 @@ export function ServiceDialog(props: Props) {
          } else {
             closeRef.current?.click();
             setType("programs");
-            setCoachId("");
+            setCoordinatorId("");
             setIsForChildren(false);
             setFormId("");
             setTitle("");
             setDescription("");
             setDurationMinutes("60");
             setPriceCad("");
+            setRequiresSubscription(true);
          }
       }
    }, [state, isEdit, props]);
@@ -450,7 +456,9 @@ export function ServiceDialog(props: Props) {
                         <Checkbox
                            id="is_for_children"
                            checked={isForChildren}
-                           onCheckedChange={(checked) => setIsForChildren(checked === true)}
+                           onCheckedChange={(checked) =>
+                              setIsForChildren(checked === true)
+                           }
                         />
                         <Label htmlFor="is_for_children">For children</Label>
                      </div>
@@ -462,7 +470,9 @@ export function ServiceDialog(props: Props) {
                         <input type="hidden" name="form_id" value={formId} />
                         <Select
                            value={formId || "none"}
-                           onValueChange={(v) => setFormId(v === "none" ? "" : v)}
+                           onValueChange={(v) =>
+                              setFormId(v === "none" ? "" : v)
+                           }
                         >
                            <SelectTrigger id="form_id" className="w-full">
                               <SelectValue placeholder="No form" />
@@ -479,6 +489,26 @@ export function ServiceDialog(props: Props) {
                      </div>
                   )}
 
+                  <div className="flex flex-col gap-1.5">
+                     <div className="flex items-center gap-2">
+                        <Checkbox
+                           id="requires_subscription"
+                           checked={requiresSubscription}
+                           onCheckedChange={(checked) =>
+                              setRequiresSubscription(checked === true)
+                           }
+                        />
+                        <input
+                           type="hidden"
+                           name="requires_subscription"
+                           value={requiresSubscription ? "true" : "false"}
+                        />
+                        <Label htmlFor="requires_subscription">
+                           Requires subscription
+                        </Label>
+                     </div>
+                  </div>
+
                   {type === "programs" && (
                      <ProgramScheduleFields
                         initial={initialSchedule}
@@ -488,30 +518,37 @@ export function ServiceDialog(props: Props) {
 
                   {type === "private_lessons" && (
                      <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="coach_id">Coach</Label>
-                        {/* Hidden input drives form submission so an unselected
-                            coach submits "" (a Radix Select with `name` falls
-                            back to its first option when nothing is chosen). */}
-                        <input type="hidden" name="coach_id" value={coachId} />
-                        <Select value={coachId} onValueChange={setCoachId}>
-                           <SelectTrigger id="coach_id" className="w-full">
+                        <Label htmlFor="coordinator_id">Coordinator</Label>
+                        <input
+                           type="hidden"
+                           name="coordinator_id"
+                           value={coordinatorId}
+                        />
+                        <Select
+                           value={coordinatorId}
+                           onValueChange={setCoordinatorId}
+                        >
+                           <SelectTrigger
+                              id="coordinator_id"
+                              className="w-full"
+                           >
                               <SelectValue
                                  placeholder={
-                                    coaches.length === 0
-                                       ? "No coaches available"
-                                       : "Select a coach"
+                                    coordinators.length === 0
+                                       ? "No coordinators available"
+                                       : "Select a coordinator"
                                  }
                               />
                            </SelectTrigger>
                            <SelectContent>
-                              {coaches.map((c) => (
+                              {coordinators.map((c) => (
                                  <SelectItem key={c.id} value={c.id}>
                                     {c.firstName} {c.lastName}
                                  </SelectItem>
                               ))}
                            </SelectContent>
                         </Select>
-                        <FieldError messages={errors?.coach_id} />
+                        <FieldError messages={errors?.coordinator_id} />
                      </div>
                   )}
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Pencil, Tag, Trash2 } from "lucide-react";
+
+import { Pencil, Tag, Trash2, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -24,6 +25,8 @@ import {
 import { deleteUserAdmin } from "@/app/(authenticated)/users/actions";
 import { toast } from "sonner";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
+import { UserTransactionsModal } from "./components/user-transactions-modals";
+
 
 interface UserActionsCellProps {
    user: UserRow;
@@ -31,6 +34,7 @@ interface UserActionsCellProps {
 }
 
 export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
+   const [txOpen, setTxOpen] = useState(false);
    const [open, setOpen] = useState(false);
    const [services, setServices] = useState<DiscountService[]>([]);
    const [discounts, setDiscounts] = useState<ActiveDiscount[]>([]);
@@ -148,6 +152,22 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
                {user.stripeCustomerId ? "Manage discounts" : "No Stripe customer"}
             </TooltipContent>
          </Tooltip>
+         <Tooltip>
+            <TooltipTrigger asChild>
+               <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="View transactions"
+                  disabled={!user.stripeCustomerId}
+                  onClick={() => setTxOpen(true)}
+               >
+                  <ReceiptText />
+               </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+               {user.stripeCustomerId ? "View transactions" : "No Stripe customer"}
+            </TooltipContent>
+         </Tooltip>
          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <Tooltip>
                <TooltipTrigger asChild>
@@ -199,6 +219,13 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
             onOpenChange={handleOpenChange}
             onApply={handleApply}
             onRemove={handleRemove}
+         />
+         <UserTransactionsModal
+            userName={`${user.firstName} ${user.lastName}`}
+            userEmail={user.email}
+            stripeCustomerId={user.stripeCustomerId || ""}
+            open={txOpen}
+            onOpenChange={setTxOpen}
          />
       </div>
    );

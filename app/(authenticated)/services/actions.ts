@@ -10,8 +10,8 @@ import { cadStringToCents } from "@/lib/money";
 import {
    createPrice,
    createProduct,
-   deactivateActivePricesForProduct,
    getStripeServiceData,
+   replaceProductPrice,
    updateProduct,
 } from "@/lib/stripe";
 
@@ -45,8 +45,13 @@ const baseFields = z.object({
    title: z.string().min(1, "Title is required").max(500),
    description: z.string().min(1, "Description is required").max(1000),
    type: serviceTypeSchema,
-   duration_minutes: z.coerce.number().int().min(1).max(24 * 60),
+   duration_minutes: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(24 * 60),
    price_cad: z.string().min(1, "Price is required"),
+   requires_subscription: z.enum(["true", "false"]),
 });
 
 const ALLOWED_TRANSITIONS: Record<
@@ -73,7 +78,9 @@ type ParseResult<T> =
    | { ok: true; value: T }
    | { ok: false; errors: Record<string, string[]> };
 
-function parseProgramSchedule(formData: FormData): ParseResult<ProgramSchedule> {
+function parseProgramSchedule(
+   formData: FormData,
+): ParseResult<ProgramSchedule> {
    const startRaw = field(formData, "start_date");
    const endRaw = field(formData, "end_date");
    const slotsRaw = field(formData, "slots");
@@ -118,16 +125,18 @@ function parseProgramSchedule(formData: FormData): ParseResult<ProgramSchedule> 
    };
 }
 
-function parseCoachId(formData: FormData): ParseResult<string> {
-   const raw = field(formData, "coach_id");
+function parseCoordinatorId(formData: FormData): ParseResult<string> {
+   const raw = field(formData, "coordinator_id");
    if (!raw)
       return {
          ok: false,
-         errors: { coach_id: ["A coach is required for private lessons"] },
+         errors: {
+            coordinator_id: ["A coordinator is required for private lessons"],
+         },
       };
    const result = z.string().uuid().safeParse(raw);
    if (!result.success) {
-      return { ok: false, errors: { coach_id: ["Invalid coach"] } };
+      return { ok: false, errors: { coordinator_id: ["Invalid coordinator"] } };
    }
    return { ok: true, value: result.data };
 }
@@ -150,13 +159,14 @@ export async function createService(
       type: formData.get("type"),
       duration_minutes: formData.get("duration_minutes"),
       price_cad: formData.get("price_cad"),
+      requires_subscription: formData.get("requires_subscription"),
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
    }
 
    // Validate price format independently so its error reports alongside
-   // schedule/coach errors instead of in a separate round-trip.
+   // schedule/coordinator errors instead of in a separate round-trip.
    const priceRaw = formData.get("price_cad")?.toString() ?? "";
    let cents: number | null = null;
    if (priceRaw && !errors.price_cad) {
@@ -166,11 +176,11 @@ export async function createService(
       }
    }
 
-   // Schedule / coach checks key off the submitted type, not parsed.data,
+   // Schedule / coordinator checks key off the submitted type, not parsed.data,
    // so they still run when baseFields fails on unrelated fields.
    const typeRaw = formData.get("type")?.toString();
    let scheduledAtValue: ProgramSchedule | null = null;
-   let coachIdValue: string | null = null;
+   let coordinatorIdValue: string | null = null;
    if (typeRaw === "programs") {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -179,9 +189,9 @@ export async function createService(
          scheduledAtValue = result.value;
       }
    } else if (typeRaw === "private_lessons") {
-      const coach = parseCoachId(formData);
-      if (!coach.ok) Object.assign(errors, coach.errors);
-      else coachIdValue = coach.value;
+      const coordinator = parseCoordinatorId(formData);
+      if (!coordinator.ok) Object.assign(errors, coordinator.errors);
+      else coordinatorIdValue = coordinator.value;
    }
 
    if (Object.keys(errors).length > 0) {
@@ -189,7 +199,8 @@ export async function createService(
    }
 
    // Safe: we only reach here if baseFields parsed AND price validated.
-   const { title, type, duration_minutes } = parsed.data!;
+   const { title, type, duration_minutes, requires_subscription } =
+      parsed.data!;
    const description = parsed.data!.description.trim();
    const priceCents = cents as number;
 
@@ -210,8 +221,9 @@ export async function createService(
          slots: scheduledAtValue?.slots ?? null,
          durationMinutes: duration_minutes,
          stripeProductId: productId,
-         coachId: coachIdValue,
+         coordinatorId: coordinatorIdValue,
          status: "active",
+         requiresSubscription: requires_subscription === "true",
       });
    } catch (e) {
       if (createdProductId) {
@@ -241,9 +253,19 @@ export async function createService(
 const updateFields = z.object({
    service_id: z.string().uuid(),
    title: z.string().min(1, "Title cannot be empty").max(500).optional(),
-   description: z.string().min(1, "Description cannot be empty").max(1000).optional(),
-   duration_minutes: z.coerce.number().int().min(1).max(24 * 60).optional(),
+   description: z
+      .string()
+      .min(1, "Description cannot be empty")
+      .max(1000)
+      .optional(),
+   duration_minutes: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(24 * 60)
+      .optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
+   requires_subscription: z.enum(["true", "false"]).optional(),
 });
 
 export async function updateService(
@@ -264,6 +286,8 @@ export async function updateService(
       description: field(formData, "description") || undefined,
       duration_minutes: field(formData, "duration_minutes") || undefined,
       price_cad: field(formData, "price_cad") || undefined,
+      requires_subscription:
+         field(formData, "requires_subscription") || undefined,
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -306,7 +330,7 @@ export async function updateService(
    }
 
    let scheduledAtValue: ProgramSchedule | undefined;
-   let coachIdValue: string | undefined;
+   let coordinatorIdValue: string | undefined;
    if (row.type === "programs" && formData.has("start_date")) {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -314,19 +338,23 @@ export async function updateService(
       } else {
          scheduledAtValue = result.value;
       }
-   } else if (row.type === "private_lessons" && formData.has("coach_id")) {
-      // Private lessons can be reassigned to a different coach, but the coach
-      // remains mandatory: an empty/invalid value is rejected.
-      const coach = parseCoachId(formData);
-      if (!coach.ok) Object.assign(errors, coach.errors);
-      else coachIdValue = coach.value;
+   } else if (
+      row.type === "private_lessons" &&
+      formData.has("coordinator_id")
+   ) {
+      // Private lessons can be reassigned to a different coordinator, but the
+      // coordinator remains mandatory: an empty/invalid value is rejected.
+      const coordinator = parseCoordinatorId(formData);
+      if (!coordinator.ok) Object.assign(errors, coordinator.errors);
+      else coordinatorIdValue = coordinator.value;
    }
 
    if (Object.keys(errors).length > 0) {
       return { errors };
    }
 
-   const { title, description, duration_minutes } = parsed.data!;
+   const { title, description, duration_minutes, requires_subscription } =
+      parsed.data!;
    const service_id = serviceId;
 
    try {
@@ -336,27 +364,25 @@ export async function updateService(
       });
 
       if (cents !== undefined) {
-         // The edit form always submits the price, so only swap it when the
-         // amount actually changed. Recreating an unchanged price needlessly
-         // archives the product's default price, which Stripe rejects.
          const current = await getStripeServiceData(row.stripeProductId);
          if (current?.priceCents !== cents) {
-            // Stripe Prices are immutable: deactivate the current active
-            // price(s) and create a new one at the new amount.
-            await deactivateActivePricesForProduct(row.stripeProductId);
-            await createPrice(row.stripeProductId, cents);
+            await replaceProductPrice(row.stripeProductId, cents);
          }
       }
 
       const dbPatch: Partial<typeof services.$inferInsert> = {};
-      if (duration_minutes !== undefined) dbPatch.durationMinutes = duration_minutes;
-      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
+      if (duration_minutes !== undefined)
+         dbPatch.durationMinutes = duration_minutes;
+      if (coordinatorIdValue !== undefined)
+         dbPatch.coordinatorId = coordinatorIdValue;
       if (scheduledAtValue !== undefined) {
          dbPatch.startDate = scheduledAtValue.startDate;
          dbPatch.endDate = scheduledAtValue.endDate;
          dbPatch.slots = scheduledAtValue.slots;
       }
-      if (coachIdValue !== undefined) dbPatch.coachId = coachIdValue;
+      if (requires_subscription !== undefined) {
+         dbPatch.requiresSubscription = requires_subscription === "true";
+      }
 
       if (Object.keys(dbPatch).length > 0) {
          dbPatch.updatedAt = new Date();
@@ -440,7 +466,9 @@ export async function setServiceStatus(
       return {
          errors: {
             _form: [
-               e instanceof Error ? e.message : "Could not update service status",
+               e instanceof Error
+                  ? e.message
+                  : "Could not update service status",
             ],
          },
       };

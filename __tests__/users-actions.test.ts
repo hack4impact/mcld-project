@@ -37,7 +37,7 @@ jest.mock("@/lib/stripe", () => ({
    grantComplimentarySubscription: jest.fn(),
 }));
 
-const COACH_ID = "11111111-1111-1111-1111-111111111111";
+const COORDINATOR_ID = "11111111-1111-1111-1111-111111111111";
 
 function fd(obj: Record<string, string>): FormData {
    const f = new FormData();
@@ -56,16 +56,16 @@ describe("deleteUserAdmin", () => {
    it("returns Unauthorized when the caller is not an admin", async () => {
       requireAdmin.mockRejectedValue(new Error("Forbidden"));
 
-      const result = await deleteUserAdmin(null, fd({ user_id: COACH_ID }));
+      const result = await deleteUserAdmin(null, fd({ user_id: COORDINATOR_ID }));
 
       expect(result).toEqual({ errors: { _form: ["Unauthorized"] } });
       expect(deleteUser).not.toHaveBeenCalled();
    });
 
-   it("blocks deletion when the coach is assigned to a private lesson", async () => {
+   it("blocks deletion when the coordinator is assigned to a private lesson", async () => {
       selectLimit.mockResolvedValue([{ id: "svc-1" }]);
 
-      const result = await deleteUserAdmin(null, fd({ user_id: COACH_ID }));
+      const result = await deleteUserAdmin(null, fd({ user_id: COORDINATOR_ID }));
 
       expect(result?.errors?._form?.[0]).toMatch(/private lesson/i);
       expect(deleteUser).not.toHaveBeenCalled();
@@ -74,16 +74,16 @@ describe("deleteUserAdmin", () => {
    it("deletes the user when not assigned to any private lesson", async () => {
       selectLimit.mockResolvedValue([]);
 
-      const result = await deleteUserAdmin(null, fd({ user_id: COACH_ID }));
+      const result = await deleteUserAdmin(null, fd({ user_id: COORDINATOR_ID }));
 
       expect(result).toEqual({ message: "User deleted." });
-      expect(deleteUser).toHaveBeenCalledWith(COACH_ID);
+      expect(deleteUser).toHaveBeenCalledWith(COORDINATOR_ID);
    });
 
    it("surfaces an auth error from Supabase", async () => {
       deleteUser.mockResolvedValue({ error: { message: "boom" } });
 
-      const result = await deleteUserAdmin(null, fd({ user_id: COACH_ID }));
+      const result = await deleteUserAdmin(null, fd({ user_id: COORDINATOR_ID }));
 
       expect(result).toEqual({ errors: { _form: ["boom"] } });
    });
