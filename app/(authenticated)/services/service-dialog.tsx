@@ -49,7 +49,9 @@ import type {
    ServiceView,
 } from "@/app/(authenticated)/services/queries";
 
-type Props = { coordinators: CoordinatorOption[] } & (
+type FormOption = { id: string; name: string };
+
+type Props = { coordinators: CoordinatorOption[]; forms: FormOption[] } & (
    | { mode: "add" }
    | {
         mode: "edit";
@@ -244,7 +246,7 @@ function ProgramScheduleFields({
 export function ServiceDialog(props: Props) {
    const isEdit = props.mode === "edit";
    const service = isEdit ? props.service : null;
-   const { coordinators } = props;
+   const { coordinators, forms } = props;
 
    const [type, setType] = React.useState<"programs" | "private_lessons">(
       service?.type ?? "programs",
@@ -252,6 +254,10 @@ export function ServiceDialog(props: Props) {
    const [coordinatorId, setCoordinatorId] = React.useState<string>(
       service?.coordinatorId ?? "",
    );
+   const [isForChildren, setIsForChildren] = React.useState<boolean>(
+      service?.isForChildren ?? false,
+   );
+   const [formId, setFormId] = React.useState<string>(service?.formId ?? "");
    const [title, setTitle] = React.useState<string>(service?.title ?? "");
    const [description, setDescription] = React.useState<string>(
       service?.description ?? "",
@@ -273,6 +279,8 @@ export function ServiceDialog(props: Props) {
       if (service) {
          setType(service.type);
          setCoordinatorId(service.coordinatorId ?? "");
+         setIsForChildren(service.isForChildren ?? false);
+         setFormId(service.formId ?? "");
          setTitle(service.title ?? "");
          setDescription(service.description ?? "");
          setDurationMinutes(String(service.durationMinutes ?? 60));
@@ -293,6 +301,8 @@ export function ServiceDialog(props: Props) {
             closeRef.current?.click();
             setType("programs");
             setCoordinatorId("");
+            setIsForChildren(false);
+            setFormId("");
             setTitle("");
             setDescription("");
             setDurationMinutes("60");
@@ -435,6 +445,49 @@ export function ServiceDialog(props: Props) {
                      </ButtonGroup>
                      <FieldError messages={errors?.price_cad} />
                   </div>
+
+                  <div className="flex flex-col gap-1.5">
+                     <input
+                        type="hidden"
+                        name="is_for_children"
+                        value={String(isForChildren)}
+                     />
+                     <div className="flex items-center gap-2">
+                        <Checkbox
+                           id="is_for_children"
+                           checked={isForChildren}
+                           onCheckedChange={(checked) =>
+                              setIsForChildren(checked === true)
+                           }
+                        />
+                        <Label htmlFor="is_for_children">For children</Label>
+                     </div>
+                  </div>
+
+                  {isForChildren && (
+                     <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="form_id">Form (optional)</Label>
+                        <input type="hidden" name="form_id" value={formId} />
+                        <Select
+                           value={formId || "none"}
+                           onValueChange={(v) =>
+                              setFormId(v === "none" ? "" : v)
+                           }
+                        >
+                           <SelectTrigger id="form_id" className="w-full">
+                              <SelectValue placeholder="No form" />
+                           </SelectTrigger>
+                           <SelectContent>
+                              <SelectItem value="none">No form</SelectItem>
+                              {forms.map((f) => (
+                                 <SelectItem key={f.id} value={f.id}>
+                                    {f.name}
+                                 </SelectItem>
+                              ))}
+                           </SelectContent>
+                        </Select>
+                     </div>
+                  )}
 
                   <div className="flex flex-col gap-1.5">
                      <div className="flex items-center gap-2">

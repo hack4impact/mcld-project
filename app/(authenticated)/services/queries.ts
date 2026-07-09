@@ -17,6 +17,8 @@ export type ServiceType = "private_lessons" | "programs";
 export type ServiceView = {
    id: string;
    type: ServiceType;
+   isForChildren: boolean;
+   formId: string | null;
    scheduledAt: ProgramSchedule | null;
    durationMinutes: number;
    status: ServiceStatus;
@@ -49,6 +51,8 @@ async function buildServiceView(
    return {
       id: row.id,
       type: row.type,
+      isForChildren: row.isForChildren,
+      formId: row.formId,
       scheduledAt: rowToSchedule(row),
       durationMinutes: row.durationMinutes,
       status: row.status,
