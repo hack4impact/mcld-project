@@ -17,6 +17,8 @@ export type ServiceType = "private_lessons" | "programs";
 export type ServiceView = {
    id: string;
    type: ServiceType;
+   isForChildren: boolean;
+   formId: string | null;
    scheduledAt: ProgramSchedule | null;
    durationMinutes: number;
    status: ServiceStatus;
@@ -28,6 +30,7 @@ export type ServiceView = {
    description: string | null;
    priceCents: number | null;
    priceCurrency: string | null;
+   requiresSubscription: boolean;
 };
 
 function rowToSchedule(
@@ -48,6 +51,8 @@ async function buildServiceView(
    return {
       id: row.id,
       type: row.type,
+      isForChildren: row.isForChildren,
+      formId: row.formId,
       scheduledAt: rowToSchedule(row),
       durationMinutes: row.durationMinutes,
       status: row.status,
@@ -59,6 +64,7 @@ async function buildServiceView(
       description: stripeData?.description ?? null,
       priceCents: stripeData?.priceCents ?? null,
       priceCurrency: stripeData?.priceCurrency ?? null,
+      requiresSubscription: row.requiresSubscription,
    };
 }
 

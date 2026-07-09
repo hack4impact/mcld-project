@@ -100,13 +100,17 @@ describe("createService", () => {
             type: "private_lessons",
             duration_minutes: "60",
             price_cad: "50.00",
+            requires_subscription: "true",
             coordinator_id: COORDINATOR_A,
          }),
       );
 
       expect(result).toEqual({ message: "Service created." });
       expect(insertValues).toHaveBeenCalledWith(
-         expect.objectContaining({ type: "private_lessons", coordinatorId: COORDINATOR_A }),
+         expect.objectContaining({
+            type: "private_lessons",
+            coordinatorId: COORDINATOR_A,
+         }),
       );
    });
 
@@ -122,6 +126,7 @@ describe("createService", () => {
             start_date: "2026-01-01",
             end_date: "2026-02-01",
             slots: JSON.stringify([{ dayOfWeek: 1, time: "10:00" }]),
+            requires_subscription: "true",
          }),
       );
 
@@ -167,7 +172,11 @@ describe("updateService", () => {
 
       const result = await updateService(
          null,
-         fd({ service_id: SERVICE_ID, coordinator_id: COORDINATOR_B, price_cad: "50.00" }),
+         fd({
+            service_id: SERVICE_ID,
+            coordinator_id: COORDINATOR_B,
+            price_cad: "50.00",
+         }),
       );
 
       expect(result).toEqual({ message: "Service updated." });
