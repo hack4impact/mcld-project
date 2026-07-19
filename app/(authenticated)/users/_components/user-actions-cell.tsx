@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import { Pencil, Tag, Trash2, ReceiptText } from "lucide-react";
+import { Baby, Pencil, Tag, Trash2, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -26,6 +26,7 @@ import { deleteUserAdmin } from "@/app/(authenticated)/users/actions";
 import { toast } from "sonner";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
 import { UserTransactionsModal } from "./components/user-transactions-modals";
+import { ManageChildrenModal } from "./children/manage-children-modal";
 
 
 interface UserActionsCellProps {
@@ -35,6 +36,7 @@ interface UserActionsCellProps {
 
 export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
    const [txOpen, setTxOpen] = useState(false);
+   const [childrenOpen, setChildrenOpen] = useState(false);
    const [open, setOpen] = useState(false);
    const [services, setServices] = useState<DiscountService[]>([]);
    const [discounts, setDiscounts] = useState<ActiveDiscount[]>([]);
@@ -141,6 +143,19 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
                <Button
                   variant="ghost"
                   size="icon-sm"
+                  aria-label="Manage children"
+                  onClick={() => setChildrenOpen(true)}
+               >
+                  <Baby />
+               </Button>
+            </TooltipTrigger>
+            <TooltipContent>Manage children</TooltipContent>
+         </Tooltip>
+         <Tooltip>
+            <TooltipTrigger asChild>
+               <Button
+                  variant="ghost"
+                  size="icon-sm"
                   aria-label="Manage discounts"
                   disabled={!user.stripeCustomerId || loading}
                   onClick={() => handleOpenChange(true)}
@@ -226,6 +241,12 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
             stripeCustomerId={user.stripeCustomerId || ""}
             open={txOpen}
             onOpenChange={setTxOpen}
+         />
+         <ManageChildrenModal
+            parentId={user.id}
+            userName={`${user.firstName} ${user.lastName}`}
+            open={childrenOpen}
+            onOpenChange={setChildrenOpen}
          />
       </div>
    );
