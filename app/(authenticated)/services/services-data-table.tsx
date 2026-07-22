@@ -11,7 +11,7 @@ import {
    TooltipContent,
    TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DataTable } from "@/components/data-table";
+import { UsersDataTable } from "@/app/(authenticated)/users/_components/users-data-table";
 import { formatDate } from "@/lib/format";
 import { statusBadgeClass, subscriptionBadgeClass } from "@/lib/service-badges";
 
@@ -44,6 +44,7 @@ export function ServicesDataTable({
          {
             accessorKey: "title",
             header: "Program",
+            meta: { colWidth: "42%" },
             cell: ({ row }) => (
                <span className="font-medium">{row.original.title ?? "—"}</span>
             ),
@@ -51,6 +52,7 @@ export function ServicesDataTable({
          {
             accessorKey: "status",
             header: "Status",
+            meta: { colWidth: "13%" },
             cell: ({ row }) => (
                <span
                   className={
@@ -79,6 +81,7 @@ export function ServicesDataTable({
          {
             id: "startDate",
             header: "Start Date",
+            meta: { colWidth: "17%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.startDate) : "—";
@@ -87,6 +90,7 @@ export function ServicesDataTable({
          {
             id: "endDate",
             header: "End Date",
+            meta: { colWidth: "17%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.endDate) : "—";
@@ -94,7 +98,8 @@ export function ServicesDataTable({
          },
          {
             id: "actions",
-            header: () => <div className="text-right">Actions</div>,
+            header: "Actions",
+            meta: { colWidth: "11%", thClassName: "text-right", tdClassName: "text-right" },
             cell: ({ row }) => {
                const s = row.original;
                return (
@@ -197,7 +202,7 @@ export function ServicesDataTable({
    );
 
    return (
-      <DataTable
+      <UsersDataTable
          columns={columns}
          data={services}
          emptyMessage="No services found."
