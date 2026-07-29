@@ -42,6 +42,11 @@ function FieldError({ errors }: { errors?: string[] }) {
    return <p className="text-sm text-destructive">{errors[0]}</p>;
 }
 
+type ChildFormAction = (
+   prev: ChildActionState,
+   formData: FormData,
+) => Promise<ChildActionState>;
+
 function toDraftContacts(child: ChildView): DraftEmergencyContact[] {
    return child.emergencyContacts.map((c) => ({
       id: c.id,
@@ -57,11 +62,13 @@ function ChildEditForm({
    parentId,
    onClose,
    onSuccess,
+   action,
 }: {
    child: ChildView;
-   parentId: string;
+   parentId?: string;
    onClose: () => void;
    onSuccess?: () => void;
+   action: ChildFormAction;
 }) {
    const [gender, setGender] = useState<string>(child.gender);
    const [dob, setDob] = useState(child.dob);
@@ -81,7 +88,9 @@ function ChildEditForm({
             };
          }
          formData.set("child_id", child.id);
-         formData.set("parent_id", parentId);
+         if (parentId) {
+            formData.set("parent_id", parentId);
+         }
          formData.set(
             "emergency_contacts",
             JSON.stringify(
@@ -100,7 +109,7 @@ function ChildEditForm({
                ),
             ),
          );
-         const result = await updateChildAdmin(prev, formData);
+         const result = await action(prev, formData);
          if (result?.message && !result.errors) {
             toast.success(result.message);
             onClose();
@@ -110,7 +119,7 @@ function ChildEditForm({
          }
          return result;
       },
-      [child.id, parentId, emergencyContacts, onClose, onSuccess],
+      [child.id, parentId, emergencyContacts, onClose, onSuccess, action],
    );
 
    const [state, formAction, pending] = useActionState<
@@ -345,12 +354,14 @@ export function ChildDetailDialog({
    open,
    onOpenChange,
    onSuccess,
+   action = updateChildAdmin,
 }: {
    child: ChildView | null;
-   parentId: string;
+   parentId?: string;
    open: boolean;
    onOpenChange: (open: boolean) => void;
    onSuccess?: () => void;
+   action?: ChildFormAction;
 }) {
    if (!child) return null;
 
@@ -363,6 +374,7 @@ export function ChildDetailDialog({
                parentId={parentId}
                onClose={() => onOpenChange(false)}
                onSuccess={onSuccess}
+               action={action}
             />
          )}
       </Dialog>

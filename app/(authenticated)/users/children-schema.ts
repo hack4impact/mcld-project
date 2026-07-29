@@ -9,7 +9,7 @@ const emergencyContactSchema = z.object({
    relationship: z.string().min(1, "Relationship is required"),
 });
 
-const childFieldsSchema = z.object({
+export const createChildSchema = z.object({
    first_name: z.string().min(1, "First name is required"),
    last_name: z.string().min(1, "Last name is required"),
    dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date of birth"),
@@ -22,11 +22,14 @@ const childFieldsSchema = z.object({
       .min(1, "At least one emergency contact is required"),
 });
 
-export const createChildAdminSchema = childFieldsSchema.extend({
+export const updateChildSchema = createChildSchema.extend({
+   child_id: z.string().uuid(),
+});
+
+export const createChildAdminSchema = createChildSchema.extend({
    parent_id: z.string().uuid(),
 });
 
-export const updateChildAdminSchema = childFieldsSchema.extend({
-   child_id: z.string().uuid(),
+export const updateChildAdminSchema = updateChildSchema.extend({
    parent_id: z.string().uuid(),
 });

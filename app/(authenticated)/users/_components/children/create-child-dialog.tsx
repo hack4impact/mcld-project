@@ -41,16 +41,23 @@ function FieldError({ errors }: { errors?: string[] }) {
    return <p className="text-sm text-destructive">{errors[0]}</p>;
 }
 
+type ChildFormAction = (
+   prev: ChildActionState,
+   formData: FormData,
+) => Promise<ChildActionState>;
+
 export function CreateChildDialog({
    parentId,
    open,
    onOpenChange,
    onSuccess,
+   action = createChildAdmin,
 }: {
-   parentId: string;
+   parentId?: string;
    open: boolean;
    onOpenChange: (open: boolean) => void;
    onSuccess?: () => void;
+   action?: ChildFormAction;
 }) {
    const [formKey, setFormKey] = useState(0);
    const [gender, setGender] = useState("");
@@ -83,7 +90,9 @@ export function CreateChildDialog({
                },
             };
          }
-         formData.set("parent_id", parentId);
+         if (parentId) {
+            formData.set("parent_id", parentId);
+         }
          formData.set(
             "emergency_contacts",
             JSON.stringify(
@@ -102,7 +111,7 @@ export function CreateChildDialog({
                ),
             ),
          );
-         const result = await createChildAdmin(prev, formData);
+         const result = await action(prev, formData);
          if (result?.message && !result.errors) {
             toast.success(result.message);
             resetForm();
@@ -113,7 +122,7 @@ export function CreateChildDialog({
          }
          return result;
       },
-      [emergencyContacts, parentId, onOpenChange, onSuccess],
+      [emergencyContacts, parentId, onOpenChange, onSuccess, action],
    );
 
    const [state, formAction, pending] = useActionState(boundFormAction, null);

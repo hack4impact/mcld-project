@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,6 +11,8 @@ import {
    MonitorSmartphone,
    Settings,
    Form,
+   Baby,
+   type LucideIcon,
 } from "lucide-react";
 import {
    Sidebar,
@@ -25,21 +28,43 @@ import {
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { ROLES, type Role } from "@/lib/roles";
 
-const navItems = [
+type NavItem = {
+   title: string;
+   href: string;
+   icon: LucideIcon;
+};
+
+const baseNavItems: NavItem[] = [
    { title: "OVERVIEW", href: "/", icon: LayoutGrid },
    { title: "SERVICES", href: "/services", icon: BookOpen },
    { title: "USERS", href: "/users", icon: Users },
    { title: "FINANCE", href: "/finance", icon: CreditCard },
    { title: "MEMBERSHIPS", href: "/memberships", icon: MonitorSmartphone },
-   { title: "FORMS" , href: "/forms", icon: Form}
+   { title: "FORMS", href: "/forms", icon: Form },
 ];
 
 export function AppSidebar({
    className,
+   role,
    ...props
-}: React.ComponentProps<typeof Sidebar>) {
+}: React.ComponentProps<typeof Sidebar> & { role?: Role | string | null }) {
    const pathname = usePathname();
+
+   const navItems = useMemo(() => {
+      const items = [...baseNavItems];
+      if (role && role !== ROLES.ADMIN) {
+         const usersIdx = items.findIndex((i) => i.href === "/users");
+         const insertAt = usersIdx >= 0 ? usersIdx + 1 : items.length;
+         items.splice(insertAt, 0, {
+            title: "CHILDREN",
+            href: "/children",
+            icon: Baby,
+         });
+      }
+      return items;
+   }, [role]);
 
    return (
       <Sidebar
@@ -77,7 +102,11 @@ export function AppSidebar({
                <SidebarGroupContent>
                   <SidebarMenu className="gap-1">
                      {navItems.map((item) => {
-                        const isActive = pathname === item.href;
+                        const isActive =
+                           item.href === "/"
+                              ? pathname === "/"
+                              : pathname === item.href ||
+                                pathname.startsWith(`${item.href}/`);
                         return (
                            <SidebarMenuItem key={item.title}>
                               <SidebarMenuButton
