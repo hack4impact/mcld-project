@@ -53,10 +53,13 @@ export function AppSidebar({
    const pathname = usePathname();
 
    const navItems = useMemo(() => {
-      const items = [...baseNavItems];
-      if (role && role !== ROLES.ADMIN) {
-         const usersIdx = items.findIndex((i) => i.href === "/users");
-         const insertAt = usersIdx >= 0 ? usersIdx + 1 : items.length;
+      const isAdmin = role === ROLES.ADMIN;
+      const items = baseNavItems.filter(
+         (item) => isAdmin || item.href !== "/users",
+      );
+      if (role && !isAdmin) {
+         const servicesIdx = items.findIndex((i) => i.href === "/services");
+         const insertAt = servicesIdx >= 0 ? servicesIdx + 1 : items.length;
          items.splice(insertAt, 0, {
             title: "CHILDREN",
             href: "/children",
