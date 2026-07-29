@@ -26,7 +26,8 @@ export type DraftEmergencyContact = {
 type EmergencyContactDialogProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
-   onAdd: (contact: Omit<DraftEmergencyContact, "id">) => void;
+   contact?: DraftEmergencyContact | null;
+   onSave: (contact: Omit<DraftEmergencyContact, "id">) => void;
 };
 
 function FieldError({ errors }: { errors?: string[] }) {
@@ -37,10 +38,12 @@ function FieldError({ errors }: { errors?: string[] }) {
 export function EmergencyContactDialog({
    open,
    onOpenChange,
-   onAdd,
+   contact = null,
+   onSave,
 }: EmergencyContactDialogProps) {
    const [formKey, setFormKey] = useState(0);
    const [errors, setErrors] = useState<Record<string, string[]>>({});
+   const isEditing = !!contact;
 
    function handleOpenChange(nextOpen: boolean) {
       if (nextOpen) {
@@ -77,7 +80,7 @@ export function EmergencyContactDialog({
          return;
       }
 
-      onAdd({ full_name, email_address, phone_number, relationship });
+      onSave({ full_name, email_address, phone_number, relationship });
       handleOpenChange(false);
    }
 
@@ -85,7 +88,11 @@ export function EmergencyContactDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-               <DialogTitle>Add emergency contact</DialogTitle>
+               <DialogTitle>
+                  {isEditing
+                     ? "Edit emergency contact"
+                     : "Add emergency contact"}
+               </DialogTitle>
                <DialogDescription>
                   Required for every child profile.
                </DialogDescription>
@@ -98,7 +105,12 @@ export function EmergencyContactDialog({
             >
                <div className="space-y-2">
                   <Label htmlFor="ec_dialog_name">Full name</Label>
-                  <Input id="ec_dialog_name" name="full_name" required />
+                  <Input
+                     id="ec_dialog_name"
+                     name="full_name"
+                     defaultValue={contact?.full_name ?? ""}
+                     required
+                  />
                   <FieldError errors={errors.full_name} />
                </div>
 
@@ -108,6 +120,7 @@ export function EmergencyContactDialog({
                      id="ec_dialog_email"
                      name="email_address"
                      type="email"
+                     defaultValue={contact?.email_address ?? ""}
                      required
                   />
                   <FieldError errors={errors.email_address} />
@@ -120,6 +133,7 @@ export function EmergencyContactDialog({
                      name="phone_number"
                      type="tel"
                      inputMode="numeric"
+                     defaultValue={contact?.phone_number ?? ""}
                      onChange={(e) => {
                         e.target.value = e.target.value.replace(/\D/g, "");
                      }}
@@ -133,6 +147,7 @@ export function EmergencyContactDialog({
                   <Input
                      id="ec_dialog_relationship"
                      name="relationship"
+                     defaultValue={contact?.relationship ?? ""}
                      required
                   />
                   <FieldError errors={errors.relationship} />
@@ -147,8 +162,14 @@ export function EmergencyContactDialog({
                      Cancel
                   </Button>
                   <Button type="submit">
-                     <Plus />
-                     Add contact
+                     {isEditing ? (
+                        "Save contact"
+                     ) : (
+                        <>
+                           <Plus />
+                           Add contact
+                        </>
+                     )}
                   </Button>
                </DialogFooter>
             </form>

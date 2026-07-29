@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useState } from "react";
-import { ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,9 @@ export function CreateChildDialog({
       DraftEmergencyContact[]
    >([]);
    const [ecSectionOpen, setEcSectionOpen] = useState(true);
-   const [addContactOpen, setAddContactOpen] = useState(false);
+   const [contactDialogOpen, setContactDialogOpen] = useState(false);
+   const [editingContact, setEditingContact] =
+      useState<DraftEmergencyContact | null>(null);
 
    function resetForm() {
       setGender("");
@@ -127,12 +129,31 @@ export function CreateChildDialog({
 
    const [state, formAction, pending] = useActionState(boundFormAction, null);
 
-   function handleAddContact(contact: Omit<DraftEmergencyContact, "id">) {
-      setEmergencyContacts((prev) => [
-         ...prev,
-         { ...contact, id: crypto.randomUUID() },
-      ]);
-      setEcSectionOpen(true);
+   function openAddContact() {
+      setEditingContact(null);
+      setContactDialogOpen(true);
+   }
+
+   function openEditContact(contact: DraftEmergencyContact) {
+      setEditingContact(contact);
+      setContactDialogOpen(true);
+   }
+
+   function handleSaveContact(contact: Omit<DraftEmergencyContact, "id">) {
+      if (editingContact) {
+         setEmergencyContacts((prev) =>
+            prev.map((c) =>
+               c.id === editingContact.id ? { ...c, ...contact } : c,
+            ),
+         );
+      } else {
+         setEmergencyContacts((prev) => [
+            ...prev,
+            { ...contact, id: crypto.randomUUID() },
+         ]);
+         setEcSectionOpen(true);
+      }
+      setEditingContact(null);
    }
 
    function handleRemoveContact(id: string) {
@@ -287,19 +308,32 @@ export function CreateChildDialog({
                                                    {contact.phone_number}
                                                 </p>
                                              </div>
-                                             <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                aria-label={`Remove ${contact.full_name}`}
-                                                onClick={() =>
-                                                   handleRemoveContact(
-                                                      contact.id,
-                                                   )
-                                                }
-                                             >
-                                                <Trash2 className="size-4" />
-                                             </Button>
+                                             <div className="flex shrink-0 items-center gap-0.5">
+                                                <Button
+                                                   type="button"
+                                                   variant="ghost"
+                                                   size="icon-sm"
+                                                   aria-label={`Edit ${contact.full_name}`}
+                                                   onClick={() =>
+                                                      openEditContact(contact)
+                                                   }
+                                                >
+                                                   <Pencil className="size-4" />
+                                                </Button>
+                                                <Button
+                                                   type="button"
+                                                   variant="ghost"
+                                                   size="icon-sm"
+                                                   aria-label={`Remove ${contact.full_name}`}
+                                                   onClick={() =>
+                                                      handleRemoveContact(
+                                                         contact.id,
+                                                      )
+                                                   }
+                                                >
+                                                   <Trash2 className="size-4" />
+                                                </Button>
+                                             </div>
                                           </li>
                                        ))}
                                     </ul>
@@ -313,7 +347,7 @@ export function CreateChildDialog({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setAddContactOpen(true)}
+                                    onClick={openAddContact}
                                  >
                                     <Plus />
                                     Add contact
@@ -349,9 +383,13 @@ export function CreateChildDialog({
          </Dialog>
 
          <EmergencyContactDialog
-            open={addContactOpen}
-            onOpenChange={setAddContactOpen}
-            onAdd={handleAddContact}
+            open={contactDialogOpen}
+            onOpenChange={(open) => {
+               setContactDialogOpen(open);
+               if (!open) setEditingContact(null);
+            }}
+            contact={editingContact}
+            onSave={handleSaveContact}
          />
       </>
    );
