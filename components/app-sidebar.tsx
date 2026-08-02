@@ -58,9 +58,7 @@ export function AppSidebar({
          (item) => isAdmin || item.href !== "/users",
       );
       if (role === ROLES.USER) {
-         const servicesIdx = items.findIndex((i) => i.href === "/services");
-         const insertAt = servicesIdx >= 0 ? servicesIdx + 1 : items.length;
-         items.splice(insertAt, 0, {
+         items.push({
             title: "CHILDREN",
             href: "/children",
             icon: Baby,
