@@ -57,7 +57,7 @@ export function AppSidebar({
       const items = baseNavItems.filter(
          (item) => isAdmin || item.href !== "/users",
       );
-      if (role && !isAdmin) {
+      if (role === ROLES.USER) {
          const servicesIdx = items.findIndex((i) => i.href === "/services");
          const insertAt = servicesIdx >= 0 ? servicesIdx + 1 : items.length;
          items.splice(insertAt, 0, {

@@ -1,68 +1,42 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 
 import { createClient } from "@/utils/supabase/server";
 import { db } from "@/lib/db";
 import { children, emergencyContacts } from "@/lib/db/schema";
+import { ROLES } from "@/lib/roles";
 import {
    createChildSchema,
+   deleteChildSchema,
    updateChildSchema,
+   type ChildActionState,
 } from "@/app/(authenticated)/users/children-schema";
-import type { ChildActionState } from "@/app/(authenticated)/users/children-actions";
+import {
+   field,
+   insertEmergencyContacts,
+   parseEmergencyContacts,
+   revalidateChildrenPaths,
+} from "@/app/(authenticated)/users/children-shared";
 
-const CHILDREN_PATH = "/children";
-
-function field(formData: FormData, name: string): string | undefined {
-   const v = formData.get(name);
-   return v === null ? undefined : v.toString();
-}
-
-function parseEmergencyContacts(formData: FormData) {
-   const contactsRaw = field(formData, "emergency_contacts");
-   try {
-      return contactsRaw ? JSON.parse(contactsRaw) : [];
-   } catch {
-      return null;
-   }
-}
-
-async function insertEmergencyContacts(
-   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-   childId: string,
-   contacts: {
-      full_name: string;
-      email_address: string;
-      phone_number: string;
-      relationship: string;
-   }[],
-) {
-   if (contacts.length === 0) return;
-   await tx.insert(emergencyContacts).values(
-      contacts.map((c) => ({
-         childId,
-         fullName: c.full_name,
-         emailAddress: c.email_address,
-         phoneNumber: c.phone_number,
-         relationship: c.relationship,
-      })),
-   );
-}
-
-async function requireUserId(): Promise<string | null> {
+async function requireParentUserId(): Promise<string | null> {
    const supabase = await createClient();
    const {
       data: { user },
    } = await supabase.auth.getUser();
-   return user?.id ?? null;
+   if (!user) return null;
+
+   const { data: claimsData } = await supabase.auth.getClaims();
+   if (claimsData?.claims?.user_role !== ROLES.USER) return null;
+
+   return user.id;
 }
 
 export async function createChild(
    _prev: ChildActionState,
    formData: FormData,
 ): Promise<ChildActionState> {
-   const userId = await requireUserId();
+   const userId = await requireParentUserId();
    if (!userId) return { errors: { _form: ["Unauthorized"] } };
 
    const emergency_contacts = parseEmergencyContacts(formData);
@@ -107,7 +81,7 @@ export async function createChild(
          return child.id;
       });
 
-      revalidatePath(CHILDREN_PATH);
+      revalidateChildrenPaths();
       return { message: "Child created.", data: { childId } };
    } catch {
       return {
@@ -120,7 +94,7 @@ export async function updateChild(
    _prev: ChildActionState,
    formData: FormData,
 ): Promise<ChildActionState> {
-   const userId = await requireUserId();
+   const userId = await requireParentUserId();
    if (!userId) return { errors: { _form: ["Unauthorized"] } };
 
    const emergency_contacts = parseEmergencyContacts(formData);
@@ -183,7 +157,7 @@ export async function updateChild(
          );
       });
 
-      revalidatePath(CHILDREN_PATH);
+      revalidateChildrenPaths();
       return { message: "Child updated.", data: { childId: data.child_id } };
    } catch {
       return {
@@ -196,11 +170,17 @@ export async function deleteChild(
    _prev: ChildActionState,
    formData: FormData,
 ): Promise<ChildActionState> {
-   const userId = await requireUserId();
+   const userId = await requireParentUserId();
    if (!userId) return { errors: { _form: ["Unauthorized"] } };
 
-   const childId = field(formData, "child_id");
-   if (!childId) return { errors: { _form: ["Child not found"] } };
+   const parsed = deleteChildSchema.safeParse({
+      child_id: field(formData, "child_id"),
+   });
+   if (!parsed.success) {
+      return { errors: parsed.error.flatten().fieldErrors };
+   }
+
+   const { child_id: childId } = parsed.data;
 
    const [existing] = await db
       .select({ id: children.id })
@@ -212,7 +192,7 @@ export async function deleteChild(
 
    try {
       await db.delete(children).where(eq(children.id, childId));
-      revalidatePath(CHILDREN_PATH);
+      revalidateChildrenPaths();
       return { message: "Child deleted." };
    } catch {
       return {

@@ -73,6 +73,9 @@ export function EmergencyContactDialog({
          nextErrors.email_address = ["Invalid email address"];
       }
       if (!phone_number) nextErrors.phone_number = ["Phone number is required"];
+      else if (!/^\d{10,15}$/.test(phone_number)) {
+         nextErrors.phone_number = ["Phone number must be 10–15 digits"];
+      }
       if (!relationship) nextErrors.relationship = ["Relationship is required"];
 
       if (Object.keys(nextErrors).length > 0) {

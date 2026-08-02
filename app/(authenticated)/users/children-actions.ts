@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 
 import { requireAdmin } from "@/lib/auth/require-admin";
@@ -9,55 +8,20 @@ import { children, emergencyContacts, profiles } from "@/lib/db/schema";
 import {
    createChildAdminSchema,
    updateChildAdminSchema,
+   type ChildActionState,
 } from "./children-schema";
 import {
    listChildrenForParent,
    type ChildView,
 } from "./children-queries";
+import {
+   field,
+   insertEmergencyContacts,
+   parseEmergencyContacts,
+   revalidateChildrenPaths,
+} from "./children-shared";
 
-export type ChildActionState = {
-   errors?: Record<string, string[]>;
-   message?: string;
-   data?: { childId: string };
-} | null;
-
-const USERS_PATH = "/users";
-
-function field(formData: FormData, name: string): string | undefined {
-   const v = formData.get(name);
-   return v === null ? undefined : v.toString();
-}
-
-function parseEmergencyContacts(formData: FormData) {
-   const contactsRaw = field(formData, "emergency_contacts");
-   try {
-      return contactsRaw ? JSON.parse(contactsRaw) : [];
-   } catch {
-      return null;
-   }
-}
-
-async function insertEmergencyContacts(
-   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-   childId: string,
-   contacts: {
-      full_name: string;
-      email_address: string;
-      phone_number: string;
-      relationship: string;
-   }[],
-) {
-   if (contacts.length === 0) return;
-   await tx.insert(emergencyContacts).values(
-      contacts.map((c) => ({
-         childId,
-         fullName: c.full_name,
-         emailAddress: c.email_address,
-         phoneNumber: c.phone_number,
-         relationship: c.relationship,
-      })),
-   );
-}
+export type { ChildActionState };
 
 export async function listChildrenForUserAdmin(
    parentId: string,
@@ -134,7 +98,7 @@ export async function createChildAdmin(
          return child.id;
       });
 
-      revalidatePath(USERS_PATH);
+      revalidateChildrenPaths();
       return { message: "Child created.", data: { childId } };
    } catch {
       return {
@@ -217,7 +181,7 @@ export async function updateChildAdmin(
          );
       });
 
-      revalidatePath(USERS_PATH);
+      revalidateChildrenPaths();
       return { message: "Child updated.", data: { childId: data.child_id } };
    } catch {
       return {

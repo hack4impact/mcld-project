@@ -27,8 +27,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
    updateChildAdmin,
-   type ChildActionState,
 } from "@/app/(authenticated)/users/children-actions";
+import type { ChildActionState } from "@/app/(authenticated)/users/children-schema";
 import type { ChildView } from "@/app/(authenticated)/users/children-queries";
 
 import { DobField } from "./dob-field";
@@ -268,6 +268,7 @@ function ChildEditForm({
                      <button
                         type="button"
                         className="flex w-full items-center justify-between px-4 py-3 text-left"
+                        aria-expanded={ecSectionOpen}
                         onClick={() => setEcSectionOpen((o) => !o)}
                      >
                         <span className="text-sm font-medium">

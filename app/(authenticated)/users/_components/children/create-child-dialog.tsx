@@ -27,8 +27,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
    createChildAdmin,
-   type ChildActionState,
 } from "@/app/(authenticated)/users/children-actions";
+import type { ChildActionState } from "@/app/(authenticated)/users/children-schema";
 
 import { DobField } from "./dob-field";
 import {
@@ -52,12 +52,16 @@ export function CreateChildDialog({
    onOpenChange,
    onSuccess,
    action = createChildAdmin,
+   description = parentId
+      ? "Create a child profile for this user."
+      : "Create a child profile linked to your account.",
 }: {
    parentId?: string;
    open: boolean;
    onOpenChange: (open: boolean) => void;
    onSuccess?: () => void;
    action?: ChildFormAction;
+   description?: string;
 }) {
    const [formKey, setFormKey] = useState(0);
    const [gender, setGender] = useState("");
@@ -167,9 +171,7 @@ export function CreateChildDialog({
                <DialogContent className="flex max-h-[90vh] w-full max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
                   <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
                      <DialogTitle>Add child</DialogTitle>
-                     <DialogDescription>
-                        Create a child profile for this user.
-                     </DialogDescription>
+                     <DialogDescription>{description}</DialogDescription>
                   </DialogHeader>
 
                   <form
@@ -273,6 +275,7 @@ export function CreateChildDialog({
                            <button
                               type="button"
                               className="flex w-full items-center justify-between px-4 py-3 text-left"
+                              aria-expanded={ecSectionOpen}
                               onClick={() => setEcSectionOpen((o) => !o)}
                            >
                               <span className="text-sm font-medium">

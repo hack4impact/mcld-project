@@ -28,8 +28,12 @@ async function ChildrenContent() {
    }
 
    const { data: claimsData } = await supabase.auth.getClaims();
-   if (claimsData?.claims?.user_role === ROLES.ADMIN) {
+   const role = claimsData?.claims?.user_role;
+   if (role === ROLES.ADMIN) {
       redirect("/users");
+   }
+   if (role !== ROLES.USER) {
+      redirect("/");
    }
 
    const childList = await listChildrenForParent(user.id);
