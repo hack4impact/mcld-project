@@ -21,7 +21,6 @@ import {
    revalidateChildrenPaths,
 } from "./children-shared";
 
-export type { ChildActionState };
 
 export async function listChildrenForUserAdmin(
    parentId: string,
