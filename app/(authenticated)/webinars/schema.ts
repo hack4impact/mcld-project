@@ -7,10 +7,17 @@ const youtubeUrlSchema = z
    .url("Enter a valid YouTube URL")
    .refine(
       (value) => {
-         const hostname = new URL(value).hostname.toLowerCase();
-         return ["youtube.com", "www.youtube.com", "youtu.be", "www.youtu.be"].includes(
-            hostname,
-         );
+         try {
+            const hostname = new URL(value).hostname.toLowerCase();
+            return [
+               "youtube.com",
+               "www.youtube.com",
+               "youtu.be",
+               "www.youtu.be",
+            ].includes(hostname);
+         } catch {
+            return false;
+         }
       },
       { message: "URL must be a YouTube URL" },
    );
