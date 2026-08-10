@@ -13,6 +13,12 @@ import { createUserAdminSchema, updateUserAdminSchema } from "./schema";
 import { grantComplimentarySubscription , stripe} from "@/lib/stripe";
 import type Stripe from "stripe";
 import { getTransactionsSchema, createRefundSchema} from "./schema";
+import { listCustomerCharges } from "@/lib/stripe-transactions";
+import type {
+   TransactionRefund,
+   UserTransaction,
+   PaginatedTransactions,
+} from "@/lib/stripe-transactions";
 
 export type UserAdminActionState = {
    errors?: Record<string, string[]>;
@@ -247,31 +253,11 @@ export async function deleteUserAdmin(
    return { message: "User deleted." };
 }
 
-export type TransactionRefund = {
-   id:string;
-   amount: number;
-   status:string | null;
-   created:number;
-}
-
-export type UserTransaction = {
-   id: string;
-   amount: number;
-   amountRefunded: number;
-   refunded: boolean;
-   created: number;
-   description: string;
-   paymentIntentId: string| null;
-   refunds: TransactionRefund[];
-   currency: string;
-}
-
-export type PaginatedTransactions = {
-   data: UserTransaction[];
-   hasMore: boolean;
-   firstId: string | null;
-   lastId: string | null;
-};
+export type {
+   TransactionRefund,
+   UserTransaction,
+   PaginatedTransactions,
+} from "@/lib/stripe-transactions";
 
 export async function getUserTransactions(
    input: {
@@ -284,61 +270,7 @@ export async function getUserTransactions(
 
    const parsed = getTransactionsSchema.parse(input)
 
-   const params: Stripe.ChargeListParams = {
-      customer: parsed.customerId,
-      limit: parsed.limit,
-      expand: ["data.refunds", "data.payment_intent"]
-   };
-
-   if (parsed.startingAfter) {
-      params.starting_after = parsed.startingAfter;
-   }
-
-   const charges = await stripe.charges.list(params)
-
-   const data: UserTransaction[] = charges.data.map((charge)=> {
-      let description = charge.description || "";
-      if (!description && charge.payment_intent && typeof charge.payment_intent !== "string") {
-         description = 
-            charge.payment_intent.description ||
-            charge.payment_intent.metadata?.productName ||
-            charge.payment_intent.metadata?.description ||
-            ""
-         
-      }
-      if(!description) {
-         description = charge.metadata?.productName || charge.metadata?.description || "Payment";
-      }
-
-      const refunds =
-         charge.refunds?.data?.map((r) => ({
-            id: r.id,
-            amount: r.amount,
-            status: r.status,
-            created: r.created,
-         })) || [];
-
-      return {
-         id: charge.id,
-         amount: charge.amount,
-         amountRefunded: charge.amount_refunded,
-         refunded: charge.refunded,
-         created: charge.created,
-         description,
-         paymentIntentId:
-            typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id || null,
-         refunds,
-         currency: charge.currency
-      }
-
-   })
-
-   return {
-      data, 
-      hasMore: charges.has_more,
-      firstId: charges.data[0]?.id || null,
-      lastId: charges.data[charges.data.length -1]?.id || null
-   }
+   return listCustomerCharges(parsed);
 }
 
 export async function createTransactionRefund(

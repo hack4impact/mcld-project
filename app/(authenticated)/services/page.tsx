@@ -1,8 +1,11 @@
 import { listCoordinators, listServices } from "./queries";
 import { listForms } from "@/app/(authenticated)/forms/queries";
+import { requireAdminArea } from "@/lib/auth/current-user";
 import { ServicesTable } from "./services-table";
 
 export default async function ServicesPage() {
+   await requireAdminArea();
+
    const [services, coordinators, forms] = await Promise.all([
       listServices(),
       listCoordinators(),

@@ -2,6 +2,22 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { ROLES } from "@/lib/roles";
 
+const ADMIN_AREA_PREFIXES = [
+   "/services",
+   "/users",
+   "/finance",
+   "/memberships",
+   "/forms",
+   "/discounts",
+   "/settings",
+];
+
+function isAdminAreaPath(pathname: string): boolean {
+   return ADMIN_AREA_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+   );
+}
+
 export async function updateSession(request: NextRequest) {
    let supabaseResponse = NextResponse.next({
       request,
@@ -52,13 +68,12 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
    }
 
-   // Protect /dashboard/* — admin only
-   if (request.nextUrl.pathname.startsWith("/dashboard")) {
+   if (isAdminAreaPath(request.nextUrl.pathname)) {
       const { data: claimsData } = await supabase.auth.getClaims();
-      const role = claimsData?.claims?.user_role;
-      if (role !== ROLES.ADMIN) {
+      if (claimsData?.claims?.user_role === ROLES.USER) {
          const url = request.nextUrl.clone();
-         url.pathname = "/";
+         url.pathname = "/account";
+         url.search = "";
          return NextResponse.redirect(url);
       }
    }
