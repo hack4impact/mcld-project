@@ -288,8 +288,8 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
                   </h2>
                   <p className="text-sm text-muted-foreground">
                      Click and drag any time blocks that work for you over the
-                     next two weeks. Your coach will confirm a slot from your
-                     choices.
+                     next two weeks. Your coordinator will be in touch to
+                     confirm a time from your choices.
                   </p>
                </CardHeader>
                <CardContent>

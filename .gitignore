@@ -15,6 +15,8 @@
 /.next/
 /out/
 
+/.react-email
+
 # production
 /build
 
@@ -50,8 +52,6 @@ next-env.d.ts
 *.swo
 *~
 
-# drizzle
-drizzle/meta/
 
 # supabase
 .supabase/

@@ -1,5 +1,8 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { isAdminRole } from "@/lib/roles";
 import { signout } from "@/app/login/actions";
 import { getSubscriptionDetails } from "@/lib/stripe";
 import {
@@ -24,6 +27,12 @@ export default function Page() {
 }
 
 async function HomeContent() {
+   const currentUser = await getCurrentUser();
+
+   if (currentUser && !isAdminRole(currentUser.role)) {
+      redirect("/account");
+   }
+
    const supabase = await createClient();
    const {
       data: { user },

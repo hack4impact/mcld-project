@@ -6,16 +6,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ServiceDialog } from "./service-dialog";
 import { ServicesDataTable } from "./services-data-table";
-import type { CoachOption, ServiceView } from "./queries";
+import type { CoordinatorOption, ServiceView } from "./queries";
+import type { FormListItem } from "@/app/(authenticated)/forms/queries";
 
 type StatusTab = "all" | "active" | "disabled" | "archived";
 
 export function ServicesTable({
    services,
-   coaches,
+   coordinators,
+   forms,
 }: {
    services: ServiceView[];
-   coaches: CoachOption[];
+   coordinators: CoordinatorOption[];
+   forms: FormListItem[];
 }) {
    const [tab, setTab] = React.useState<StatusTab>("active");
    const [editing, setEditing] = React.useState<ServiceView | null>(null);
@@ -28,13 +31,13 @@ export function ServicesTable({
    }, [services, tab]);
 
    return (
-      <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
          <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as StatusTab)}
-            className="w-full"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
          >
-            <div className="flex items-center justify-between">
+            <div className="flex shrink-0 items-center justify-between">
                <TabsList className="border border-border">
                   {statusTabs.map((status) => (
                      <TabsTrigger key={status} value={status}>
@@ -42,22 +45,30 @@ export function ServicesTable({
                      </TabsTrigger>
                   ))}
                </TabsList>
-               <ServiceDialog mode="add" coaches={coaches} />
+               <ServiceDialog
+                  mode="add"
+                  coordinators={coordinators}
+                  forms={forms}
+               />
             </div>
 
-            <TabsContent value={tab}>
+            <TabsContent
+               value={tab}
+               className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
+            >
                <ServicesDataTable services={filtered} onEdit={setEditing} />
             </TabsContent>
          </Tabs>
          <ServiceDialog
             mode="edit"
-            coaches={coaches}
+            coordinators={coordinators}
+            forms={forms}
             service={editing}
             open={editing !== null}
             onOpenChange={(v) => {
                if (!v) setEditing(null);
             }}
          />
-      </>
+      </div>
    );
 }

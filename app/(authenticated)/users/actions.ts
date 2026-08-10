@@ -1,21 +1,38 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db";
-import { profiles } from "@/lib/db/schema";
+import { profiles, services } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import type { Role } from "@/lib/roles";
 import { ROLES } from "@/lib/roles";
 import { createUserAdminSchema, updateUserAdminSchema } from "./schema";
-import { grantComplimentarySubscription } from "@/lib/stripe";
+import { grantComplimentarySubscription , stripe} from "@/lib/stripe";
+import type Stripe from "stripe";
+import { getTransactionsSchema, createRefundSchema} from "./schema";
+import { listCustomerCharges } from "@/lib/stripe-transactions";
+import type {
+   TransactionRefund,
+   UserTransaction,
+   PaginatedTransactions,
+} from "@/lib/stripe-transactions";
 
 export type UserAdminActionState = {
    errors?: Record<string, string[]>;
    message?: string;
    data?: Record<string, string>;
 } | null;
+
+export type RefundActionState = {
+   errors?: Record<string, string[]>;
+   message?: string;
+   status?: "succeeded" | "pending" | "failed";
+   refund?: TransactionRefund;
+   updatedTransaction? : UserTransaction;
+} | null
 
 const USERS_PATH = "/users";
 
@@ -50,10 +67,10 @@ export async function updateUserAdmin(
    }
 
    const admin = createAdminClient();
-   const { error: authError } = await admin.auth.admin.updateUserById(
-      user_id,
-      { email, app_metadata: { user_role: role } },
-   );
+   const { error: authError } = await admin.auth.admin.updateUserById(user_id, {
+      email,
+      app_metadata: { user_role: role },
+   });
 
    if (authError) {
       const message = /prod_|price_|stripe/i.test(authError.message)
@@ -66,15 +83,14 @@ export async function updateUserAdmin(
    }
 
    try {
-
       await db
          .update(profiles)
          .set({ role: role as Role, updatedAt: new Date() })
          .where(eq(profiles.id, user_id));
    } catch {
-      return  {
-         errors: { _form: ["Failed to update profile. Please try again."] }
-      }
+      return {
+         errors: { _form: ["Failed to update profile. Please try again."] },
+      };
    }
 
    revalidatePath(USERS_PATH);
@@ -105,14 +121,8 @@ export async function createUserAdmin(
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const {
-      first_name,
-      last_name,
-      email,
-      password,
-      role,
-      subscription_months,
-   } = parsed.data;
+   const { first_name, last_name, email, password, role, subscription_months } =
+      parsed.data;
 
    const admin = createAdminClient();
    const { data: authData, error: authError } =
@@ -186,4 +196,225 @@ export async function createUserAdmin(
 
    revalidatePath(USERS_PATH);
    return { message: "User created.", data: { user_id: userId } };
+}
+
+const deleteUserAdminSchema = z.object({
+   user_id: z.string().uuid(),
+});
+
+export async function deleteUserAdmin(
+   _prev: UserAdminActionState,
+   formData: FormData,
+): Promise<UserAdminActionState> {
+   try {
+      await requireAdmin();
+   } catch {
+      return { errors: { _form: ["Unauthorized"] } };
+   }
+
+   const parsed = deleteUserAdminSchema.safeParse({
+      user_id: formData.get("user_id"),
+   });
+
+   if (!parsed.success) {
+      return { errors: parsed.error.flatten().fieldErrors };
+   }
+
+   const { user_id } = parsed.data;
+   const assigned = await db
+      .select({ id: services.id })
+      .from(services)
+      .where(
+         and(
+            eq(services.coordinatorId, user_id),
+            eq(services.type, "private_lessons"),
+         ),
+      )
+      .limit(1);
+
+   if (assigned.length > 0) {
+      return {
+         errors: {
+            _form: [
+               "This coordinator is assigned to one or more private lessons. Reassign those lessons to another coordinator before deleting the account.",
+            ],
+         },
+      };
+   }
+
+   const admin = createAdminClient();
+   const { error: authError } = await admin.auth.admin.deleteUser(user_id);
+
+   if (authError) {
+      return { errors: { _form: [authError.message] } };
+   }
+
+   revalidatePath(USERS_PATH);
+   return { message: "User deleted." };
+}
+
+export type {
+   TransactionRefund,
+   UserTransaction,
+   PaginatedTransactions,
+} from "@/lib/stripe-transactions";
+
+export async function getUserTransactions(
+   input: {
+      customerId: string;
+      limit?:number;
+      startingAfter?: string;
+   }
+): Promise<PaginatedTransactions> {
+   await requireAdmin();
+
+   const parsed = getTransactionsSchema.parse(input)
+
+   return listCustomerCharges(parsed);
+}
+
+export async function createTransactionRefund(
+  _prev: RefundActionState,
+  formData: FormData
+): Promise<RefundActionState> {
+   try {
+      await requireAdmin();
+   } catch {
+      return {errors : { _form : ["Unauthorized"]}};
+   }
+
+   const amountRaw = formData.get("amountCents");
+   const amountCents = amountRaw? Number(amountRaw): undefined;
+
+   const parsed = createRefundSchema.safeParse({
+      chargeId: formData.get("chargeId"),
+      amountCents,
+      idempotencyKey: formData.get("idempotencyKey"),
+      customerId: formData.get("customerId")
+   });
+
+   if (!parsed.success) {
+      return {errors : parsed.error.flatten().fieldErrors};
+   }
+   const {chargeId, amountCents: refundAmount, idempotencyKey, customerId} = parsed.data;
+
+
+   try {
+      const charge = await stripe.charges.retrieve(chargeId);
+      const chargeCustomerId =
+         typeof charge.customer === "string"
+            ? charge.customer
+            : charge.customer?.id ?? null;
+
+      if (chargeCustomerId !== customerId){
+         return {
+            errors: { _form: ["Charge does not belong to this customer."] },
+            status: "failed",
+         };
+      }
+
+      const remainingRefundable  = charge.amount - charge.amount_refunded;
+
+      if (remainingRefundable <= 0) {
+         return {
+            errors: { _form: ["This charge is already fully refunded."] },
+            status: "failed",
+         };
+      }
+
+      if (refundAmount !== undefined && refundAmount > remainingRefundable) {
+         return {
+            errors: {
+               _form: ["Refund amount exceeds the remaining refundable balance."],
+            },
+            status: "failed",
+         };
+      }
+
+
+      const refundParams: Stripe.RefundCreateParams = {
+         charge:chargeId,
+      };
+
+      if (refundAmount !== undefined) {
+         refundParams.amount = refundAmount;
+      }
+
+      const refund = await stripe.refunds.create(refundParams, { idempotencyKey
+      })
+
+      if (refund.status === "failed" || refund.status === "canceled") {
+         const reason = 
+            refund.failure_reason ??
+            refund.status;
+         return {
+            errors : { _form : [`Refund ${reason}.`]},
+            status: "failed",
+         }
+      }
+
+      const updatedCharge = await stripe.charges.retrieve(chargeId, {
+         expand: [ "refunds", "payment_intent"],
+      })
+
+      let description = updatedCharge.description || "";
+      if (!description && updatedCharge.payment_intent && typeof updatedCharge.payment_intent !== "string") {
+         description =
+            updatedCharge.payment_intent.description ||
+            updatedCharge.payment_intent.metadata?.productName ||
+            updatedCharge.payment_intent.metadata?.description ||
+            "";
+      }
+      if (!description) {
+         description = updatedCharge.metadata?.productName || updatedCharge.metadata?.description || "Payment";
+      }
+
+      const refunds =
+         updatedCharge.refunds?.data?.map((r: Stripe.Refund) => ({
+            id: r.id,
+            amount: r.amount,
+            status: r.status,
+            created: r.created,
+         })) || [];
+      
+      const updatedTransaction: UserTransaction = {
+         id: updatedCharge.id,
+         amount: updatedCharge.amount,
+         amountRefunded: updatedCharge.amount_refunded,
+         refunded: updatedCharge.refunded,
+         created: updatedCharge.created,
+         description,
+         paymentIntentId:
+            typeof updatedCharge.payment_intent === "string"
+               ? updatedCharge.payment_intent
+               : updatedCharge.payment_intent?.id || null,
+         refunds,
+         currency: updatedCharge.currency,
+
+      }
+
+      return {
+         message:
+            refund.status === "succeeded"
+               ? "Refund issued successfully."
+               : "Refund pending.",
+         status: refund.status === "succeeded" ? "succeeded" : "pending",
+         refund: {
+            id: refund.id,
+            amount: refund.amount,
+            status: refund.status,
+            created: refund.created,
+         },
+         updatedTransaction,
+      };
+
+
+   } catch (error) {
+      return {
+         errors: {
+            _form: [error instanceof Error ? error.message : "Failed to create refund."],
+         },
+        status: "failed",
+      };
+   }
 }

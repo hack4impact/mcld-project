@@ -1,16 +1,27 @@
-import { listCoaches, listServices } from "./queries";
+import { listCoordinators, listServices } from "./queries";
+import { listForms } from "@/app/(authenticated)/forms/queries";
+import { requireAdminArea } from "@/lib/auth/current-user";
 import { ServicesTable } from "./services-table";
 
 export default async function ServicesPage() {
-   const [services, coaches] = await Promise.all([
+   await requireAdminArea();
+
+   const [services, coordinators, forms] = await Promise.all([
       listServices(),
-      listCoaches(),
+      listCoordinators(),
+      listForms(),
    ]);
 
    return (
-      <main className="flex min-h-screen flex-col gap-6 p-8">
-         <h1 className="text-3xl font-bold">Services</h1>
-         <ServicesTable services={services} coaches={coaches} />
+      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
+         <h1 className="shrink-0 text-3xl font-bold">Services</h1>
+         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <ServicesTable
+               services={services}
+               coordinators={coordinators}
+               forms={forms}
+            />
+         </div>
       </main>
    );
 }

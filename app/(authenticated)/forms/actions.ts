@@ -4,7 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { extraQuestions, forms, services } from "@/lib/db/schema";
+import { formQuestions, forms, services } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import {
    createFormSchema,
@@ -93,7 +93,7 @@ async function insertQuestions(
 ) {
    if (questions.length === 0) return;
 
-   await client.insert(extraQuestions).values(
+   await client.insert(formQuestions).values(
       questions.map((q, index) => ({
          formId,
          sortOrder: index,
@@ -185,8 +185,8 @@ export async function updateForm(
             .where(eq(forms.id, form_id));
 
          await tx
-            .delete(extraQuestions)
-            .where(eq(extraQuestions.formId, form_id));
+            .delete(formQuestions)
+            .where(eq(formQuestions.formId, form_id));
          await insertQuestions(form_id, questions, tx);
       });
    } catch {

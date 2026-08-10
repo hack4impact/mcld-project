@@ -8,17 +8,20 @@ import {
    boolean,
    jsonb,
    date,
+   uniqueIndex,
+   check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export type ProgramSlot = { dayOfWeek: number; time: string };
 
-export type ExtraQuestionOption = {
+export type FormQuestionOption = {
    id: string;
    title: string;
    description?: string;
 };
 
-export const roleEnum = pgEnum("role", ["user", "admin", "coach"]);
+export const roleEnum = pgEnum("role", ["user", "admin", "coordinator"]);
 export const serviceTypeEnum = pgEnum("service_type", [
    "private_lessons",
    "programs",
@@ -43,8 +46,12 @@ export const serviceStatusEnum = pgEnum("service_status", [
    "deleted",
    "disabled",
 ]);
-export const genderEnum = pgEnum("gender", ["male", "female", "prefer_not_to_say"]);
-export const extraQuestionTypeEnum = pgEnum("extra_question_type", [
+export const genderEnum = pgEnum("gender", [
+   "male",
+   "female",
+   "prefer_not_to_say",
+]);
+export const formQuestionTypeEnum = pgEnum("form_question_type", [
    "text",
    "multiple_choices",
    "checkboxes",
@@ -56,45 +63,81 @@ export const profiles = pgTable("profiles", {
    firstName: text("first_name").notNull(),
    lastName: text("last_name").notNull(),
    role: roleEnum("role").notNull().default("user"),
+   address: text("address"),
+   gender: genderEnum("gender"),
+   dob: date("dob", { mode: "string" }),
+   phone: text("phone"),
    stripeCustomerId: text("stripe_customer_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-   lastLoginAt: timestamp('last_login_at').defaultNow().notNull()
+   lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
 });
 
-export const services = pgTable("services", {
+export const forms = pgTable("forms", {
    id: uuid("id").primaryKey().defaultRandom(),
-   type: serviceTypeEnum("type").notNull(),
-   startDate: date("start_date", { mode: "string" }),
-   endDate: date("end_date", { mode: "string" }),
-   slots: jsonb("slots").$type<ProgramSlot[]>(),
-   durationMinutes: integer("duration_minutes").notNull(),
-   stripeProductId: text("stripe_product_id").notNull(),
-   status: serviceStatusEnum("status").notNull().default("active"),
-   coachId: uuid("coach_id").references(() => profiles.id, {
-      onDelete: "set null",
-   }),
-   formId: uuid("form_id")
-      .references(() => forms.id, { onDelete: "set null" }),
+   name: text("name").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const serviceBookings = pgTable("service_bookings", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   userId: uuid("user_id")
-      .references(() => profiles.id, { onDelete: "cascade" })
-      .notNull(),
-   serviceId: uuid("service_id")
-      .references(() => services.id, { onDelete: "cascade" })
-      .notNull(),
-   status: bookingStatusEnum("status").notNull().default("pending"),
-   notes: text("notes"),
-   isActive: boolean("is_active").notNull().default(true),
-   stripeOrderId: text("stripe_order_id").unique(),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const services = pgTable(
+   "services",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      type: serviceTypeEnum("type").notNull(),
+      startDate: date("start_date", { mode: "string" }),
+      endDate: date("end_date", { mode: "string" }),
+      slots: jsonb("slots").$type<ProgramSlot[]>(),
+      durationMinutes: integer("duration_minutes").notNull(),
+      stripeProductId: text("stripe_product_id").notNull(),
+      status: serviceStatusEnum("status").notNull().default("active"),
+      coordinatorId: uuid("coordinator_id").references(() => profiles.id, {
+         onDelete: "restrict",
+      }),
+      formId: uuid("form_id").references(() => forms.id, {
+         onDelete: "set null",
+      }),
+      isForChildren: boolean("is_for_children").notNull().default(false),
+      requiresSubscription: boolean("requires_subscription")
+         .notNull()
+         .default(true),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   },
+   (t) => [
+      check(
+         "services_private_lessons_require_coordinator",
+         sql`${t.type} <> 'private_lessons' OR ${t.coordinatorId} IS NOT NULL`,
+      ),
+   ],
+);
+
+export const serviceBookings = pgTable(
+   "service_bookings",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      userId: uuid("user_id")
+         .references(() => profiles.id, { onDelete: "cascade" })
+         .notNull(),
+      serviceId: uuid("service_id")
+         .references(() => services.id, { onDelete: "cascade" })
+         .notNull(),
+      childId: uuid("child_id").references(() => children.id, {
+         onDelete: "cascade",
+      }),
+      status: bookingStatusEnum("status").notNull().default("pending"),
+      notes: text("notes"),
+      isActive: boolean("is_active").notNull().default(true),
+      stripeOrderId: text("stripe_order_id").unique(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   },
+   (t) => [
+      uniqueIndex("service_bookings_service_id_child_id_idx")
+         .on(t.serviceId, t.childId)
+         .where(sql`${t.childId} is not null`),
+   ],
+);
 
 export const webinars = pgTable("webinars", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -113,20 +156,20 @@ export const coachingSessions = pgTable("coaching_sessions", {
    serviceId: uuid("service_id")
       .references(() => services.id, { onDelete: "cascade" })
       .notNull(),
-   coachId: uuid("coach_id")
+   coordinatorId: uuid("coordinator_id")
       .references(() => profiles.id, { onDelete: "cascade" })
       .notNull(),
    userId: uuid("user_id")
       .references(() => profiles.id, { onDelete: "cascade" })
       .notNull(),
+   childId: uuid("child_id").references(() => children.id, {
+      onDelete: "cascade",
+   }),
    scheduledAt: timestamp("scheduled_at"),
    status: sessionStatusEnum("status").notNull().default("pending"),
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
    selectedTimeSlots: jsonb("selected_time_slots").notNull(),
-   coachTimeSlots: jsonb("coach_time_slots"),
-   coachToken: text("coach_token").unique(),
-   clientToken: text("client_token").unique(),
    stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -191,23 +234,23 @@ export const emergencyContacts = pgTable("emergency_contacts", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const extraQuestions = pgTable("extra_questions", {
+export const formQuestions = pgTable("form_questions", {
    id: uuid("id").primaryKey().defaultRandom(),
    formId: uuid("form_id")
       .references(() => forms.id, { onDelete: "cascade" })
       .notNull(),
-   sortOrder: integer("sort_order").notNull(),
-   type: extraQuestionTypeEnum("type").notNull(),
+   type: formQuestionTypeEnum("type").notNull(),
    prompt: text("prompt").notNull(),
-   options: jsonb("options").$type<ExtraQuestionOption[]>(),
+   options: jsonb("options").$type<FormQuestionOption[]>(),
+   sortOrder: integer("sort_order").notNull().default(0),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const extraQuestionAnswers = pgTable("extra_question_answers", {
+export const formQuestionAnswers = pgTable("form_question_answers", {
    id: uuid("id").primaryKey().defaultRandom(),
-   extraQuestionId: uuid("extra_question_id")
-      .references(() => extraQuestions.id, { onDelete: "cascade" })
+   formQuestionId: uuid("form_question_id")
+      .references(() => formQuestions.id, { onDelete: "cascade" })
       .notNull(),
    childId: uuid("child_id")
       .references(() => children.id, { onDelete: "cascade" })
@@ -216,10 +259,3 @@ export const extraQuestionAnswers = pgTable("extra_question_answers", {
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
-
-export const forms = pgTable("forms", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   name: text("name").notNull(),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})

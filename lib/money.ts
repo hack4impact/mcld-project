@@ -8,3 +8,10 @@ export function centsToMoneyString(cents: number | null): string {
    if (cents === null) return "";
    return (cents / 100).toFixed(2);
 }
+
+export function formatCents(cents: number, currency: string): string {
+   return new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+   }).format(cents / 100);
+}

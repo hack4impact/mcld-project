@@ -29,7 +29,7 @@ import {
    needsOptions,
    QUESTION_TYPE_LABELS,
 } from "./form-question-shared";
-import type { ExtraQuestionType } from "../queries";
+import type { FormQuestionType } from "../queries";
 
 function FieldError({ messages }: { messages?: string[] }) {
    if (!messages?.length) return null;
@@ -207,7 +207,7 @@ export function QuestionEditDialog({
                   <Select
                      value={draft.type}
                      onValueChange={(v) => {
-                        const type = v as ExtraQuestionType;
+                        const type = v as FormQuestionType;
                         setDraft((prev) => {
                            if (!prev) return prev;
                            return {
@@ -227,7 +227,7 @@ export function QuestionEditDialog({
                      </SelectTrigger>
                      <SelectContent>
                         {(
-                           Object.keys(QUESTION_TYPE_LABELS) as ExtraQuestionType[]
+                           Object.keys(QUESTION_TYPE_LABELS) as FormQuestionType[]
                         ).map((t) => (
                            <SelectItem key={t} value={t}>
                               {QUESTION_TYPE_LABELS[t]}

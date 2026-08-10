@@ -1,17 +1,32 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Pencil, Tag } from "lucide-react";
+
+import { Pencil, Tag, Trash2, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+   AlertDialog,
+   AlertDialogAction,
+   AlertDialogCancel,
+   AlertDialogContent,
+   AlertDialogDescription,
+   AlertDialogFooter,
+   AlertDialogHeader,
+   AlertDialogTitle,
+   AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { DiscountModal, type ActiveDiscount, type DiscountService } from "@/components/discount-modal";
 import {
    getUserDiscountModalData,
    applyDiscountToCustomerProduct,
    removeCouponById,
 } from "@/app/(authenticated)/discounts/actions";
+import { deleteUserAdmin } from "@/app/(authenticated)/users/actions";
 import { toast } from "sonner";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
+import { UserTransactionsModal } from "./components/user-transactions-modals";
+
 
 interface UserActionsCellProps {
    user: UserRow;
@@ -19,10 +34,13 @@ interface UserActionsCellProps {
 }
 
 export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
+   const [txOpen, setTxOpen] = useState(false);
    const [open, setOpen] = useState(false);
    const [services, setServices] = useState<DiscountService[]>([]);
    const [discounts, setDiscounts] = useState<ActiveDiscount[]>([]);
    const [loading, setLoading] = useState(false);
+   const [deleting, setDeleting] = useState(false);
+   const [confirmOpen, setConfirmOpen] = useState(false);
    const servicesFetched = useRef(false);
 
    const fetchModalData = async (forceServices = false) => {
@@ -71,6 +89,25 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
       }
    };
 
+   const handleDelete = async () => {
+      setDeleting(true);
+      try {
+         const fd = new FormData();
+         fd.append("user_id", user.id);
+         const result = await deleteUserAdmin(null, fd);
+         if (result?.errors) {
+            toast.error("Failed to delete user", {
+               description: Object.values(result.errors).flat().join(" "),
+            });
+         } else {
+            toast.success("User deleted");
+            setConfirmOpen(false);
+         }
+      } finally {
+         setDeleting(false);
+      }
+   };
+
    const handleRemove = async (couponId: string) => {
       if (!user.stripeCustomerId) return;
       const result = await removeCouponById(couponId, user.stripeCustomerId);
@@ -115,6 +152,62 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
                {user.stripeCustomerId ? "Manage discounts" : "No Stripe customer"}
             </TooltipContent>
          </Tooltip>
+         <Tooltip>
+            <TooltipTrigger asChild>
+               <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="View transactions"
+                  disabled={!user.stripeCustomerId}
+                  onClick={() => setTxOpen(true)}
+               >
+                  <ReceiptText />
+               </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+               {user.stripeCustomerId ? "View transactions" : "No Stripe customer"}
+            </TooltipContent>
+         </Tooltip>
+         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <Tooltip>
+               <TooltipTrigger asChild>
+                  <AlertDialogTrigger asChild>
+                     <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Delete user"
+                        disabled={deleting}
+                     >
+                        <Trash2 />
+                     </Button>
+                  </AlertDialogTrigger>
+               </TooltipTrigger>
+               <TooltipContent>Delete user</TooltipContent>
+            </Tooltip>
+            <AlertDialogContent>
+               <AlertDialogHeader>
+                  <AlertDialogTitle>Delete user?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                     This permanently deletes {user.firstName} {user.lastName}
+                     &rsquo;s account. This action cannot be undone.
+                  </AlertDialogDescription>
+               </AlertDialogHeader>
+               <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleting}>
+                     Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                     onClick={(e) => {
+                        e.preventDefault();
+                        handleDelete();
+                     }}
+                     disabled={deleting}
+                  >
+                     {deleting ? "Deleting..." : "Delete"}
+                  </AlertDialogAction>
+               </AlertDialogFooter>
+            </AlertDialogContent>
+         </AlertDialog>
          <DiscountModal
             userName={`${user.firstName} ${user.lastName}`}
             userEmail={user.email}
@@ -126,6 +219,13 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
             onOpenChange={handleOpenChange}
             onApply={handleApply}
             onRemove={handleRemove}
+         />
+         <UserTransactionsModal
+            userName={`${user.firstName} ${user.lastName}`}
+            userEmail={user.email}
+            stripeCustomerId={user.stripeCustomerId || ""}
+            open={txOpen}
+            onOpenChange={setTxOpen}
          />
       </div>
    );

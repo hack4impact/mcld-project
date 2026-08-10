@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
-import { Archive, ArchiveRestore, Ban, Pencil, Power } from "lucide-react";
+import { Archive, ArchiveRestore, Ban, Pencil, Power, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,9 +11,9 @@ import {
    TooltipContent,
    TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DataTable } from "@/components/data-table";
+import { UsersDataTable } from "@/app/(authenticated)/users/_components/users-data-table";
 import { formatDate } from "@/lib/format";
-import { statusBadgeClass } from "@/lib/service-status";
+import { statusBadgeClass, subscriptionBadgeClass } from "@/lib/service-badges";
 
 import { setServiceStatus } from "@/app/(authenticated)/services/actions";
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
@@ -43,6 +44,7 @@ export function ServicesDataTable({
          {
             accessorKey: "title",
             header: "Program",
+            meta: { colWidth: "42%" },
             cell: ({ row }) => (
                <span className="font-medium">{row.original.title ?? "—"}</span>
             ),
@@ -50,6 +52,7 @@ export function ServicesDataTable({
          {
             accessorKey: "status",
             header: "Status",
+            meta: { colWidth: "13%" },
             cell: ({ row }) => (
                <span
                   className={
@@ -62,8 +65,23 @@ export function ServicesDataTable({
             ),
          },
          {
+            accessorKey: "requiresSubscription",
+            header: "Subscription",
+            cell: ({ row }) => (
+               <span
+                  className={
+                     "inline-flex rounded-full px-2 py-0.5 text-xs capitalize " +
+                     subscriptionBadgeClass(row.original.requiresSubscription)
+                  }
+               >
+                  {row.original.requiresSubscription ? "Required" : "Not required"}
+               </span>
+            ),
+         },
+         {
             id: "startDate",
             header: "Start Date",
+            meta: { colWidth: "17%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.startDate) : "—";
@@ -72,6 +90,7 @@ export function ServicesDataTable({
          {
             id: "endDate",
             header: "End Date",
+            meta: { colWidth: "17%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.endDate) : "—";
@@ -79,11 +98,22 @@ export function ServicesDataTable({
          },
          {
             id: "actions",
-            header: () => <div className="text-right">Actions</div>,
+            header: "Actions",
+            meta: { colWidth: "11%", thClassName: "text-right", tdClassName: "text-right" },
             cell: ({ row }) => {
                const s = row.original;
                return (
                   <div className="flex items-center justify-end gap-0.5">
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon-sm" aria-label="View registered" asChild>
+                              <Link href={`/services/${s.id}`}>
+                                 <Users />
+                              </Link>
+                           </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>View registered</TooltipContent>
+                     </Tooltip>
                      {(s.status === "active" || s.status === "disabled") && (
                         <Tooltip>
                            <TooltipTrigger asChild>
@@ -172,7 +202,7 @@ export function ServicesDataTable({
    );
 
    return (
-      <DataTable
+      <UsersDataTable
          columns={columns}
          data={services}
          emptyMessage="No services found."
