@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
          const updated = await db
             .update(coachingSessions)
-            .set({ status: "pending", stripeOrderId: session.id })
+            .set({ status: "confirmed", stripeOrderId: session.id })
             .where(
                and(
                   eq(coachingSessions.id, metadata.coachingSessionId),
