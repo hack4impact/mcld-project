@@ -44,7 +44,7 @@ export const updateWebinarSchema = z.object({
    tier: webinarTierSchema.optional(),
    duration_minutes: durationSchema.optional(),
    youtube_url: z.union([youtubeUrlSchema, z.literal("")]).optional(),
-   is_active: z.boolean().optional(),
+   is_active: z.enum(["true", "false"]).optional(),
 });
 
 export const deleteWebinarSchema = z.object({
