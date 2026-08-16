@@ -135,15 +135,13 @@ export async function updateWebinar(
       patch.isActive = parsed.data.is_active === "true";
    }
 
-   try {
-      await db
-         .update(webinars)
-         .set(patch)
-         .where(eq(webinars.id, parsed.data.webinar_id));
-   } catch (error) {
-      console.error(error);
-      return { errors: { _form: ["Could not update webinar"] } };
-   }
+   const updated = await db
+   .update(webinars)
+   .set(patch)
+   .where(eq(webinars.id, parsed.data.webinar_id))
+   .returning({ id: webinars.id });
+   
+   if (!updated.length) return { errors: { _form: ["Webinar not found"] } };
 
    invalidateWebinars();
    return { message: "Webinar updated." };
