@@ -50,9 +50,3 @@ export const updateWebinarSchema = z.object({
 export const deleteWebinarSchema = z.object({
    webinar_id: z.string().uuid("Invalid webinar"),
 });
-
-export function parseBooleanField(value: FormDataEntryValue | null): boolean {
-   if (value === null) return false;
-   if (typeof value !== "string") return true;
-   return ["1", "true", "on", "yes"].includes(value.toLowerCase());
-}
