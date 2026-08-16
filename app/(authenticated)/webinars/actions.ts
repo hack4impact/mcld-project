@@ -64,7 +64,7 @@ export async function createWebinar(
          tier: parsed.data.tier,
          durationMinutes: parsed.data.duration_minutes,
          youtubeUrl: parsed.data.youtube_url || null,
-         isActive: parsed.data.is_active,
+         isActive: parsed.data.is_active !== "false",
       });
    } catch (error) {
       console.error(error);
