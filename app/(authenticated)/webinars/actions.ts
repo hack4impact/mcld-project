@@ -132,7 +132,7 @@ export async function updateWebinar(
       patch.youtubeUrl = parsed.data.youtube_url || null;
    }
    if (parsed.data.is_active !== undefined) {
-      patch.isActive = parsed.data.is_active;
+      patch.isActive = parsed.data.is_active === "true";
    }
 
    try {
