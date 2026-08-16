@@ -107,15 +107,7 @@ export async function updateWebinar(
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const [existing] = await db
-      .select({ id: webinars.id })
-      .from(webinars)
-      .where(eq(webinars.id, parsed.data.webinar_id))
-      .limit(1);
-
-   if (!existing) {
-      return { errors: { _form: ["Webinar not found"] } };
-   }
+   
 
    const patch: Partial<typeof webinars.$inferInsert> = {
       updatedAt: new Date(),
