@@ -48,7 +48,7 @@ export async function createWebinar(
       tier: field(formData, "tier"),
       duration_minutes: field(formData, "duration_minutes"),
       youtube_url: field(formData, "youtube_url") || undefined,
-      is_active: formData.has("is_active")
+      is_active: field(formData, "is_active"),
          ? parseBooleanField(formData.get("is_active"))
          : true,
    });
