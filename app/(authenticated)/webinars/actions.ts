@@ -167,10 +167,16 @@ export async function deleteWebinar(
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const deleted = await db
-      .delete(webinars)
-      .where(eq(webinars.id, parsed.data.webinar_id))
-      .returning({ id: webinars.id });
+   let deleted;
+    try {
+       deleted = await db
+          .delete(webinars)
+          .where(eq(webinars.id, parsed.data.webinar_id))
+          .returning({ id: webinars.id });
+    } catch (error) {
+       console.error(error);
+       return { errors: { _form: ["Could not delete webinar"] } };
+    }
 
    if (!deleted.length) {
       return { errors: { _form: ["Webinar not found"] } };
