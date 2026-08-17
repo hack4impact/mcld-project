@@ -260,14 +260,28 @@ export const formQuestionAnswers = pgTable("form_question_answers", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const coordinatorAvailability = pgTable("coordinatory_availability", {
+export type AvailabilitySlot = {
+   time: string;
+   durationMinutes: number;
+};
+
+export type CoordinatorWeeklyAvailability = {
+   0: AvailabilitySlot[];
+   1: AvailabilitySlot[];
+   2: AvailabilitySlot[];
+   3: AvailabilitySlot[];
+   4: AvailabilitySlot[];
+   5: AvailabilitySlot[];
+   6: AvailabilitySlot[];
+};
+
+export const coordinatorAvailability = pgTable("coordinator_availability", {
    id: uuid("id").primaryKey().defaultRandom(),
    coordinatorId: uuid("coordinator_id")
       .references(() => profiles.id, { onDelete: "cascade" })
-      .notNull(),
-   dayOfWeek: integer("day_of_week").notNull(),
-   time: text("time").notNull(),
-   durationMinutes: integer("duration_minutes").notNull(),
+      .notNull()
+      .unique(),
+   slots: jsonb("slots").$type<CoordinatorWeeklyAvailability>().notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
