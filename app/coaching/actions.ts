@@ -1,10 +1,17 @@
 "use server";
+import { updateCoordinatorAvailabilitySchema } from "@/app/coaching/schema";
+import { ROLES } from "@/lib/roles"
 
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { coachingSessions, services } from "@/lib/db/schema";
+import {
+   coachingSessions,
+   coordinatorAvailability,
+   services,
+} from "@/lib/db/schema";
 import { createClient } from "@/utils/supabase/server";
+import { Schema } from "zod";
 
 export type Availability = { start: string; end: string };
 
@@ -51,4 +58,52 @@ export async function submitAvailabilities({
       .returning({ id: coachingSessions.id });
 
    return { coachingSessionId: row.id };
+}
+
+
+async function canEditCoordinatorAvailability(
+   coordinatorId: string,
+): Promise<boolean> {
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) return false;
+
+   const { data } = await supabase.auth.getClaims();
+   const role = data?.claims?.user_role;
+
+   if (role === ROLES.ADMIN) return true;
+   if (role === ROLES.COORDINATOR && user.id === coordinatorId) return true;
+   return false;
+}
+
+export type UpdateCoordinatorAvailabilityResult =
+   | { ok: true }
+   | { error: string };
+
+export async function updateCoordinatorAvailability(
+   input: unknown,
+): Promise<UpdateCoordinatorAvailabilityResult> {
+   const parsed = updateCoordinatorAvailabilitySchema.safeParse(input);
+   if (!parsed.success) {
+      return {
+         error: parsed.error.issues[0]?.message ?? "Invalid input",
+      };
+   }
+
+   const { coordinatorId, slots } = parsed.data;
+   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
+      return { error: "Unauthorized" };
+   }
+
+   await db
+      .insert(coordinatorAvailability)
+      .values({ coordinatorId, slots })
+      .onConflictDoUpdate({
+         target: coordinatorAvailability.coordinatorId,
+         set: { slots, updatedAt: new Date() },
+      });
+
+   return { ok: true };
 }
