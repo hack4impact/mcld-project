@@ -1,9 +1,5 @@
 # MCLD Platform — Full Schema Overview
 
-> **Source of truth:** [`lib/db/schema.ts`](../lib/db/schema.ts). This document is
-> hand-maintained and must be updated whenever the schema changes — see
-> [Working with the schema](#working-with-the-schema) below.
-
 ```mermaid
 erDiagram
     profiles {
