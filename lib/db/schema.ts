@@ -260,28 +260,58 @@ export const formQuestionAnswers = pgTable("form_question_answers", {
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export type AvailabilitySlot = {
-   time: string;
-   durationMinutes: number;
+export type AvailabilityWindow = {
+   start: string;
+   end: string;
+   recurrence: "weekly" | "biweekly";
+   anchorDate?: string;
 };
 
-export type CoordinatorWeeklyAvailability = {
-   0: AvailabilitySlot[];
-   1: AvailabilitySlot[];
-   2: AvailabilitySlot[];
-   3: AvailabilitySlot[];
-   4: AvailabilitySlot[];
-   5: AvailabilitySlot[];
-   6: AvailabilitySlot[];
+export type CoordinatorWeeklyHours = {
+   0: AvailabilityWindow[];
+   1: AvailabilityWindow[];
+   2: AvailabilityWindow[];
+   3: AvailabilityWindow[];
+   4: AvailabilityWindow[];
+   5: AvailabilityWindow[];
+   6: AvailabilityWindow[];
 };
 
-export const coordinatorAvailability = pgTable("coordinator_availability", {
-   id: uuid("id").primaryKey().defaultRandom(),
-   coordinatorId: uuid("coordinator_id")
-      .references(() => profiles.id, { onDelete: "cascade" })
-      .notNull()
-      .unique(),
-   slots: jsonb("slots").$type<CoordinatorWeeklyAvailability>().notNull(),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export type AvailabilityOverrideWindow = {
+   start: string;
+   end: string;
+};
+
+export const coordinatorAvailabilityHours = pgTable(
+   "coordinator_availability_hours",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      coordinatorId: uuid("coordinator_id")
+         .references(() => profiles.id, { onDelete: "cascade" })
+         .notNull()
+         .unique(),
+      timezone: text("timezone").notNull().default("America/Toronto"),
+      hours: jsonb("hours").$type<CoordinatorWeeklyHours>().notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   },
+);
+
+export const coordinatorAvailabilityOverrides = pgTable(
+   "coordinator_availability_overrides",
+   {
+      id: uuid("id").primaryKey().defaultRandom(),
+      coordinatorId: uuid("coordinator_id")
+         .references(() => profiles.id, { onDelete: "cascade" })
+         .notNull(),
+      date: date("date", { mode: "string" }).notNull(),
+      windows: jsonb("windows").$type<AvailabilityOverrideWindow[]>().notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   },
+   (t) => [
+      uniqueIndex(
+         "coordinator_availability_overrides_coordinator_id_date_idx",
+      ).on(t.coordinatorId, t.date),
+   ],
+);

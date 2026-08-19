@@ -1,17 +1,28 @@
 "use server";
-import { updateCoordinatorAvailabilitySchema } from "@/app/coaching/schema";
-import { ROLES } from "@/lib/roles"
+import {
+   saveCoordinatorWeeklyHoursSchema,
+   setCoordinatorAvailabilityOverrideSchema,
+   clearCoordinatorAvailabilityOverrideSchema,
+   listCoordinatorAvailabilitySchema,
+} from "@/app/coaching/schema";
+import {
+   availabilityForRange,
+   EMPTY_WEEKLY_HOURS,
+   type AvailabilityOccurrence,
+} from "@/lib/availability";
+import { ROLES } from "@/lib/roles";
 
-import { eq } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
    coachingSessions,
-   coordinatorAvailability,
+   coordinatorAvailabilityHours,
+   coordinatorAvailabilityOverrides,
    services,
+   type AvailabilityOverrideWindow,
 } from "@/lib/db/schema";
 import { createClient } from "@/utils/supabase/server";
-import { Schema } from "zod";
 
 export type Availability = { start: string; end: string };
 
@@ -60,7 +71,6 @@ export async function submitAvailabilities({
    return { coachingSessionId: row.id };
 }
 
-
 async function canEditCoordinatorAvailability(
    coordinatorId: string,
 ): Promise<boolean> {
@@ -78,32 +88,148 @@ async function canEditCoordinatorAvailability(
    return false;
 }
 
-export type UpdateCoordinatorAvailabilityResult =
+export type SaveCoordinatorWeeklyHoursResult =
    | { ok: true }
    | { error: string };
 
-export async function updateCoordinatorAvailability(
+export async function saveCoordinatorWeeklyHours(
    input: unknown,
-): Promise<UpdateCoordinatorAvailabilityResult> {
-   const parsed = updateCoordinatorAvailabilitySchema.safeParse(input);
+): Promise<SaveCoordinatorWeeklyHoursResult> {
+   const parsed = saveCoordinatorWeeklyHoursSchema.safeParse(input);
    if (!parsed.success) {
       return {
          error: parsed.error.issues[0]?.message ?? "Invalid input",
       };
    }
 
-   const { coordinatorId, slots } = parsed.data;
+   const { coordinatorId, timezone, hours } = parsed.data;
    if (!(await canEditCoordinatorAvailability(coordinatorId))) {
       return { error: "Unauthorized" };
    }
 
    await db
-      .insert(coordinatorAvailability)
-      .values({ coordinatorId, slots })
+      .insert(coordinatorAvailabilityHours)
+      .values({ coordinatorId, timezone, hours })
       .onConflictDoUpdate({
-         target: coordinatorAvailability.coordinatorId,
-         set: { slots, updatedAt: new Date() },
+         target: coordinatorAvailabilityHours.coordinatorId,
+         set: { timezone, hours, updatedAt: new Date() },
       });
 
    return { ok: true };
+}
+
+
+export type SetCoordinatorAvailabilityOverrideResult =
+   | { ok: true }
+   | { error: string };
+
+export async function setCoordinatorAvailabilityOverride(
+   input: unknown,
+): Promise<SetCoordinatorAvailabilityOverrideResult> {
+   const parsed = setCoordinatorAvailabilityOverrideSchema.safeParse(input);
+   if (!parsed.success) {
+      return {
+         error: parsed.error.issues[0]?.message ?? "Invalid input",
+      };
+   }
+
+   const { coordinatorId, date, windows } = parsed.data;
+   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
+      return { error: "Unauthorized" };
+   }
+
+   await db
+      .insert(coordinatorAvailabilityOverrides)
+      .values({ coordinatorId, date, windows })
+      .onConflictDoUpdate({
+         target: [
+            coordinatorAvailabilityOverrides.coordinatorId,
+            coordinatorAvailabilityOverrides.date,
+         ],
+         set: { windows, updatedAt: new Date() },
+      });
+
+   return { ok: true };
+}
+
+export type ClearCoordinatorAvailabilityOverrideResult =
+   | { ok: true }
+   | { error: string };
+
+export async function clearCoordinatorAvailabilityOverride(
+   input: unknown,
+): Promise<ClearCoordinatorAvailabilityOverrideResult> {
+   const parsed = clearCoordinatorAvailabilityOverrideSchema.safeParse(input);
+   if (!parsed.success) {
+      return {
+         error: parsed.error.issues[0]?.message ?? "Invalid input",
+      };
+   }
+
+   const { coordinatorId, date } = parsed.data;
+   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
+      return { error: "Unauthorized" };
+   }
+
+   await db
+      .delete(coordinatorAvailabilityOverrides)
+      .where(
+         and(
+            eq(coordinatorAvailabilityOverrides.coordinatorId, coordinatorId),
+            eq(coordinatorAvailabilityOverrides.date, date),
+         ),
+      );
+
+   return { ok: true };
+}
+
+export type ListCoordinatorAvailabilityResult =
+   | { occurrences: AvailabilityOccurrence[] }
+   | { error: string };
+
+export async function listCoordinatorAvailability(
+   input: unknown,
+): Promise<ListCoordinatorAvailabilityResult> {
+   const parsed = listCoordinatorAvailabilitySchema.safeParse(input);
+   if (!parsed.success) {
+      return {
+         error: parsed.error.issues[0]?.message ?? "Invalid input",
+      };
+   }
+
+   const { coordinatorId, from, to } = parsed.data;
+   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
+      return { error: "Unauthorized" };
+   }
+
+   const [hoursRow] = await db
+      .select()
+      .from(coordinatorAvailabilityHours)
+      .where(eq(coordinatorAvailabilityHours.coordinatorId, coordinatorId))
+      .limit(1);
+
+   const overrideRows = await db
+      .select()
+      .from(coordinatorAvailabilityOverrides)
+      .where(
+         and(
+            eq(coordinatorAvailabilityOverrides.coordinatorId, coordinatorId),
+            gte(coordinatorAvailabilityOverrides.date, from),
+            lte(coordinatorAvailabilityOverrides.date, to),
+         ),
+      );
+
+   const overrides: Record<string, AvailabilityOverrideWindow[]> = {};
+   for (const row of overrideRows) {
+      overrides[row.date] = row.windows;
+   }
+
+   return {
+      occurrences: availabilityForRange({
+         hours: hoursRow?.hours ?? EMPTY_WEEKLY_HOURS,
+         overrides,
+         from,
+         to,
+      }),
+   };
 }
