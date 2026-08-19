@@ -4,6 +4,7 @@ import {
    setCoordinatorAvailabilityOverrideSchema,
    clearCoordinatorAvailabilityOverrideSchema,
    listCoordinatorAvailabilitySchema,
+   fetchCoordinatorAvailabilityEditorStateSchema,
 } from "@/app/coaching/schema";
 import {
    availabilityForRange,
@@ -21,6 +22,7 @@ import {
    coordinatorAvailabilityOverrides,
    services,
    type AvailabilityOverrideWindow,
+   type CoordinatorWeeklyHours,
 } from "@/lib/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
@@ -181,6 +183,62 @@ export async function clearCoordinatorAvailabilityOverride(
       );
 
    return { ok: true };
+}
+
+export type FetchCoordinatorAvailabilityEditorStateResult =
+   | {
+        hours: CoordinatorWeeklyHours;
+        timezone: string;
+        /** null = no override row for that date; [] = explicit day off */
+        override: AvailabilityOverrideWindow[] | null;
+     }
+   | { error: string };
+
+export async function fetchCoordinatorAvailabilityEditorState(
+   input: unknown,
+): Promise<FetchCoordinatorAvailabilityEditorStateResult> {
+   const parsed =
+      fetchCoordinatorAvailabilityEditorStateSchema.safeParse(input);
+   if (!parsed.success) {
+      return {
+         error: parsed.error.issues[0]?.message ?? "Invalid input",
+      };
+   }
+
+   const { coordinatorId, overrideDate } = parsed.data;
+   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
+      return { error: "Unauthorized" };
+   }
+
+   const [hoursRow] = await db
+      .select()
+      .from(coordinatorAvailabilityHours)
+      .where(eq(coordinatorAvailabilityHours.coordinatorId, coordinatorId))
+      .limit(1);
+
+   let override: AvailabilityOverrideWindow[] | null = null;
+   if (overrideDate) {
+      const [overrideRow] = await db
+         .select()
+         .from(coordinatorAvailabilityOverrides)
+         .where(
+            and(
+               eq(
+                  coordinatorAvailabilityOverrides.coordinatorId,
+                  coordinatorId,
+               ),
+               eq(coordinatorAvailabilityOverrides.date, overrideDate),
+            ),
+         )
+         .limit(1);
+      override = overrideRow ? overrideRow.windows : null;
+   }
+
+   return {
+      hours: hoursRow?.hours ?? EMPTY_WEEKLY_HOURS,
+      timezone: hoursRow?.timezone ?? "America/Toronto",
+      override,
+   };
 }
 
 export type ListCoordinatorAvailabilityResult =

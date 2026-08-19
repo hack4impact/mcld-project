@@ -97,6 +97,11 @@ export const clearCoordinatorAvailabilityOverrideSchema = z.object({
    date: dateSchema,
 });
 
+export const fetchCoordinatorAvailabilityEditorStateSchema = z.object({
+   coordinatorId: z.string().uuid(),
+   overrideDate: dateSchema.optional(),
+});
+
 export const listCoordinatorAvailabilitySchema = z
    .object({
       coordinatorId: z.string().uuid(),
