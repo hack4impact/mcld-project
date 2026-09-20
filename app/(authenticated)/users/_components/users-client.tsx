@@ -36,9 +36,15 @@ export interface RoleFilterOption {
 interface UsersClientProps {
    users: UserRow[];
    roleFilterOptions: RoleFilterOption[];
+   /** Admins manage users; coordinators get the same table read-only. */
+   canManage: boolean;
 }
 
-export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
+export function UsersClient({
+   users,
+   roleFilterOptions,
+   canManage,
+}: UsersClientProps) {
    const [tab, setTab] = useState<UserSubscriptionViewTab>("all");
    const [roleFilter, setRoleFilter] = useState<string>("all");
    const [nameQuery, setNameQuery] = useState<string>("");
@@ -51,8 +57,8 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
          getUsersColumns((user) => {
             setEditUser(user);
             setEditOpen(true);
-         }),
-      [],
+         }, canManage),
+      [canManage],
    );
 
    const filtered = useMemo(() => {
@@ -86,7 +92,7 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
 
    return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-         {editUser && (
+         {canManage && editUser && (
             <EditUserDialog
                user={editUser}
                open={editOpen}
@@ -101,9 +107,11 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
             onValueChange={(v) => setTab(v as UserSubscriptionViewTab)}
             className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
          >
-         <div className="flex w-full min-w-0 shrink-0 justify-end">
-            <CreateUserDialog />
-         </div>
+         {canManage && (
+            <div className="flex w-full min-w-0 shrink-0 justify-end">
+               <CreateUserDialog />
+            </div>
+         )}
 
          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">

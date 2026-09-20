@@ -7,13 +7,14 @@ import { UserActionsCell } from "./user-actions-cell";
 
 export function getUsersColumns(
    onEdit: (user: UserRow) => void,
+   canManage = true,
 ): ColumnDef<UserRow>[] {
    return [
    {
       id: "profile",
       header: "User Profile",
       meta: {
-         colWidth: "32%",
+         colWidth: canManage ? "32%" : "45%",
          tdClassName: "whitespace-normal align-middle",
       },
       cell: ({ row }) => {
@@ -41,7 +42,7 @@ export function getUsersColumns(
    {
       accessorKey: "role",
       header: "Role",
-      meta: { colWidth: "14%" },
+      meta: { colWidth: canManage ? "14%" : "22%" },
       cell: ({ row }) => (
          <span className="inline-flex max-w-full min-w-0 items-center rounded-full border border-border px-2 py-0.5 text-xs font-medium capitalize text-foreground">
             <span className="truncate">
@@ -53,7 +54,7 @@ export function getUsersColumns(
    {
       id: "lastLoginAt",
       header: "Last Login",
-      meta: { colWidth: "18%" },
+      meta: { colWidth: canManage ? "18%" : "33%" },
       cell: ({ row }) => (
          <span className="block min-w-0 truncate text-sm text-muted-foreground">
             {new Intl.DateTimeFormat("en-CA", {
@@ -64,15 +65,21 @@ export function getUsersColumns(
          </span>
       ),
    },
-   {
-      id: "actions",
-      header: () => <div className="text-right">Actions</div>,
-      meta: {
-         colWidth: "22%",
-         thClassName: "text-right",
-         tdClassName: "text-right",
-      },
-      cell: ({ row }) => <UserActionsCell user={row.original} onEdit={onEdit} />,
-   },
+   ...(canManage
+      ? [
+           {
+              id: "actions",
+              header: () => <div className="text-right">Actions</div>,
+              meta: {
+                 colWidth: "22%",
+                 thClassName: "text-right",
+                 tdClassName: "text-right",
+              },
+              cell: ({ row }) => (
+                 <UserActionsCell user={row.original} onEdit={onEdit} />
+              ),
+           } satisfies ColumnDef<UserRow>,
+        ]
+      : []),
    ];
 }

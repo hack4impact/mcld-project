@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
-import { requireAdmin } from "@/lib/auth/require-admin";
+import { getUserRole } from "@/lib/auth/require-admin";
+import { ROLES } from "@/lib/roles";
 import { UsersClient } from "./_components/users-client";
-import { profileRoleLabel } from "./profile-role-label";
+import { profileRoleLabel, type UserRow } from "./profile-role-label";
 import { listDistinctProfileRoles, listUsersWithEmails } from "./queries";
 
 export default function UsersPage() {
@@ -18,12 +19,25 @@ export default function UsersPage() {
    );
 }
 
+/**
+ * Coordinators get a read-only view, so the Stripe customer id — only ever used
+ * by the admin-only discount/transaction modals — is dropped server-side rather
+ * than merely hidden in the UI. It must not reach their browser at all.
+ */
+function toReadOnlyRow(user: UserRow): UserRow {
+   const row = { ...user };
+   delete row.stripeCustomerId;
+   return row;
+}
+
 async function UsersContent() {
-   try {
-      await requireAdmin();
-   } catch {
+   const role = await getUserRole();
+
+   if (role !== ROLES.ADMIN && role !== ROLES.COORDINATOR) {
       redirect("/");
    }
+
+   const canManage = role === ROLES.ADMIN;
 
    const users = await listUsersWithEmails();
    const distinctRoles = await listDistinctProfileRoles();
@@ -40,7 +54,11 @@ async function UsersContent() {
       <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
          <h1 className="shrink-0 text-3xl font-bold">Users</h1>
          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <UsersClient users={users} roleFilterOptions={roleFilterOptions} />
+            <UsersClient
+               users={canManage ? users : users.map(toReadOnlyRow)}
+               roleFilterOptions={roleFilterOptions}
+               canManage={canManage}
+            />
          </div>
       </main>
    );
