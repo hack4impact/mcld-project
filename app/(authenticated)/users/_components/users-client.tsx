@@ -36,7 +36,6 @@ export interface RoleFilterOption {
 interface UsersClientProps {
    users: UserRow[];
    roleFilterOptions: RoleFilterOption[];
-   /** Admins manage users; coordinators get the same table read-only. */
    canManage: boolean;
 }
 

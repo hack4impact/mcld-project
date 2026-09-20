@@ -14,7 +14,6 @@ jest.mock("@/utils/supabase/server", () => ({
    createClient: async () => ({ auth: { getClaims: () => getClaims() } }),
 }));
 
-/** Shape a Supabase `getClaims()` response carrying the given role claim. */
 function claiming(userRole: unknown) {
    return { data: { claims: { user_role: userRole } } };
 }

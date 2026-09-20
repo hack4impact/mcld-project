@@ -19,11 +19,6 @@ export default function UsersPage() {
    );
 }
 
-/**
- * Coordinators get a read-only view, so the Stripe customer id — only ever used
- * by the admin-only discount/transaction modals — is dropped server-side rather
- * than merely hidden in the UI. It must not reach their browser at all.
- */
 function toReadOnlyRow(user: UserRow): UserRow {
    const row = { ...user };
    delete row.stripeCustomerId;

@@ -54,8 +54,6 @@ export function AppSidebar({
 
    const navItems = useMemo(() => {
       const isAdmin = role === ROLES.ADMIN;
-      // Coordinators get a read-only Users page (see issue #126); regular users
-      // still have no access to it at all.
       const canViewUsers = isAdmin || role === ROLES.COORDINATOR;
       const items = baseNavItems.filter(
          (item) => canViewUsers || item.href !== "/users",

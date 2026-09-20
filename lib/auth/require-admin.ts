@@ -1,10 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { ROLES, type Role } from "@/lib/roles";
 
-/**
- * Resolve the current user's role from Supabase auth claims, or null if the
- * user is unauthenticated / has no recognised role claim.
- */
 export async function getUserRole(): Promise<Role | null> {
    const supabase = await createClient();
    const { data } = await supabase.auth.getClaims();
