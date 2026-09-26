@@ -4,6 +4,7 @@ import {
    CreateUserDialog,
    EditUserDialog,
 } from "@/app/(authenticated)/users/_components/user-admin-dialog";
+import { updateUserAdmin } from "@/app/(authenticated)/users/actions";
 import type { UserRow } from "@/app/(authenticated)/users/profile-role-label";
 
 jest.mock("@/app/(authenticated)/users/actions", () => ({
@@ -26,16 +27,19 @@ const user: UserRow = {
    phone: "5145550100",
 };
 
-function hiddenValue(name: string) {
-   const input = document.querySelector<HTMLInputElement>(
-      `input[type="hidden"][name="${name}"]`,
+// The server actions read these exact names from the submitted FormData.
+function submitted(name: string) {
+   const inputs = document.querySelectorAll<HTMLInputElement>(
+      `input[name="${name}"]`,
    );
-   if (!input) throw new Error(`No hidden input named ${name}`);
-   return input.value;
+   if (inputs.length !== 1) {
+      throw new Error(`Expected one input named ${name}, got ${inputs.length}`);
+   }
+   return inputs[0]!.value;
 }
 
 describe("EditUserDialog", () => {
-   it("prefills the user's contact details", () => {
+   it("prefills the user's contact details under the names the action reads", () => {
       render(<EditUserDialog user={user} open onOpenChange={jest.fn()} />);
 
       expect(screen.getByLabelText("Phone")).toHaveValue("5145550100");
@@ -44,11 +48,14 @@ describe("EditUserDialog", () => {
       expect(
          screen.getByRole("combobox", { name: "Gender" }),
       ).toHaveTextContent("Female");
-      expect(hiddenValue("gender")).toBe("female");
-      expect(hiddenValue("dob")).toBe("1990-04-12");
+
+      expect(submitted("phone")).toBe("5145550100");
+      expect(submitted("dob")).toBe("1990-04-12");
+      expect(submitted("address")).toBe("123 Main St");
+      expect(submitted("gender")).toBe("female");
    });
 
-   it("submits an empty gender when none is set", () => {
+   it("leaves every field empty when the user has no details", () => {
       render(
          <EditUserDialog
             user={{
@@ -66,9 +73,35 @@ describe("EditUserDialog", () => {
       expect(
          screen.getByRole("combobox", { name: "Gender" }),
       ).toHaveTextContent("Not specified");
-      expect(hiddenValue("gender")).toBe("");
-      expect(screen.getByLabelText("Phone")).toHaveValue("");
-      expect(screen.getByLabelText("Address")).toHaveValue("");
+      expect(submitted("gender")).toBe("");
+      expect(submitted("phone")).toBe("");
+      expect(submitted("dob")).toBe("");
+      expect(submitted("address")).toBe("");
+   });
+
+   it("keeps the typed values when the server rejects them", async () => {
+      jest.mocked(updateUserAdmin).mockResolvedValue({
+         errors: { phone: ["Phone number must be 10–15 digits"] },
+      });
+      render(<EditUserDialog user={user} open onOpenChange={jest.fn()} />);
+
+      fireEvent.change(screen.getByLabelText("Phone"), {
+         target: { value: "12345" },
+      });
+      fireEvent.change(screen.getByLabelText("Address"), {
+         target: { value: "456 Side St" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(
+         await screen.findByText("Phone number must be 10–15 digits"),
+      ).toBeInTheDocument();
+      const formData = jest.mocked(updateUserAdmin).mock.calls[0]![1];
+      expect(formData.get("phone")).toBe("12345");
+      expect(formData.get("address")).toBe("456 Side St");
+      expect(screen.getByLabelText("Phone")).toHaveValue("12345");
+      expect(screen.getByLabelText("Address")).toHaveValue("456 Side St");
+      expect(submitted("gender")).toBe("female");
    });
 });
 
@@ -79,9 +112,9 @@ describe("CreateUserDialog", () => {
 
       expect(screen.getByText("Contact details")).toBeInTheDocument();
       expect(screen.getByText("(optional)")).toBeInTheDocument();
-      expect(screen.getByLabelText("Phone")).toHaveValue("");
-      expect(screen.getByLabelText("Date of birth")).toHaveValue("");
-      expect(screen.getByLabelText("Address")).toHaveValue("");
-      expect(hiddenValue("gender")).toBe("");
+      expect(submitted("phone")).toBe("");
+      expect(submitted("dob")).toBe("");
+      expect(submitted("address")).toBe("");
+      expect(submitted("gender")).toBe("");
    });
 });
