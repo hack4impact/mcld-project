@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
    Select,
@@ -13,8 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowDownAZ, ArrowUpZA, Search } from "lucide-react";
 import { UsersDataTable } from "./users-data-table";
-import { getUsersColumns } from "./users-columns";
-import type { UserRow } from "../profile-role-label";
+import {
+   getAdminUsersColumns,
+   getReadOnlyUsersColumns,
+} from "./users-columns";
+import type { ReadOnlyUserRow, UserRow } from "../profile-role-label";
 import { CreateUserDialog, EditUserDialog } from "./user-admin-dialog";
 
 const USER_SUBSCRIPTION_VIEW_TABS = [
@@ -33,12 +37,75 @@ export interface RoleFilterOption {
    label: string;
 }
 
-interface UsersClientProps {
-   users: UserRow[];
-   roleFilterOptions: RoleFilterOption[];
+type UsersClientProps = { roleFilterOptions: RoleFilterOption[] } & (
+   | { canManage: true; users: UserRow[] }
+   | { canManage: false; users: ReadOnlyUserRow[] }
+);
+
+type UserFilters = {
+   nameQuery: string;
+   tab: UserSubscriptionViewTab;
+   roleFilter: string;
+   sortDir: SortDir;
+};
+
+const READ_ONLY_COLUMNS = getReadOnlyUsersColumns();
+
+function filterUsers<T extends ReadOnlyUserRow>(
+   users: T[],
+   { nameQuery, tab, roleFilter, sortDir }: UserFilters,
+): T[] {
+   const query = nameQuery.trim().toLowerCase();
+
+   return users
+      .filter((u) => {
+         if (!query) return true;
+         const name = `${u.firstName} ${u.lastName}`.toLowerCase();
+         return name.includes(query) || u.email.toLowerCase().includes(query);
+      })
+      .filter((u) => {
+         if (tab === "all") return true;
+         if (tab === "active") return u.isActive;
+         return !u.isActive;
+      })
+      .filter((u) => {
+         if (roleFilter === "all") return true;
+         return u.role === roleFilter;
+      })
+      .sort((a, b) => {
+         const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+         const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+         return sortDir === "asc"
+            ? nameA.localeCompare(nameB)
+            : nameB.localeCompare(nameA);
+      });
 }
 
-export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
+function FilteredUsersTable<T extends ReadOnlyUserRow>({
+   users,
+   columns,
+   nameQuery,
+   tab,
+   roleFilter,
+   sortDir,
+}: { users: T[]; columns: ColumnDef<T>[] } & UserFilters) {
+   const data = useMemo(
+      () => filterUsers(users, { nameQuery, tab, roleFilter, sortDir }),
+      [users, nameQuery, tab, roleFilter, sortDir],
+   );
+
+   return (
+      <UsersDataTable
+         columns={columns}
+         data={data}
+         emptyMessage="No users match the current filters."
+         rowLabel={(n) => `${n} user${n === 1 ? "" : "s"}`}
+      />
+   );
+}
+
+export function UsersClient(props: UsersClientProps) {
+   const { roleFilterOptions, canManage } = props;
    const [tab, setTab] = useState<UserSubscriptionViewTab>("all");
    const [roleFilter, setRoleFilter] = useState<string>("all");
    const [nameQuery, setNameQuery] = useState<string>("");
@@ -46,47 +113,20 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
    const [editUser, setEditUser] = useState<UserRow | null>(null);
    const [editOpen, setEditOpen] = useState(false);
 
-   const columns = useMemo(
+   const adminColumns = useMemo(
       () =>
-         getUsersColumns((user) => {
+         getAdminUsersColumns((user) => {
             setEditUser(user);
             setEditOpen(true);
          }),
       [],
    );
 
-   const filtered = useMemo(() => {
-      const query = nameQuery.trim().toLowerCase();
-
-      return users
-         .filter((u) => {
-            if (!query) return true;
-            const name = `${u.firstName} ${u.lastName}`.toLowerCase();
-            return (
-               name.includes(query) || u.email.toLowerCase().includes(query)
-            );
-         })
-         .filter((u) => {
-            if (tab === "all") return true;
-            if (tab === "active") return u.isActive;
-            return !u.isActive;
-         })
-         .filter((u) => {
-            if (roleFilter === "all") return true;
-            return u.role === roleFilter;
-         })
-         .sort((a, b) => {
-            const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-            const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-            return sortDir === "asc"
-               ? nameA.localeCompare(nameB)
-               : nameB.localeCompare(nameA);
-         });
-   }, [users, nameQuery, tab, roleFilter, sortDir]);
+   const filters: UserFilters = { nameQuery, tab, roleFilter, sortDir };
 
    return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-         {editUser && (
+         {canManage && editUser && (
             <EditUserDialog
                user={editUser}
                open={editOpen}
@@ -101,9 +141,11 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
             onValueChange={(v) => setTab(v as UserSubscriptionViewTab)}
             className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
          >
-         <div className="flex w-full min-w-0 shrink-0 justify-end">
-            <CreateUserDialog />
-         </div>
+         {canManage && (
+            <div className="flex w-full min-w-0 shrink-0 justify-end">
+               <CreateUserDialog />
+            </div>
+         )}
 
          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
@@ -169,12 +211,19 @@ export function UsersClient({ users, roleFilterOptions }: UsersClientProps) {
             value={tab} 
             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
          >
-            <UsersDataTable
-               columns={columns}
-               data={filtered}
-               emptyMessage="No users match the current filters."
-               rowLabel={(n) => `${n} user${n === 1 ? "" : "s"}`}
-            />
+            {props.canManage ? (
+               <FilteredUsersTable
+                  users={props.users}
+                  columns={adminColumns}
+                  {...filters}
+               />
+            ) : (
+               <FilteredUsersTable
+                  users={props.users}
+                  columns={READ_ONLY_COLUMNS}
+                  {...filters}
+               />
+            )}
          </TabsContent>
       </Tabs>
       </div>

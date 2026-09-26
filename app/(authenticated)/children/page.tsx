@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/utils/supabase/server";
+import { getUserRole } from "@/lib/auth/require-admin";
 import { ROLES } from "@/lib/roles";
 import { listChildrenForParent } from "@/app/(authenticated)/users/children-queries";
 import { ChildrenClient } from "./_components/children-client";
@@ -27,8 +28,7 @@ async function ChildrenContent() {
       redirect("/login");
    }
 
-   const { data: claimsData } = await supabase.auth.getClaims();
-   const role = claimsData?.claims?.user_role;
+   const role = await getUserRole();
    if (role === ROLES.ADMIN) {
       redirect("/users");
    }
