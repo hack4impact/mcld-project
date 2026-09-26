@@ -43,12 +43,14 @@ export function ServicesDataTable({
       [],
    );
 
+   // UsersDataTable uses `table-fixed`: every column needs a colWidth and they
+   // must total 100%, or a column without one gets no space.
    const columns = React.useMemo<ColumnDef<ServiceView>[]>(
       () => [
          {
             accessorKey: "title",
             header: "Program",
-            meta: { colWidth: "42%" },
+            meta: { colWidth: "35%" },
             cell: ({ row }) => (
                <span className="font-semibold text-foreground">{row.original.title ?? "—"}</span>
             ),
@@ -56,7 +58,7 @@ export function ServicesDataTable({
          {
             accessorKey: "status",
             header: "Status",
-            meta: { colWidth: "13%" },
+            meta: { colWidth: "10%" },
             cell: ({ row }) => (
                <span
                   className={
@@ -72,6 +74,7 @@ export function ServicesDataTable({
          {
             accessorKey: "requiresSubscription",
             header: "Subscription",
+            meta: { colWidth: "13%" },
             cell: ({ row }) => (
                <span
                   className={
@@ -86,7 +89,7 @@ export function ServicesDataTable({
          {
             id: "startDate",
             header: "Start Date",
-            meta: { colWidth: "17%" },
+            meta: { colWidth: "13%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.startDate) : "—";
@@ -95,7 +98,7 @@ export function ServicesDataTable({
          {
             id: "endDate",
             header: "End Date",
-            meta: { colWidth: "17%" },
+            meta: { colWidth: "13%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.endDate) : "—";
@@ -104,7 +107,7 @@ export function ServicesDataTable({
          {
             id: "actions",
             header: "Actions",
-            meta: { colWidth: "11%", thClassName: "text-right", tdClassName: "text-right" },
+            meta: { colWidth: "16%", thClassName: "text-right", tdClassName: "text-right" },
             cell: ({ row }) => {
                const s = row.original;
                if (readOnly) {
