@@ -26,4 +26,5 @@ erDiagram
 - `role` controls access (defaults to `user`): `user` is a regular member, `coordinator` can manage and lead services/coaching sessions, `admin` has full access. Values are also defined in `lib/roles.ts`.
 - `first_name` and `last_name` are required; `address`, `gender`, `dob`, and `phone` are optional profile details.
 - `stripe_customer_id` links the profile to its Stripe customer once created; it is unique.
-- RLS is enabled with one policy, `auth_admin_can_read_profiles`, so `custom_access_token_hook` can read `role` into the `user_role` JWT claim. See [Row Level Security](./schema-overview.md#row-level-security).
+- RLS is enabled with no policies. `custom_access_token_hook` still reads `role` into the `user_role` JWT claim because it's `security definer`. See [Row Level Security](./schema-overview.md#row-level-security).
+- The signup trigger (`handle_new_user`) and the access token hook are defined in [`lib/db/auth-functions.sql`](../lib/db/auth-functions.sql).

@@ -51,6 +51,13 @@ pnpm db:generate   # generate migration files
 pnpm db:migrate    # run migrations
 ```
 
+Then set up the auth functions, which Drizzle doesn't manage:
+
+1. Run [`lib/db/auth-functions.sql`](lib/db/auth-functions.sql) in the Supabase SQL editor. It creates the signup trigger that makes each user's `profiles` row, and the hook that puts their role in the login token.
+2. Under **Authentication > Hooks**, enable **Customize Access Token (JWT) Claims** and pick the Postgres function `public.custom_access_token_hook`.
+
+Without these, new users get no profile, and every user is treated as a regular `user`.
+
 ### 5. Run
 
 ```bash
@@ -93,6 +100,9 @@ utils/supabase/
   server.ts           # Server Supabase client
   middleware.ts       # Session refresh + auth redirect logic
 proxy.ts              # Next.js 16 proxy (replaces middleware.ts)
+lib/db/
+  schema.ts           # Drizzle schema (source of truth)
+  auth-functions.sql  # Supabase Auth hook + signup trigger (run by hand)
 drizzle/              # Drizzle schema + migrations
 drizzle.config.ts     # Drizzle config
 ```

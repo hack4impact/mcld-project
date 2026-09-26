@@ -222,12 +222,31 @@ Some `jsonb` columns store typed structures defined in `lib/db/schema.ts`:
 
 RLS is enabled on every table. The app reads and writes through Drizzle (`lib/db`),
 which connects as `postgres` and bypasses RLS, so RLS only affects the Supabase Data
-API (the `anon` / `authenticated` roles behind the publishable key). Those roles
-have no policies, so the Data API returns no rows and rejects writes on every table.
+API (the `anon` / `authenticated` roles behind the publishable key). There are no
+policies, so the Data API returns no rows and rejects writes on every table.
 
-| Table | Policy | Rule |
+`custom_access_token_hook` also reads `profiles` (to copy `role` into the
+`user_role` JWT claim). Supabase Auth calls it as `supabase_auth_admin`, which
+doesn't bypass RLS, so the hook is `security definer`: it runs as its owner
+(`postgres`) and needs no policy. See [Auth functions](#auth-functions).
+
+**Don't rely on `db:push` for policies.** drizzle-kit's `push` drops a
+`pgPolicy`'s `using` / `withCheck` when it creates the policy, and ignores them
+when comparing, so it never repairs them. A permissive policy with no `USING`
+clause lets no rows through. If policies are ever needed, apply them with
+`db:generate` + `db:migrate`, or check them in the database after pushing.
+
+## Auth functions
+
+[`lib/db/auth-functions.sql`](../lib/db/auth-functions.sql) holds the database
+functions Supabase Auth relies on. Drizzle doesn't manage functions or triggers,
+so run the file in the Supabase SQL editor after the first `db:push` on a new
+database, and again whenever it changes. It's safe to re-run.
+
+| Function | Trigger / hook | What it does |
 |---|---|---|
-| `profiles` | `auth_admin_can_read_profiles` | `supabase_auth_admin` can `SELECT`. `custom_access_token_hook` runs as this role to copy `role` into the `user_role` JWT claim; without the policy every user's claim would be `user`. |
+| `custom_access_token_hook` | Auth hook "Customize Access Token (JWT) Claims" (enable it under **Authentication > Hooks**) | Copies `profiles.role` into the `user_role` JWT claim on every login and token refresh. Only `supabase_auth_admin` can execute it. |
+| `handle_new_user` | `on_auth_user_created`, after insert on `auth.users` | Creates the matching `profiles` row with role `user`. |
 
 ## Working with the schema
 
