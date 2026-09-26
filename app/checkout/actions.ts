@@ -188,7 +188,7 @@ export async function startPrivateLessonCheckout({
    availabilities,
 }: {
    serviceId: string;
-   availabilities: Availability[];
+   availabilities?: Availability[];
 }): Promise<CheckoutResult> {
    const created = await submitAvailabilities({ serviceId, availabilities });
    if ("error" in created) return { error: created.error };

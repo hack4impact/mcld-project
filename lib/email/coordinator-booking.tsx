@@ -146,18 +146,23 @@ export function CoordinatorBookingEmail({
                   <>
                      <Text style={muted}>No time scheduled yet.</Text>
                      {requestedAvailability &&
-                        requestedAvailability.length > 0 && (
-                           <>
-                              <Text style={paragraph}>
-                                 Client&apos;s requested availability:
+                     requestedAvailability.length > 0 ? (
+                        <>
+                           <Text style={paragraph}>
+                              Client&apos;s requested availability:
+                           </Text>
+                           {requestedAvailability.map((s) => (
+                              <Text key={s.start} style={listItem}>
+                                 • {formatSlot(s, timeZone)}
                               </Text>
-                              {requestedAvailability.map((s) => (
-                                 <Text key={s.start} style={listItem}>
-                                    • {formatSlot(s, timeZone)}
-                                 </Text>
-                              ))}
-                           </>
-                        )}
+                           ))}
+                        </>
+                     ) : (
+                        <Text style={paragraph}>
+                           Please contact {clientName} to arrange a time for
+                           the lesson.
+                        </Text>
+                     )}
                   </>
                )}
 

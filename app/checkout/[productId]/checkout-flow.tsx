@@ -139,11 +139,24 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
 
    const isPrivateLesson = service.type === "private_lessons";
    const pricing = buildPricing(service, discount);
-   const showAvailabilityStep = isPrivateLesson;
+   const showAvailabilityStep = isPrivateLesson && service.isScheduled;
 
    async function handleProgramCheckout() {
       setSubmitting(true);
       const result = await checkoutServiceBooking({ serviceId: service.id });
+      if ("error" in result) {
+         setSubmitting(false);
+         toast.error(result.error);
+         return;
+      }
+      window.location.href = result.url;
+   }
+
+   async function handleUnscheduledLessonCheckout() {
+      setSubmitting(true);
+      const result = await startPrivateLessonCheckout({
+         serviceId: service.id,
+      });
       if ("error" in result) {
          setSubmitting(false);
          toast.error(result.error);
@@ -171,8 +184,12 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
    }
 
    function handleNextOnConfirm() {
-      if (isPrivateLesson) {
+      if (showAvailabilityStep) {
          setStep("availability");
+         return;
+      }
+      if (isPrivateLesson) {
+         void handleUnscheduledLessonCheckout();
          return;
       }
       void handleProgramCheckout();
