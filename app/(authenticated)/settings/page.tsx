@@ -1,7 +1,18 @@
+import { Settings } from "lucide-react";
+import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
+
 export default function SettingsPage() {
    return (
-      <main className="flex min-h-screen flex-col p-8">
-         <h1 className="text-3xl font-bold">Settings</h1>
-      </main>
+      <PageShell>
+         <PageHeader
+            title="Settings"
+            description="Manage your account and preferences."
+         />
+         <EmptyState
+            icon={<Settings />}
+            title="Coming soon"
+            description="Account settings will show up here once they're ready."
+         />
+      </PageShell>
    );
 }

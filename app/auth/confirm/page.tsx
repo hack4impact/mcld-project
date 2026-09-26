@@ -80,7 +80,7 @@ async function ConfirmContent({
             title="This link isn't valid"
             description="It may be incomplete. Check that you opened the whole link from the email, or request a new one."
          >
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild variant="outline" size="lg" className="w-full">
                <Link href="/login">Go to log in</Link>
             </Button>
          </AuthCard>

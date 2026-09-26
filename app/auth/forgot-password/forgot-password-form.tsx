@@ -34,12 +34,13 @@ function SentNotice({
          <Button
             type="submit"
             variant="outline"
+            size="lg"
             className="w-full"
             disabled={pending || remaining > 0}
          >
             {remaining > 0 ? `Send again in ${remaining}s` : "Send again"}
          </Button>
-         <Button asChild variant="ghost" className="w-full">
+         <Button asChild variant="ghost" size="lg" className="w-full">
             <Link href="/login">Back to log in</Link>
          </Button>
       </form>
@@ -65,8 +66,8 @@ export function ForgotPasswordForm() {
    const errors = state && "errors" in state ? state.errors : undefined;
 
    return (
-      <form action={formAction} className="space-y-4" noValidate>
-         <div className="space-y-1">
+      <form action={formAction} className="space-y-5" noValidate>
+         <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
                id="email"
@@ -75,15 +76,16 @@ export function ForgotPasswordForm() {
                autoComplete="email"
                placeholder="you@example.com"
                required
+               className="h-10"
             />
             {errors?.email?.[0] && (
                <p className="text-sm text-destructive">{errors.email[0]}</p>
             )}
          </div>
-         <Button type="submit" className="w-full" disabled={pending}>
+         <Button type="submit" size="lg" className="w-full" disabled={pending}>
             {pending ? "Sending…" : "Send reset link"}
          </Button>
-         <Button asChild variant="ghost" className="w-full">
+         <Button asChild variant="ghost" size="lg" className="w-full">
             <Link href="/login">Back to log in</Link>
          </Button>
       </form>

@@ -31,7 +31,7 @@ async function ResetPasswordContent() {
             title="Reset link expired"
             description="Password reset links work once and only for a short time. Request a new one to continue."
          >
-            <Button asChild className="w-full">
+            <Button asChild size="lg" className="w-full">
                <Link href="/auth/forgot-password">Request a new link</Link>
             </Button>
          </AuthCard>

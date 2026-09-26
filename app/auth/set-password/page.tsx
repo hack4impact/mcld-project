@@ -38,10 +38,10 @@ async function SetPasswordContent() {
             description="Invitation links work once and only for a short time. If you already accepted your invitation, set your password with “Forgot password?”. Otherwise, ask the MCLD office to send you a new invitation."
          >
             <div className="space-y-2">
-               <Button asChild className="w-full">
+               <Button asChild size="lg" className="w-full">
                   <Link href="/auth/forgot-password">Set my password</Link>
                </Button>
-               <Button asChild variant="ghost" className="w-full">
+               <Button asChild variant="ghost" size="lg" className="w-full">
                   <Link href="/login">Go to log in</Link>
                </Button>
             </div>

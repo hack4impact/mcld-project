@@ -68,7 +68,7 @@ export function ConfirmLinkForm({
                the other address to finish the change. Until then, keep using
                your current address to log in.
             </AuthAlert>
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild variant="outline" size="lg" className="w-full">
                <Link href="/login">Go to log in</Link>
             </Button>
          </>
@@ -82,7 +82,7 @@ export function ConfirmLinkForm({
                Your email address was changed. Use the new address next time you
                log in.
             </AuthAlert>
-            <Button asChild className="w-full">
+            <Button asChild size="lg" className="w-full">
                <Link href="/">Continue</Link>
             </Button>
          </>
@@ -99,7 +99,7 @@ export function ConfirmLinkForm({
                   : "This link isn't valid."}{" "}
                {help.text}
             </AuthAlert>
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild variant="outline" size="lg" className="w-full">
                <Link href={help.href}>{help.label}</Link>
             </Button>
          </>
@@ -107,7 +107,7 @@ export function ConfirmLinkForm({
    }
 
    return (
-      <form action={formAction} className="space-y-4">
+      <form action={formAction} className="space-y-5">
          {state?.status === "error" && (
             <AuthAlert tone="error">
                Something went wrong. Please try again in a few minutes.
@@ -126,7 +126,7 @@ export function ConfirmLinkForm({
          <input type="hidden" name="token_hash" value={tokenHash} />
          <input type="hidden" name="next" value={next} />
          <input type="hidden" name="email" value={email} />
-         <Button type="submit" className="w-full" disabled={pending}>
+         <Button type="submit" size="lg" className="w-full" disabled={pending}>
             {pending ? "Please wait…" : actionLabel}
          </Button>
       </form>

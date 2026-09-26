@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ServiceDialog } from "./service-dialog";
 import { ServicesDataTable } from "./services-data-table";
+import { RegistrationsDialog } from "./registrations-dialog";
 import type { CoordinatorOption, ServiceView } from "./queries";
 import type { FormListItem } from "@/app/(authenticated)/forms/queries";
 
@@ -15,13 +16,16 @@ export function ServicesTable({
    services,
    coordinators,
    forms,
+   readOnly = false,
 }: {
    services: ServiceView[];
    coordinators: CoordinatorOption[];
    forms: FormListItem[];
+   readOnly?: boolean;
 }) {
    const [tab, setTab] = React.useState<StatusTab>("active");
    const [editing, setEditing] = React.useState<ServiceView | null>(null);
+   const [viewing, setViewing] = React.useState<ServiceView | null>(null);
    const statusTabs: StatusTab[] = ["all", "active", "disabled", "archived"];
 
    const filtered = React.useMemo(() => {
@@ -35,40 +39,57 @@ export function ServicesTable({
          <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as StatusTab)}
-            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden"
          >
-            <div className="flex shrink-0 items-center justify-between">
-               <TabsList className="border border-border">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+               <TabsList>
                   {statusTabs.map((status) => (
                      <TabsTrigger key={status} value={status}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
                      </TabsTrigger>
                   ))}
                </TabsList>
-               <ServiceDialog
-                  mode="add"
-                  coordinators={coordinators}
-                  forms={forms}
-               />
+               {!readOnly && (
+                  <ServiceDialog
+                     mode="add"
+                     coordinators={coordinators}
+                     forms={forms}
+                  />
+               )}
             </div>
 
             <TabsContent
                value={tab}
                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
             >
-               <ServicesDataTable services={filtered} onEdit={setEditing} />
+               <ServicesDataTable
+                  services={filtered}
+                  onEdit={setEditing}
+                  onViewRegistrations={setViewing}
+                  readOnly={readOnly}
+               />
             </TabsContent>
          </Tabs>
-         <ServiceDialog
-            mode="edit"
-            coordinators={coordinators}
-            forms={forms}
-            service={editing}
-            open={editing !== null}
-            onOpenChange={(v) => {
-               if (!v) setEditing(null);
-            }}
-         />
+         {readOnly ? (
+            <RegistrationsDialog
+               service={viewing}
+               open={viewing !== null}
+               onOpenChange={(v) => {
+                  if (!v) setViewing(null);
+               }}
+            />
+         ) : (
+            <ServiceDialog
+               mode="edit"
+               coordinators={coordinators}
+               forms={forms}
+               service={editing}
+               open={editing !== null}
+               onOpenChange={(v) => {
+                  if (!v) setEditing(null);
+               }}
+            />
+         )}
       </div>
    );
 }

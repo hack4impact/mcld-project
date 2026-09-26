@@ -17,7 +17,7 @@ const columns: ColumnDef<AdultRegistration>[] = [
          return (
             <div className="flex min-w-0 items-center gap-3">
                <Avatar>
-                  <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+                  <AvatarFallback className="bg-secondary text-xs font-semibold text-secondary-foreground">
                      {initials}
                   </AvatarFallback>
                </Avatar>

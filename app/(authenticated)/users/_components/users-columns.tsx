@@ -2,12 +2,39 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 import {
    profileRoleLabel,
    type ReadOnlyUserRow,
    type UserRow,
 } from "../profile-role-label";
 import { UserActionsCell } from "./user-actions-cell";
+
+const ROLE_STYLES: Record<string, { className: string }> = {
+   admin: {
+      className: "bg-red-600 text-white",
+   },
+   coordinator: {
+      className: "bg-yellow-600 text-white",
+   },
+   user: {
+      className: "bg-muted text-muted-foreground ring-1 ring-inset ring-border",
+   },
+};
+
+function RoleBadge({ role }: { role: string }) {
+   const style = ROLE_STYLES[role] ?? ROLE_STYLES.user;
+   return (
+      <span
+         className={cn(
+            "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize",
+            style.className,
+         )}
+      >
+         <span className="truncate">{profileRoleLabel(role)}</span>
+      </span>
+   );
+}
 
 const COLUMN_WEIGHTS = {
    profile: 32,
@@ -44,7 +71,7 @@ function baseColumns<T extends ReadOnlyUserRow>(
             return (
                <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-3">
                   <Avatar>
-                     <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+                     <AvatarFallback className="bg-secondary text-xs font-semibold text-secondary-foreground">
                         {`${u.firstName[0] ?? ""}${u.lastName[0] ?? ""}`.toUpperCase()}
                      </AvatarFallback>
                   </Avatar>
@@ -64,13 +91,7 @@ function baseColumns<T extends ReadOnlyUserRow>(
          accessorKey: "role",
          header: "Role",
          meta: { colWidth: widths.role },
-         cell: ({ row }) => (
-            <span className="inline-flex max-w-full min-w-0 items-center rounded-full border border-border px-2 py-0.5 text-xs font-medium capitalize text-foreground">
-               <span className="truncate">
-                  {profileRoleLabel(row.original.role)}
-               </span>
-            </span>
-         ),
+         cell: ({ row }) => <RoleBadge role={row.original.role} />,
       },
       {
          id: "lastLoginAt",

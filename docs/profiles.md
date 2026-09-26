@@ -23,7 +23,7 @@ erDiagram
 ## Notes
 
 - `id` is **not** auto-generated — it is set to the corresponding `auth.users.id` from Supabase Auth.
-- `role` controls access (defaults to `user`): `user` is a regular member, `coordinator` can manage and lead services/coaching sessions, `admin` has full access. Values are also defined in `lib/roles.ts`.
+- `role` controls access (defaults to `user`): `user` is a regular member, `coordinator` manages and leads the services they are assigned to (read-only dashboard scoped to those services), `admin` has full access. Values are also defined in `lib/roles.ts`.
 - `first_name` and `last_name` are required; `address`, `gender`, `dob`, and `phone` are optional profile details.
 - Admins set the optional details from the Add user / Edit user dialogs on the Users page. Blank values are stored as `null`, and `phone` is stored as 10–15 digits with an optional leading `+` (spaces, dashes, dots and brackets are stripped). Coordinators' read-only Users view never receives them.
 - `stripe_customer_id` links the profile to its Stripe customer once created; it is unique.

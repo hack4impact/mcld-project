@@ -21,9 +21,13 @@ import type { ServiceView } from "@/app/(authenticated)/services/queries";
 export function ServicesDataTable({
    services,
    onEdit,
+   onViewRegistrations,
+   readOnly = false,
 }: {
    services: ServiceView[];
    onEdit: (service: ServiceView) => void;
+   onViewRegistrations?: (service: ServiceView) => void;
+   readOnly?: boolean;
 }) {
    const [pending, startTransition] = React.useTransition();
 
@@ -39,27 +43,30 @@ export function ServicesDataTable({
       [],
    );
 
+   // UsersDataTable uses `table-fixed`: every column needs a colWidth and they
+   // must total 100%, or a column without one gets no space.
    const columns = React.useMemo<ColumnDef<ServiceView>[]>(
       () => [
          {
             accessorKey: "title",
             header: "Program",
-            meta: { colWidth: "42%" },
+            meta: { colWidth: "35%" },
             cell: ({ row }) => (
-               <span className="font-medium">{row.original.title ?? "—"}</span>
+               <span className="font-semibold text-foreground">{row.original.title ?? "—"}</span>
             ),
          },
          {
             accessorKey: "status",
             header: "Status",
-            meta: { colWidth: "13%" },
+            meta: { colWidth: "10%" },
             cell: ({ row }) => (
                <span
                   className={
-                     "inline-flex rounded-full px-2 py-0.5 text-xs capitalize " +
+                     "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize " +
                      statusBadgeClass(row.original.status)
                   }
                >
+                  <span className="size-1.5 rounded-full bg-current" />
                   {row.original.status}
                </span>
             ),
@@ -67,10 +74,11 @@ export function ServicesDataTable({
          {
             accessorKey: "requiresSubscription",
             header: "Subscription",
+            meta: { colWidth: "13%" },
             cell: ({ row }) => (
                <span
                   className={
-                     "inline-flex rounded-full px-2 py-0.5 text-xs capitalize " +
+                     "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold " +
                      subscriptionBadgeClass(row.original.requiresSubscription)
                   }
                >
@@ -81,7 +89,7 @@ export function ServicesDataTable({
          {
             id: "startDate",
             header: "Start Date",
-            meta: { colWidth: "17%" },
+            meta: { colWidth: "13%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.startDate) : "—";
@@ -90,7 +98,7 @@ export function ServicesDataTable({
          {
             id: "endDate",
             header: "End Date",
-            meta: { colWidth: "17%" },
+            meta: { colWidth: "13%" },
             cell: ({ row }) => {
                const s = row.original.scheduledAt;
                return s ? formatDate(s.endDate) : "—";
@@ -99,9 +107,28 @@ export function ServicesDataTable({
          {
             id: "actions",
             header: "Actions",
-            meta: { colWidth: "11%", thClassName: "text-right", tdClassName: "text-right" },
+            meta: { colWidth: "16%", thClassName: "text-right", tdClassName: "text-right" },
             cell: ({ row }) => {
                const s = row.original;
+               if (readOnly) {
+                  return (
+                     <div className="flex items-center justify-end gap-0.5">
+                        <Tooltip>
+                           <TooltipTrigger asChild>
+                              <Button
+                                 variant="ghost"
+                                 size="icon-sm"
+                                 aria-label="View registrations"
+                                 onClick={() => onViewRegistrations?.(s)}
+                              >
+                                 <Users />
+                              </Button>
+                           </TooltipTrigger>
+                           <TooltipContent>View registrations</TooltipContent>
+                        </Tooltip>
+                     </div>
+                  );
+               }
                return (
                   <div className="flex items-center justify-end gap-0.5">
                      <Tooltip>
@@ -198,7 +225,7 @@ export function ServicesDataTable({
             },
          },
       ],
-      [pending, runStatus, onEdit],
+      [pending, runStatus, onEdit, onViewRegistrations, readOnly],
    );
 
    return (

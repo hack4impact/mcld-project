@@ -31,13 +31,13 @@ export function NewPasswordForm({
    const [state, formAction, pending] = useActionState(action, null);
 
    return (
-      <form action={formAction} className="space-y-4" noValidate>
+      <form action={formAction} className="space-y-5" noValidate>
          {state?.errors._form?.map((msg) => (
             <AuthAlert key={msg} tone="error">
                {msg}
             </AuthAlert>
          ))}
-         <div className="space-y-1">
+         <div className="space-y-2">
             <Label htmlFor="password">New password</Label>
             <Input
                id="password"
@@ -46,13 +46,14 @@ export function NewPasswordForm({
                autoComplete="new-password"
                minLength={PASSWORD_MIN_LENGTH}
                required
+               className="h-10"
             />
             <p className="text-xs text-muted-foreground">
                At least {PASSWORD_MIN_LENGTH} characters.
             </p>
             <FieldError errors={state?.errors.password} />
          </div>
-         <div className="space-y-1">
+         <div className="space-y-2">
             <Label htmlFor="confirm_password">Confirm new password</Label>
             <Input
                id="confirm_password"
@@ -60,10 +61,11 @@ export function NewPasswordForm({
                type="password"
                autoComplete="new-password"
                required
+               className="h-10"
             />
             <FieldError errors={state?.errors.confirm_password} />
          </div>
-         <Button type="submit" className="w-full" disabled={pending}>
+         <Button type="submit" size="lg" className="w-full" disabled={pending}>
             {pending ? "Saving…" : submitLabel}
          </Button>
       </form>

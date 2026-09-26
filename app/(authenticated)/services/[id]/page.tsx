@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
+import { PageShell } from "@/components/page-shell";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { getService } from "@/app/(authenticated)/services/queries";
 import { getServiceRegistrations } from "./queries";
@@ -15,7 +16,7 @@ export default function ServiceRegisteredPage({
    return (
       <Suspense
          fallback={
-            <div className="flex min-h-screen items-center justify-center">
+            <div className="flex flex-1 items-center justify-center">
                <Spinner className="size-8 text-muted-foreground" />
             </div>
          }
@@ -41,8 +42,8 @@ async function PageContent({ params }: { params: Promise<{ id: string }> }) {
    const registrations = await getServiceRegistrations(id);
 
    return (
-      <main className="flex min-h-screen flex-col gap-6 p-8">
+      <PageShell fill>
          <RegisteredView service={service} data={registrations} />
-      </main>
+      </PageShell>
    );
 }

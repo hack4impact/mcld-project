@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -413,8 +414,9 @@ export function CreateUserDialog() {
 
    return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-         <DialogTrigger asChild className=''>
-            <Button>
+         <DialogTrigger asChild>
+            <Button className="h-9">
+               <Plus />
                Add user
             </Button>
          </DialogTrigger>
