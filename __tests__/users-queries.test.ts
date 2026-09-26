@@ -54,12 +54,11 @@ describe("listReadOnlyUsers", () => {
       );
    });
 
-   it("never selects contact details", async () => {
+   it("includes contact details, like the admin list", async () => {
       await listReadOnlyUsers();
-      const selected = Object.keys(selectedFields[0]!);
-      for (const field of CONTACT_FIELDS) {
-         expect(selected).not.toContain(field);
-      }
+      expect(Object.keys(selectedFields[0]!)).toEqual(
+         expect.arrayContaining(CONTACT_FIELDS),
+      );
    });
 
    it("only returns allow-listed fields", async () => {
@@ -72,11 +71,22 @@ describe("listReadOnlyUsers", () => {
          lastLoginAt: dbRow.lastLoginAt,
          email: "ada@example.com",
          isActive: true,
+         address: "123 Main St",
+         gender: "female",
+         dob: "1990-04-12",
+         phone: "5145550100",
+         invitePending: true,
       });
    });
 });
 
 describe("listUsersWithEmails", () => {
+   it("returns the coordinators' rows plus only the Stripe customer id", async () => {
+      const [coordinatorRow] = await listReadOnlyUsers();
+      const [adminRow] = await listUsersWithEmails();
+      expect(adminRow).toEqual({ ...coordinatorRow, stripeCustomerId: "cus_123" });
+   });
+
    it("includes the Stripe customer id for admins", async () => {
       const [user] = await listUsersWithEmails();
       expect(Object.keys(selectedFields[0]!)).toContain("stripeCustomerId");

@@ -18,15 +18,15 @@ export type ReadOnlyUserRow = {
    role: string;
    isActive: boolean;
    lastLoginAt: Date;
-};
-
-// Admin-only: the read-only rows sent to coordinators leave these out.
-export type UserRow = ReadOnlyUserRow & {
-   stripeCustomerId: string | null;
    address: string | null;
    gender: string | null;
    dob: string | null;
    phone: string | null;
    // Invited, but hasn't accepted (so hasn't verified the address) yet.
    invitePending: boolean;
+};
+
+// Admin-only: the rows sent to coordinators leave out the Stripe id.
+export type UserRow = ReadOnlyUserRow & {
+   stripeCustomerId: string | null;
 };
