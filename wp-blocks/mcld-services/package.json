@@ -1,28 +1,20 @@
 {
 	"name": "mcld-services",
-	"version": "0.1.0",
-	"description": "Example block scaffolded with Create Block tool.",
-	"author": "The WordPress Contributors",
+	"version": "0.2.0",
+	"description": "MCLD Services widget for Elementor.",
+	"author": "MCLD",
 	"license": "GPL-2.0-or-later",
-	"main": "build/index.js",
+	"private": true,
+	"engines": { "node": ">=22" },
 	"scripts": {
-		"build": "wp-scripts build --blocks-manifest",
-		"format": "wp-scripts format",
-		"lint:css": "wp-scripts lint-style",
-		"lint:js": "wp-scripts lint-js",
-		"packages-update": "wp-scripts packages-update",
-		"plugin-zip": "wp-scripts plugin-zip",
-		"start": "wp-scripts start --blocks-manifest",
-		"server:start": "wp-env start",
-		"server:stop": "wp-env stop"
-	},
-	"dependencies": {
-		"@wordpress/block-editor": "latest",
-		"@wordpress/blocks": "latest",
-		"@wordpress/i18n": "latest"
+		"build": "node scripts/build.mjs",
+		"plugin-zip": "npm run build && node scripts/package.mjs",
+		"test": "node --test tests/*.test.mjs"
 	},
 	"devDependencies": {
-		"@wordpress/env": "^11.5.0",
-		"@wordpress/scripts": "^32.1.0"
+		"esbuild": "^0.28.2",
+		"fflate": "^0.8.3",
+		"jsdom": "^26.1.0",
+		"sass": "^1.105.0"
 	}
 }
