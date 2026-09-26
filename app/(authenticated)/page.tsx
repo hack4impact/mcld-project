@@ -17,13 +17,8 @@ import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
 import { getUserRole } from "@/lib/auth/require-admin";
 import { ROLES, type Role } from "@/lib/roles";
-import { getSubscriptionDetails } from "@/lib/stripe";
 import { Spinner } from "@/components/ui/spinner";
 import { PageShell } from "@/components/page-shell";
-import { CheckoutButton } from "@/components/subscribe-button";
-
-const SUBSCRIPTION_PRICE_ID = process.env.STRIPE_PRICE_ID!;
-const PRODUCT_PRICE_ID = process.env.STRIPE_PRODUCT_PRICE_ID!;
 
 type QuickLink = {
    title: string;
@@ -218,9 +213,6 @@ async function HomeContent() {
          </PageShell>
       );
    }
-
-   const [subscription] = await Promise.all([getSubscriptionDetails(user.id)]);
-   const ownsProduct = false;
 
    return (
       <PageShell>
