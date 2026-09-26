@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
-import { Archive, ArchiveRestore, Ban, Pencil, Power, Users } from "lucide-react";
+import { Archive, ArchiveRestore, Ban, Banknote, Pencil, Power, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,11 +22,13 @@ export function ServicesDataTable({
    services,
    onEdit,
    onViewRegistrations,
+   onRecordCash,
    readOnly = false,
 }: {
    services: ServiceView[];
    onEdit: (service: ServiceView) => void;
    onViewRegistrations?: (service: ServiceView) => void;
+   onRecordCash?: (service: ServiceView) => void;
    readOnly?: boolean;
 }) {
    const [pending, startTransition] = React.useTransition();
@@ -110,6 +112,24 @@ export function ServicesDataTable({
             meta: { colWidth: "16%", thClassName: "text-right", tdClassName: "text-right" },
             cell: ({ row }) => {
                const s = row.original;
+               const recordCash =
+                  onRecordCash &&
+                  s.type === "private_lessons" &&
+                  s.status === "active" ? (
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Record cash session"
+                              onClick={() => onRecordCash(s)}
+                           >
+                              <Banknote />
+                           </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Record cash session</TooltipContent>
+                     </Tooltip>
+                  ) : null;
                if (readOnly) {
                   return (
                      <div className="flex items-center justify-end gap-0.5">
@@ -126,6 +146,7 @@ export function ServicesDataTable({
                            </TooltipTrigger>
                            <TooltipContent>View registrations</TooltipContent>
                         </Tooltip>
+                        {recordCash}
                      </div>
                   );
                }
@@ -141,6 +162,7 @@ export function ServicesDataTable({
                         </TooltipTrigger>
                         <TooltipContent>View registered</TooltipContent>
                      </Tooltip>
+                     {recordCash}
                      {(s.status === "active" || s.status === "disabled") && (
                         <Tooltip>
                            <TooltipTrigger asChild>
@@ -225,7 +247,7 @@ export function ServicesDataTable({
             },
          },
       ],
-      [pending, runStatus, onEdit, onViewRegistrations, readOnly],
+      [pending, runStatus, onEdit, onViewRegistrations, onRecordCash, readOnly],
    );
 
    return (

@@ -85,6 +85,7 @@ export function RegistrationsDialog({
                                  </span>
                                  <span className="text-xs capitalize text-muted-foreground">
                                     {r.status}
+                                    {r.paidInCash && " · Paid in cash"}
                                  </span>
                               </div>
                               {r.answers.length > 0 ? (

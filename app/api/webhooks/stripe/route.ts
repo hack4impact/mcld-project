@@ -47,6 +47,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
    }
 
+   // Cash private lessons are recorded as invoices paid out of band; the
+   // session row is already saved, and they have nothing to do with subscriptions.
+   if (
+      event.type.startsWith("invoice.") &&
+      (event.data.object as Stripe.Invoice).metadata?.type ===
+         "cash_private_lesson"
+   ) {
+      return NextResponse.json({ received: true });
+   }
+
    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata ?? {};

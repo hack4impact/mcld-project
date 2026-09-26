@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServiceDialog } from "./service-dialog";
 import { ServicesDataTable } from "./services-data-table";
 import { RegistrationsDialog } from "./registrations-dialog";
+import { RecordCashSessionDialog } from "./record-cash-session-dialog";
 import type { CoordinatorOption, ServiceView } from "./queries";
 import type { FormListItem } from "@/app/(authenticated)/forms/queries";
 
@@ -26,6 +27,8 @@ export function ServicesTable({
    const [tab, setTab] = React.useState<StatusTab>("active");
    const [editing, setEditing] = React.useState<ServiceView | null>(null);
    const [viewing, setViewing] = React.useState<ServiceView | null>(null);
+   const [recordingCash, setRecordingCash] =
+      React.useState<ServiceView | null>(null);
    const statusTabs: StatusTab[] = ["all", "active", "disabled", "archived"];
 
    const filtered = React.useMemo(() => {
@@ -66,6 +69,7 @@ export function ServicesTable({
                   services={filtered}
                   onEdit={setEditing}
                   onViewRegistrations={setViewing}
+                  onRecordCash={setRecordingCash}
                   readOnly={readOnly}
                />
             </TabsContent>
@@ -90,6 +94,13 @@ export function ServicesTable({
                }}
             />
          )}
+         <RecordCashSessionDialog
+            service={recordingCash}
+            open={recordingCash !== null}
+            onOpenChange={(v) => {
+               if (!v) setRecordingCash(null);
+            }}
+         />
       </div>
    );
 }

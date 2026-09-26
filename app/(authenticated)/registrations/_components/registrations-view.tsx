@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+   Banknote,
    CalendarClock,
    CalendarDays,
    CircleCheck,
@@ -246,7 +247,8 @@ function LessonDetails({
 }: {
    registration: PrivateLessonRegistration;
 }) {
-   const { lessonStatus, durationMinutes, bookedAtLabel } = registration;
+   const { lessonStatus, durationMinutes, bookedAtLabel, paidInCash } =
+      registration;
    const status = LESSON_STATUS[lessonStatus];
 
    return (
@@ -261,8 +263,14 @@ function LessonDetails({
          </span>
          <span className="inline-flex items-center gap-1.5">
             <CalendarDays className="size-3.5" />
-            Booked {bookedAtLabel}
+            {paidInCash ? "Recorded" : "Booked"} {bookedAtLabel}
          </span>
+         {paidInCash && (
+            <span className="inline-flex items-center gap-1.5">
+               <Banknote className="size-3.5" />
+               Paid in cash
+            </span>
+         )}
       </>
    );
 }

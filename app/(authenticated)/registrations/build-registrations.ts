@@ -1,6 +1,7 @@
 import type { ProgramSchedule } from "@/app/(authenticated)/services/actions";
 import type { ServiceStatus } from "@/app/(authenticated)/services/queries";
-import type { children, coachingSessions, services } from "@/lib/db/schema";
+import type { children, privateLessonSessions, services } from "@/lib/db/schema";
+import { isCashSession } from "@/lib/private-lessons";
 
 export const DISPLAY_TIME_ZONE = "America/Toronto";
 
@@ -42,6 +43,7 @@ export type PrivateLessonRegistration = RegistrationBase & {
    lessonNumber: number | null;
    scheduledLabel: string | null;
    bookedAtLabel: string;
+   paidInCash: boolean;
 };
 
 export type RegistrationView = ProgramRegistration | PrivateLessonRegistration;
@@ -58,9 +60,10 @@ export type BookingRow = { service: ServiceRow; child: ChildRow | null };
 
 export type SessionRow = {
    id: string;
-   status: (typeof coachingSessions.$inferSelect)["status"];
+   status: (typeof privateLessonSessions.$inferSelect)["status"];
    scheduledAt: Date | null;
    createdAt: Date;
+   stripeOrderId: string | null;
    service: ServiceRow;
    child: ChildRow | null;
 };
@@ -222,6 +225,7 @@ function buildLessons(sessions: SessionRow[], now: Date): Sortable[] {
                ? formatLessonTime(row.scheduledAt)
                : null,
             bookedAtLabel: formatBookedAt(row.createdAt),
+            paidInCash: isCashSession(row.stripeOrderId),
          },
          at: row.scheduledAt?.getTime() ?? null,
          tiebreak: row.createdAt.getTime(),

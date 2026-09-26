@@ -1,5 +1,11 @@
 import { buildRegistrations } from "@/app/(authenticated)/registrations/build-registrations";
-import { NOW, bookings, sessions, titles } from "./fixtures/registrations";
+import {
+   NOW,
+   bookings,
+   renaudCoaching,
+   sessions,
+   titles,
+} from "./fixtures/registrations";
 
 function build() {
    return buildRegistrations({ bookings, sessions, titles, now: NOW });
@@ -99,5 +105,31 @@ describe("buildRegistrations", () => {
          now: NOW,
       });
       expect(upcoming.map((r) => r.id)).toEqual(["svc-ends-today"]);
+   });
+
+   it("flags lessons paid in cash", () => {
+      const { past } = buildRegistrations({
+         bookings: [],
+         sessions: [
+            {
+               id: "ses-cash",
+               status: "completed",
+               scheduledAt: new Date("2026-09-20T14:00:00Z"),
+               createdAt: new Date("2026-09-20T16:00:00Z"),
+               stripeOrderId: "in_cash",
+               service: renaudCoaching,
+               child: null,
+            },
+         ],
+         titles,
+         now: NOW,
+      });
+      expect(past[0]).toMatchObject({
+         id: "ses-cash",
+         paidInCash: true,
+      });
+      expect(
+         build().past.every((r) => r.type !== "private_lessons" || !r.paidInCash),
+      ).toBe(true);
    });
 });

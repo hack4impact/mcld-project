@@ -6,6 +6,9 @@ import { cacheLife } from "next/cache";
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
    apiVersion: "2026-03-25.dahlia",
+   // Retries 429s and network errors with backoff; POSTs get automatic
+   // idempotency keys, so a retry never duplicates a write.
+   maxNetworkRetries: 2,
 });
 
 export async function getOrCreateStripeCustomer(userId: string, email: string) {
@@ -506,4 +509,63 @@ export async function grantComplimentarySubscription(
       },
    });
    await syncStripeData(customerId);
+}
+
+/**
+ * Record a payment collected outside Stripe (e.g. cash) as a finalized
+ * invoice marked `paid_out_of_band`, so it shows up in Stripe without charging
+ * the customer. `idempotencyKey` must be stable per recorded payment so retries
+ * reuse the same invoice.
+ */
+export async function recordOutOfBandInvoice(input: {
+   customerId: string;
+   productId: string;
+   amountCents: number;
+   currency: string;
+   description: string;
+   metadata: Record<string, string>;
+   idempotencyKey: string;
+}): Promise<string> {
+   const key = input.idempotencyKey;
+
+   const invoice = await stripe.invoices.create(
+      {
+         customer: input.customerId,
+         collection_method: "charge_automatically",
+         auto_advance: false,
+         pending_invoice_items_behavior: "exclude",
+         description: input.description,
+         metadata: input.metadata,
+      },
+      { idempotencyKey: `${key}:invoice` },
+   );
+
+   await stripe.invoiceItems.create(
+      {
+         customer: input.customerId,
+         invoice: invoice.id,
+         description: input.description,
+         price_data: {
+            currency: input.currency,
+            product: input.productId,
+            unit_amount: input.amountCents,
+         },
+         metadata: input.metadata,
+      },
+      { idempotencyKey: `${key}:item` },
+   );
+
+   await stripe.invoices.finalizeInvoice(
+      invoice.id!,
+      { auto_advance: false },
+      { idempotencyKey: `${key}:finalize` },
+   );
+
+   const paid = await stripe.invoices.pay(
+      invoice.id!,
+      { paid_out_of_band: true },
+      { idempotencyKey: `${key}:pay` },
+   );
+
+   return paid.id!;
 }

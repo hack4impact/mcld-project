@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
    children,
-   coachingSessions,
+   privateLessonSessions,
    serviceBookings,
    services,
 } from "@/lib/db/schema";
@@ -42,20 +42,21 @@ export async function listRegistrationsForUser(
          ),
       db
          .select({
-            id: coachingSessions.id,
-            status: coachingSessions.status,
-            scheduledAt: coachingSessions.scheduledAt,
-            createdAt: coachingSessions.createdAt,
+            id: privateLessonSessions.id,
+            status: privateLessonSessions.status,
+            scheduledAt: privateLessonSessions.scheduledAt,
+            createdAt: privateLessonSessions.createdAt,
+            stripeOrderId: privateLessonSessions.stripeOrderId,
             service: services,
             child: children,
          })
-         .from(coachingSessions)
-         .innerJoin(services, eq(services.id, coachingSessions.serviceId))
-         .leftJoin(children, eq(children.id, coachingSessions.childId))
+         .from(privateLessonSessions)
+         .innerJoin(services, eq(services.id, privateLessonSessions.serviceId))
+         .leftJoin(children, eq(children.id, privateLessonSessions.childId))
          .where(
             and(
-               eq(coachingSessions.userId, userId),
-               inArray(coachingSessions.status, [
+               eq(privateLessonSessions.userId, userId),
+               inArray(privateLessonSessions.status, [
                   "pending",
                   "confirmed",
                   "completed",
