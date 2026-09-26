@@ -8,7 +8,7 @@ function blankToNull(value: unknown): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-const profileDetailsFields = {
+export const profileDetailsFields = {
   address: z.preprocess(
     blankToNull,
     z.string().max(500, "Address is too long").nullable(),

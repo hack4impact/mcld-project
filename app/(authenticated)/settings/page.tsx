@@ -1,18 +1,51 @@
-import { Settings } from "lucide-react";
-import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
+
+import { Spinner } from "@/components/ui/spinner";
+import { db } from "@/lib/db";
+import { profiles } from "@/lib/db/schema";
+import { createClient } from "@/utils/supabase/server";
+import { SettingsView } from "./_components/settings-view";
 
 export default function SettingsPage() {
    return (
-      <PageShell>
-         <PageHeader
-            title="Settings"
-            description="Manage your account and preferences."
-         />
-         <EmptyState
-            icon={<Settings />}
-            title="Coming soon"
-            description="Account settings will show up here once they're ready."
-         />
-      </PageShell>
+      <Suspense
+         fallback={
+            <div className="flex flex-1 items-center justify-center">
+               <Spinner className="size-8 text-muted-foreground" />
+            </div>
+         }
+      >
+         <SettingsContent />
+      </Suspense>
    );
+}
+
+async function SettingsContent() {
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) {
+      redirect("/login");
+   }
+
+   const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, user.id),
+      columns: {
+         firstName: true,
+         lastName: true,
+         role: true,
+         phone: true,
+         address: true,
+         gender: true,
+         dob: true,
+      },
+   });
+   if (!profile) {
+      redirect("/login");
+   }
+
+   return <SettingsView profile={profile} email={user.email ?? ""} />;
 }
