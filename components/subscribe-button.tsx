@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export function CheckoutButton({
@@ -14,6 +15,7 @@ export function CheckoutButton({
    label?: string;
    returnTo?: string;
 }) {
+   const router = useRouter();
    const [loading, setLoading] = useState(false);
 
    async function handleCheckout() {
@@ -27,6 +29,8 @@ export function CheckoutButton({
          const data = await res.json();
          if (data.url) {
             window.location.href = data.url;
+         } else if (res.status === 409) {
+            router.refresh();
          }
       } finally {
          setLoading(false);

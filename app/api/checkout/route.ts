@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getActiveCouponForCustomerProduct,
+  getLiveSubscription,
   getOrCreateStripeCustomer,
   stripe,
+  syncStripeData,
 } from "@/lib/stripe";
 import { createClient } from "@/utils/supabase/server";
 
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { priceId, mode = "subscription", returnTo } = await request.json();
+  const { priceId, returnTo } = await request.json();
 
   if (!priceId) {
     return NextResponse.json(
@@ -38,6 +40,30 @@ export async function POST(request: NextRequest) {
 
   const price = await stripe.prices.retrieve(priceId);
   const stripeProductId = price.product as string;
+  const mode = price.type === "recurring" ? "subscription" : "payment";
+
+  if (mode === "subscription") {
+    const live = await getLiveSubscription(stripeCustomerId);
+    if (live) {
+      await syncStripeData(stripeCustomerId);
+      const error =
+        live.status === "active" || live.status === "trialing"
+          ? "You already have an active membership."
+          : "Your membership payment is overdue. Please update your payment method.";
+      return NextResponse.json({ error }, { status: 409 });
+    }
+
+    const openSessions = await stripe.checkout.sessions.list({
+      customer: stripeCustomerId,
+      status: "open",
+      limit: 100,
+    });
+    for (const s of openSessions.data) {
+      if (s.mode === "subscription") {
+        await stripe.checkout.sessions.expire(s.id);
+      }
+    }
+  }
 
   const couponId = await getActiveCouponForCustomerProduct({
     customerId: stripeCustomerId,
@@ -46,7 +72,7 @@ export async function POST(request: NextRequest) {
 
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
-    mode: mode as "subscription" | "payment",
+    mode,
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
     ...(couponId

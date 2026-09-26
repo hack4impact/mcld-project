@@ -30,6 +30,28 @@ export async function getOrCreateStripeCustomer(userId: string, email: string) {
    return customer.id;
 }
 
+const LIVE_SUBSCRIPTION_STATUSES: Stripe.Subscription.Status[] = [
+   "active",
+   "trialing",
+   "past_due",
+   "unpaid",
+];
+
+export function isLiveSubscription(sub: Stripe.Subscription) {
+   return LIVE_SUBSCRIPTION_STATUSES.includes(sub.status);
+}
+
+export async function getLiveSubscription(
+   customerId: string,
+): Promise<Stripe.Subscription | null> {
+   const subs = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+   });
+   return subs.data.find(isLiveSubscription) ?? null;
+}
+
 export async function syncStripeData(stripeCustomerId: string) {
    const profile = await db.query.profiles.findFirst({
       where: eq(profiles.stripeCustomerId, stripeCustomerId),
@@ -42,7 +64,7 @@ export async function syncStripeData(stripeCustomerId: string) {
 
    const stripeSubscriptions = await stripe.subscriptions.list({
       customer: stripeCustomerId,
-      limit: 1,
+      limit: 100,
       status: "all",
       expand: ["data.default_payment_method"],
    });
@@ -69,7 +91,13 @@ export async function syncStripeData(stripeCustomerId: string) {
       return { status: "none" as const };
    }
 
-   const sub = stripeSubscriptions.data[0];
+   const liveSubs = stripeSubscriptions.data.filter(isLiveSubscription);
+   if (liveSubs.length > 1) {
+      console.warn(
+         `[STRIPE] Customer ${stripeCustomerId} has ${liveSubs.length} live subscriptions`,
+      );
+   }
+   const sub = liveSubs[0] ?? stripeSubscriptions.data[0];
    const paymentMethod =
       sub.default_payment_method as Stripe.PaymentMethod | null;
 
@@ -132,7 +160,10 @@ export async function getSubscriptionDetails(
       where: eq(subscriptions.userId, userId),
    });
 
-   if (!subscription || subscription.status !== "active") {
+   if (
+      !subscription ||
+      (subscription.status !== "active" && subscription.status !== "trialing")
+   ) {
       return null;
    }
 
@@ -493,16 +524,24 @@ export async function grantComplimentarySubscription(
 
    const customerId = await getOrCreateStripeCustomer(userId, email);
 
-   const existing = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "all",
-      limit: 1,
-   });
+   const existing = await getLiveSubscription(customerId);
 
    const trialEndDate = new Date();
+   if (existing?.trial_end && existing.trial_end * 1000 > Date.now()) {
+      trialEndDate.setTime(existing.trial_end * 1000);
+   }
    trialEndDate.setMonth(trialEndDate.getMonth() + months);
 
    const trialEndTimestamp = Math.floor(trialEndDate.getTime() / 1000);
+
+   if (existing) {
+      await stripe.subscriptions.update(existing.id, {
+         trial_end: trialEndTimestamp,
+         proration_behavior: "none",
+      });
+      await syncStripeData(customerId);
+      return;
+   }
 
    await stripe.subscriptions.create({
       customer: customerId,
