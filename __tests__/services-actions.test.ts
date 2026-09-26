@@ -667,7 +667,9 @@ describe("audience and form", () => {
          fd({ service_id: SERVICE_ID, duration_minutes: "90" }),
       );
 
-      const patch = updateSet.mock.calls[0]![0] as Record<string, unknown>;
+      const [patch] = updateSet.mock.calls[0] as unknown as [
+         Record<string, unknown>,
+      ];
       expect(patch).toMatchObject({ durationMinutes: 90 });
       expect(patch).not.toHaveProperty("isForChildren");
       expect(patch).not.toHaveProperty("formId");
