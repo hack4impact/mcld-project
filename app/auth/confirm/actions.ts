@@ -47,9 +47,7 @@ export async function confirmEmailLink(
    if (error) {
       if (error.code === "otp_expired") return { status: "expired", type };
       const retryable =
-         error.status === undefined ||
-         error.status >= 500 ||
-         error.status === 429;
+         !error.status || error.status >= 500 || error.status === 429;
       return { status: retryable ? "error" : "invalid", type };
    }
 

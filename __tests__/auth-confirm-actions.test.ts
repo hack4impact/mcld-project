@@ -143,6 +143,7 @@ describe("confirmEmailLink", () => {
       [{ code: "validation_failed", status: 400 }, "invalid"],
       [{ code: "over_request_rate_limit", status: 429 }, "error"],
       [{ code: undefined, status: 500 }, "error"],
+      [{ code: undefined, status: 0 }, "error"],
    ])("reports %j as %s", async (error, status) => {
       verifyOtp.mockResolvedValue({
          data: { user: null, session: null },
