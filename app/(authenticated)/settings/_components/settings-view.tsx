@@ -17,6 +17,8 @@ import { signout } from "@/app/login/actions";
 import { profileRoleLabel } from "@/app/(authenticated)/users/profile-role-label";
 import { ProfileForm, type OwnProfile } from "./profile-form";
 import { PasswordForm } from "./password-form";
+import { SubscriptionCard } from "./subscription-card";
+import type { SubscriptionDetails } from "@/lib/stripe";
 
 const USER_LINKS = [
    {
@@ -36,9 +38,11 @@ const USER_LINKS = [
 export function SettingsView({
    profile,
    email,
+   subscription,
 }: {
    profile: OwnProfile & { role: string };
    email: string;
+   subscription?: SubscriptionDetails;
 }) {
    const fullName = `${profile.firstName} ${profile.lastName}`.trim();
    const initials =
@@ -97,6 +101,10 @@ export function SettingsView({
                      </form>
                   </CardContent>
                </Card>
+
+               {subscription !== undefined && (
+                  <SubscriptionCard subscription={subscription} />
+               )}
 
                {profile.role === ROLES.USER && (
                   <Card size="sm">

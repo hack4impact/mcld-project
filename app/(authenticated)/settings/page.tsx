@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import { Spinner } from "@/components/ui/spinner";
 import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
+import { ROLES } from "@/lib/roles";
+import { getSubscriptionDetails } from "@/lib/stripe";
 import { createClient } from "@/utils/supabase/server";
 import { SettingsView } from "./_components/settings-view";
 
@@ -47,5 +49,17 @@ async function SettingsContent() {
       redirect("/login");
    }
 
-   return <SettingsView profile={profile} email={user.email ?? ""} />;
+   // Only members (role "user") have a subscription to show or start.
+   const subscription =
+      profile.role === ROLES.USER
+         ? await getSubscriptionDetails(user.id)
+         : undefined;
+
+   return (
+      <SettingsView
+         profile={profile}
+         email={user.email ?? ""}
+         subscription={subscription}
+      />
+   );
 }

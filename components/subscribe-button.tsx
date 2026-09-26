@@ -1,17 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export function CheckoutButton({
    priceId,
    mode = "subscription",
    label = "Subscribe",
+   returnTo,
 }: {
    priceId: string;
    mode?: "subscription" | "payment";
    label?: string;
+   returnTo?: string;
 }) {
+   const router = useRouter();
    const [loading, setLoading] = useState(false);
 
    async function handleCheckout() {
@@ -20,11 +24,13 @@ export function CheckoutButton({
          const res = await fetch("/api/checkout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ priceId, mode }),
+            body: JSON.stringify({ priceId, mode, returnTo }),
          });
          const data = await res.json();
          if (data.url) {
             window.location.href = data.url;
+         } else if (res.status === 409) {
+            router.refresh();
          }
       } finally {
          setLoading(false);
