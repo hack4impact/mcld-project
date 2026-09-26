@@ -17,12 +17,12 @@ const profileDetailsFields = {
   ),
   gender: z.preprocess(blankToNull, genderSchema.nullable()),
   dob: z.preprocess(blankToNull, dobSchema.nullable()),
-  // Stored as digits only, like emergency contact numbers.
+  // Stored as 10–15 digits, keeping a leading "+" for international numbers.
   phone: z.preprocess(
-    (value) => blankToNull(value)?.replace(/[\s().+-]/g, "") ?? null,
+    (value) => blankToNull(value)?.replace(/(?!^\+)[\s().+-]/g, "") ?? null,
     z
       .string()
-      .regex(/^\d{10,15}$/, "Phone number must be 10–15 digits")
+      .regex(/^\+?\d{10,15}$/, "Phone number must be 10–15 digits")
       .nullable(),
   ),
 };

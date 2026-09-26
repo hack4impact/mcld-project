@@ -102,7 +102,7 @@ beforeEach(() => {
 });
 
 describe("updateUserAdmin contact details", () => {
-   it("saves the details, trimming text and keeping only the phone digits", async () => {
+   it("saves the details, trimming text and stripping phone formatting", async () => {
       const result = await updateUserAdmin(
          null,
          editForm({
@@ -120,7 +120,7 @@ describe("updateUserAdmin contact details", () => {
             address: "123 Main St, Montreal",
             gender: "female",
             dob: "1990-04-12",
-            phone: "15145550100",
+            phone: "+15145550100",
          }),
       );
    });
