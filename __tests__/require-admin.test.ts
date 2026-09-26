@@ -1,12 +1,8 @@
 /**
  * @jest-environment node
  */
-import {
-   getUserRole,
-   requireAdmin,
-   requireCoordinatorOrAdmin,
-} from "@/lib/auth/require-admin";
-import { ROLES } from "@/lib/roles";
+import { getUserRole, requireAdmin } from "@/lib/auth/require-admin";
+import { canViewUsers, ROLES } from "@/lib/roles";
 
 const getClaims = jest.fn();
 
@@ -67,22 +63,12 @@ describe("requireAdmin", () => {
    });
 });
 
-describe("requireCoordinatorOrAdmin", () => {
-   it.each([ROLES.ADMIN, ROLES.COORDINATOR])(
-      "resolves for %s",
-      async (role) => {
-         getClaims.mockResolvedValue(claiming(role));
-         await expect(requireCoordinatorOrAdmin()).resolves.toBeUndefined();
-      },
-   );
-
-   it("throws Forbidden for a regular user", async () => {
-      getClaims.mockResolvedValue(claiming(ROLES.USER));
-      await expect(requireCoordinatorOrAdmin()).rejects.toThrow("Forbidden");
+describe("canViewUsers", () => {
+   it.each([ROLES.ADMIN, ROLES.COORDINATOR])("allows %s", (role) => {
+      expect(canViewUsers(role)).toBe(true);
    });
 
-   it("throws Forbidden when unauthenticated", async () => {
-      getClaims.mockResolvedValue({ data: null });
-      await expect(requireCoordinatorOrAdmin()).rejects.toThrow("Forbidden");
+   it.each([ROLES.USER, null, undefined])("denies %s", (role) => {
+      expect(canViewUsers(role)).toBe(false);
    });
 });

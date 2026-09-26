@@ -10,7 +10,7 @@ export function profileRoleLabel(role: string): string {
    return ROLE_LABELS[role] ?? role;
 }
 
-export type UserRow = {
+export type ReadOnlyUserRow = {
    id: string;
    firstName: string;
    lastName: string;
@@ -18,5 +18,8 @@ export type UserRow = {
    role: string;
    isActive: boolean;
    lastLoginAt: Date;
-   stripeCustomerId?: string | null;
+};
+
+export type UserRow = ReadOnlyUserRow & {
+   stripeCustomerId: string | null;
 };

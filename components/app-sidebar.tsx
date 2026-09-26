@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { ROLES, type Role } from "@/lib/roles";
+import { canViewUsers, ROLES, type Role } from "@/lib/roles";
 
 type NavItem = {
    title: string;
@@ -49,14 +49,15 @@ export function AppSidebar({
    className,
    role,
    ...props
-}: React.ComponentProps<typeof Sidebar> & { role?: Role | string | null }) {
+}: Omit<React.ComponentProps<typeof Sidebar>, "role"> & {
+   role?: Role | null;
+}) {
    const pathname = usePathname();
 
    const navItems = useMemo(() => {
-      const isAdmin = role === ROLES.ADMIN;
-      const canViewUsers = isAdmin || role === ROLES.COORDINATOR;
+      const showUsers = canViewUsers(role);
       const items = baseNavItems.filter(
-         (item) => canViewUsers || item.href !== "/users",
+         (item) => showUsers || item.href !== "/users",
       );
       if (role === ROLES.USER) {
          items.push({

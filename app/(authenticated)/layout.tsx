@@ -5,7 +5,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppSidebar } from "@/components/app-sidebar";
-import type { Role } from "@/lib/roles";
+import { getUserRole } from "@/lib/auth/require-admin";
 
 async function AuthGate({ children }: { children: React.ReactNode }) {
    const supabase = await createClient();
@@ -21,9 +21,7 @@ async function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 async function RoleAwareSidebar() {
-   const supabase = await createClient();
-   const { data: claimsData } = await supabase.auth.getClaims();
-   const role = (claimsData?.claims?.user_role as Role | undefined) ?? null;
+   const role = await getUserRole();
    return <AppSidebar role={role} />;
 }
 
