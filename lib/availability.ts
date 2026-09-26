@@ -47,6 +47,35 @@ import type {
     return weeks % 2 === 0;
  }
  
+ export function toMinutes(time: string): number {
+    const [hours, minutes] = time.split(":").map(Number);
+    return hours * 60 + minutes;
+ }
+ 
+ type ComparableWindow = {
+    start: string;
+    end: string;
+    recurrence?: "weekly" | "biweekly";
+    anchorDate?: string;
+ };
+ 
+ function canCoincide(a: ComparableWindow, b: ComparableWindow): boolean {
+    if (a.recurrence !== "biweekly" || b.recurrence !== "biweekly") return true;
+    if (!a.anchorDate || !b.anchorDate) return true;
+    return onSameBiweeklyCycle(a.anchorDate, b.anchorDate);
+ }
+ 
+ export function windowsConflict(
+    a: ComparableWindow,
+    b: ComparableWindow,
+ ): boolean {
+    return (
+       toMinutes(a.start) < toMinutes(b.end) &&
+       toMinutes(b.start) < toMinutes(a.end) &&
+       canCoincide(a, b)
+    );
+ }
+ 
  function isBiweeklyOn(ymd: string, anchorDate: string): boolean {
     if (utcMidnight(ymd) < utcMidnight(anchorDate)) return false;
     return onSameBiweeklyCycle(ymd, anchorDate);

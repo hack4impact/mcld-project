@@ -4,6 +4,7 @@ import {
    setCoordinatorAvailabilityOverrideSchema,
    clearCoordinatorAvailabilityOverrideSchema,
    listCoordinatorAvailabilitySchema,
+   listCoordinatorAvailabilityOverridesSchema,
    fetchCoordinatorAvailabilityEditorStateSchema,
 } from "@/app/private-lessons/schema";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/lib/availability";
 import { ROLES } from "@/lib/roles";
 
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -241,6 +242,46 @@ export async function fetchCoordinatorAvailabilityEditorState(
       timezone: hoursRow?.timezone ?? "America/Toronto",
       override,
    };
+}
+
+export type CoordinatorAvailabilityOverride = {
+   date: string;
+   windows: AvailabilityOverrideWindow[];
+};
+
+export type ListCoordinatorAvailabilityOverridesResult =
+   | { overrides: CoordinatorAvailabilityOverride[] }
+   | { error: string };
+
+export async function listCoordinatorAvailabilityOverrides(
+   input: unknown,
+): Promise<ListCoordinatorAvailabilityOverridesResult> {
+   const parsed = listCoordinatorAvailabilityOverridesSchema.safeParse(input);
+   if (!parsed.success) {
+      return {
+         error: parsed.error.issues[0]?.message ?? "Invalid input",
+      };
+   }
+
+   const { coordinatorId, from } = parsed.data;
+   const denied = await authorizeCoordinatorAvailability(coordinatorId);
+   if (denied) return denied;
+
+   const rows = await db
+      .select({
+         date: coordinatorAvailabilityOverrides.date,
+         windows: coordinatorAvailabilityOverrides.windows,
+      })
+      .from(coordinatorAvailabilityOverrides)
+      .where(
+         and(
+            eq(coordinatorAvailabilityOverrides.coordinatorId, coordinatorId),
+            gte(coordinatorAvailabilityOverrides.date, from),
+         ),
+      )
+      .orderBy(asc(coordinatorAvailabilityOverrides.date));
+
+   return { overrides: rows };
 }
 
 export type ListCoordinatorAvailabilityResult =
