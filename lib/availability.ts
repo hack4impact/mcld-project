@@ -23,12 +23,12 @@ import type {
  
  const MS_PER_DAY = 24 * 60 * 60 * 1000;
  
- function utcMidnight(ymd: string): number {
+ export function utcMidnight(ymd: string): number {
     const [year, month, day] = ymd.split("-").map(Number);
     return Date.UTC(year, month - 1, day);
  }
  
- function ymdFromUtc(ms: number): string {
+ export function ymdFromUtc(ms: number): string {
     return new Date(ms).toISOString().slice(0, 10);
  }
  
@@ -41,11 +41,15 @@ import type {
     return ms - new Date(ms).getUTCDay() * MS_PER_DAY;
  }
  
- function isBiweeklyOn(ymd: string, anchorDate: string): boolean {
+ export function onSameBiweeklyCycle(a: string, b: string): boolean {
     const weeks =
-       (startOfSundayWeek(ymd) - startOfSundayWeek(anchorDate)) /
-       (7 * MS_PER_DAY);
+       (startOfSundayWeek(a) - startOfSundayWeek(b)) / (7 * MS_PER_DAY);
     return weeks % 2 === 0;
+ }
+ 
+ function isBiweeklyOn(ymd: string, anchorDate: string): boolean {
+    if (utcMidnight(ymd) < utcMidnight(anchorDate)) return false;
+    return onSameBiweeklyCycle(ymd, anchorDate);
  }
  
  function appliesOnDate(window: AvailabilityWindow, ymd: string): boolean {

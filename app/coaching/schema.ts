@@ -1,7 +1,29 @@
 import { z } from "zod";
 
-const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, "Invalid time");
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date");
+import {
+   onSameBiweeklyCycle,
+   utcMidnight,
+   ymdFromUtc,
+} from "@/lib/availability";
+
+const timeSchema = z
+   .string()
+   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Invalid time");
+const dateSchema = z
+   .string()
+   .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date")
+   .refine((ymd) => {
+      const ms = utcMidnight(ymd);
+      return !Number.isNaN(ms) && ymdFromUtc(ms) === ymd;
+   }, "Invalid date");
+const timezoneSchema = z.string().refine((timeZone) => {
+   try {
+      new Intl.DateTimeFormat("en-US", { timeZone });
+      return true;
+   } catch {
+      return false;
+   }
+}, "Invalid timezone");
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_RANGE_DAYS = 366;
@@ -11,23 +33,32 @@ function toMinutes(time: string): number {
    return hours * 60 + minutes;
 }
 
-function utcMidnight(ymd: string): number {
-   const [year, month, day] = ymd.split("-").map(Number);
-   return Date.UTC(year, month - 1, day);
+type OverlapWindow = {
+   start: string;
+   end: string;
+   recurrence?: "weekly" | "biweekly";
+   anchorDate?: string;
+};
+
+function canCoincide(a: OverlapWindow, b: OverlapWindow): boolean {
+   if (a.recurrence !== "biweekly" || b.recurrence !== "biweekly") return true;
+   if (!a.anchorDate || !b.anchorDate) return true;
+   return onSameBiweeklyCycle(a.anchorDate, b.anchorDate);
 }
 
-function windowsOverlap(
-   windows: { start: string; end: string }[],
-): boolean {
-   const ranges = windows
-      .map((window) => ({
-         start: toMinutes(window.start),
-         end: toMinutes(window.end),
-      }))
-      .sort((a, b) => a.start - b.start);
-
-   for (let i = 1; i < ranges.length; i++) {
-      if (ranges[i]!.start < ranges[i - 1]!.end) return true;
+function windowsOverlap(windows: OverlapWindow[]): boolean {
+   for (let i = 0; i < windows.length; i++) {
+      for (let j = i + 1; j < windows.length; j++) {
+         const a = windows[i]!;
+         const b = windows[j]!;
+         if (
+            toMinutes(a.start) < toMinutes(b.end) &&
+            toMinutes(b.start) < toMinutes(a.end) &&
+            canCoincide(a, b)
+         ) {
+            return true;
+         }
+      }
    }
    return false;
 }
@@ -78,7 +109,7 @@ export const weeklyHoursSchema = z
 
 export const saveCoordinatorWeeklyHoursSchema = z.object({
    coordinatorId: z.string().uuid(),
-   timezone: z.string().min(1).default("America/Toronto"),
+   timezone: timezoneSchema.default("America/Toronto"),
    hours: weeklyHoursSchema,
 });
 
