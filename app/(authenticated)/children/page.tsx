@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { Spinner } from "@/components/ui/spinner";
+import { PageHeader, PageShell } from "@/components/page-shell";
 import { createClient } from "@/utils/supabase/server";
 import { getUserRole } from "@/lib/auth/require-admin";
 import { ROLES } from "@/lib/roles";
@@ -11,7 +12,11 @@ import { ChildrenClient } from "./_components/children-client";
 export default function ChildrenPage() {
    return (
       <Suspense
-         fallback={<Spinner className="size-8 text-muted-foreground" />}
+         fallback={
+            <div className="flex flex-1 items-center justify-center">
+               <Spinner className="size-8 text-muted-foreground" />
+            </div>
+         }
       >
          <ChildrenContent />
       </Suspense>
@@ -39,16 +44,12 @@ async function ChildrenContent() {
    const childList = await listChildrenForParent(user.id);
 
    return (
-      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
-         <div className="shrink-0">
-            <h1 className="text-2xl font-semibold tracking-tight">
-               My children
-            </h1>
-            <p className="text-sm text-muted-foreground">
-               Add and manage children linked to your account.
-            </p>
-         </div>
+      <PageShell fill>
+         <PageHeader
+            title="My children"
+            description="Add and manage children linked to your account."
+         />
          <ChildrenClient childList={childList} />
-      </main>
+      </PageShell>
    );
 }

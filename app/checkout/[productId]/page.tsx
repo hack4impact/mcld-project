@@ -42,13 +42,11 @@ export default async function CheckoutPage({
 
 function NotAvailable({ message }: { message: string }) {
    return (
-      <div className="flex flex-col items-center justify-center gap-4 w-full max-w-md">
-         <h1 className="text-xl font-bold text-muted-foreground">
-            <span className="flex items-center gap-2 text-center">
-               <X className="size-8 text-red-600" />
-               {message}
-            </span>
-         </h1>
+      <div className="flex w-full max-w-md flex-col items-center justify-center gap-5 rounded-2xl border border-border bg-card p-10 text-center shadow-xs">
+         <span className="flex size-14 items-center justify-center rounded-full bg-destructive/10">
+            <X className="size-7 text-destructive" strokeWidth={2.5} />
+         </span>
+         <h1 className="text-xl font-semibold text-foreground">{message}</h1>
          <Button asChild>
             <Link href="/">Go back home</Link>
          </Button>

@@ -11,6 +11,7 @@ import {
    listServicesForCoordinator,
 } from "./queries";
 import { ServicesTable } from "./services-table";
+import { PageHeader, PageShell } from "@/components/page-shell";
 
 export default async function ServicesPage() {
    const role = await getUserRole();
@@ -23,8 +24,11 @@ export default async function ServicesPage() {
       ]);
 
       return (
-         <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
-            <h1 className="shrink-0 text-3xl font-bold">Services</h1>
+         <PageShell fill>
+            <PageHeader
+               title="Services"
+               description="Create and manage programs, lessons and webinars offered to families."
+            />
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                <ServicesTable
                   services={services}
@@ -32,7 +36,7 @@ export default async function ServicesPage() {
                   forms={forms}
                />
             </div>
-         </main>
+         </PageShell>
       );
    }
 
@@ -46,12 +50,11 @@ export default async function ServicesPage() {
       const services = await listServicesForCoordinator(user.id);
 
       return (
-         <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
-            <h1 className="shrink-0 text-3xl font-bold">Services</h1>
-            <p className="shrink-0 text-sm text-muted-foreground">
-               Services you coordinate. View the people registered and their
-               form answers.
-            </p>
+         <PageShell fill>
+            <PageHeader
+               title="Services"
+               description="Services you coordinate. View the people registered and their form answers."
+            />
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                <ServicesTable
                   services={services}
@@ -60,7 +63,7 @@ export default async function ServicesPage() {
                   readOnly
                />
             </div>
-         </main>
+         </PageShell>
       );
    }
 

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { PageHeader, PageShell } from "@/components/page-shell";
 import { requireUser } from "@/lib/auth/require-user";
 import { RegistrationsView } from "./_components/registrations-view";
 import { listRegistrationsForUser } from "./queries";
@@ -10,7 +11,7 @@ export default function RegistrationsPage() {
    return (
       <Suspense
          fallback={
-            <div className="flex min-h-screen items-center justify-center">
+            <div className="flex flex-1 items-center justify-center">
                <Spinner className="size-8 text-muted-foreground" />
             </div>
          }
@@ -31,20 +32,14 @@ async function RegistrationsContent() {
    const { upcoming, past } = await listRegistrationsForUser(userId);
 
    return (
-      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-6 overflow-hidden p-8">
-         <div className="flex shrink-0 flex-col gap-2">
-            <div className="flex items-center gap-3">
-               <h1 className="font-heading text-3xl font-bold">
-                  My Registrations
-               </h1>
-               <Badge variant="outline">{upcoming.length} upcoming</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">
-               Services you&apos;re registered for.
-            </p>
-         </div>
+      <PageShell fill>
+         <PageHeader
+            title="My registrations"
+            badge={<Badge variant="secondary">{upcoming.length} upcoming</Badge>}
+            description="Programs and private lessons you're registered for."
+         />
 
          <RegistrationsView upcoming={upcoming} past={past} />
-      </main>
+      </PageShell>
    );
 }

@@ -380,7 +380,7 @@ export function DiscountModal({
             type="button"
             disabled={submitting}
             onClick={handleApply}
-            className="h-auto px-5 py-2 text-xs font-bold bg-accent-foreground hover:bg-accent-foreground/90 text-white"
+            className="h-auto px-5 py-2 text-xs font-bold"
           >
             {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Apply discount"}
           </Button>

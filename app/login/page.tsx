@@ -2,14 +2,9 @@
 
 import { useActionState, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { CircleCheck } from "lucide-react";
 import { login, signup, type ActionState } from "./actions";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -38,78 +33,98 @@ function LoginForm() {
   const action = mode === "login" ? loginAction : signupAction;
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            {mode === "login" ? "Welcome back" : "Create an account"}
-          </CardTitle>
-          <CardDescription>
-            {mode === "login"
-              ? "Sign in to your account"
-              : "Fill in your details to get started"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="grid min-h-screen lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <BrandPanel />
+
+      <div className="flex items-center justify-center px-4 py-10 sm:px-8">
+        <div className="w-full max-w-md">
+          <Image
+            src="/logo.png"
+            alt="Montréal Centre for Learning Disabilities"
+            width={200}
+            height={66}
+            className="mb-10 h-12 w-auto"
+            priority
+          />
+
+          <div className="mb-8 flex flex-col gap-2">
+            <h1 className="text-3xl font-semibold">
+              {mode === "login" ? "Welcome back" : "Create an account"}
+            </h1>
+            <p className="text-muted-foreground">
+              {mode === "login"
+                ? "Sign in to your account to continue."
+                : "Fill in your details to get started."}
+            </p>
+          </div>
+
           {message && (
-            <div className="mb-4 rounded-md bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
+            <div className="mb-6 flex items-start gap-2 rounded-xl bg-success-soft p-3.5 text-sm font-medium text-success">
+              <CircleCheck className="mt-0.5 size-4 shrink-0" />
               {message}
             </div>
           )}
 
-          <form action={action} className="space-y-4" noValidate>
+          <form action={action} className="space-y-5" noValidate>
             <input type="hidden" name="next" value={nextParam} />
             {mode === "signup" && (
               <div className="flex gap-3">
-                <div className="space-y-1 flex-1">
+                <div className="flex-1 space-y-2">
                   <Label htmlFor="first_name">First name</Label>
                   <Input
                     id="first_name"
                     name="first_name"
                     type="text"
                     placeholder="Jane"
+                    className="h-10"
                   />
                   <FieldError errors={signupState?.errors?.firstName} />
                 </div>
-                <div className="space-y-1 flex-1">
+                <div className="flex-1 space-y-2">
                   <Label htmlFor="last_name">Last name</Label>
                   <Input
                     id="last_name"
                     name="last_name"
                     type="text"
                     placeholder="Doe"
+                    className="h-10"
                   />
                   <FieldError errors={signupState?.errors?.lastName} />
                 </div>
               </div>
             )}
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
                 placeholder="you@example.com"
+                className="h-10"
               />
               <FieldError errors={state?.errors?.email} />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
                 placeholder="••••••••"
+                className="h-10"
               />
               <FieldError errors={state?.errors?.password} />
             </div>
-            <div className="flex flex-col gap-2 pt-2">
+            <div className="flex flex-col gap-3 pt-3">
               {mode === "login" ? (
                 <>
-                  <Button type="submit">Log in</Button>
+                  <Button type="submit" size="lg">
+                    Log in
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
+                    size="lg"
                     onClick={() => setMode("signup")}
                   >
                     Create an account
@@ -117,10 +132,13 @@ function LoginForm() {
                 </>
               ) : (
                 <>
-                  <Button type="submit">Sign up</Button>
+                  <Button type="submit" size="lg">
+                    Sign up
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
+                    size="lg"
                     onClick={() => setMode("login")}
                   >
                     Already have an account? Log in
@@ -129,8 +147,23 @@ function LoginForm() {
               )}
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrandPanel() {
+  return (
+    <div className="relative hidden overflow-hidden bg-[#263962] lg:block">
+      <Image
+        src="/login-hero.png"
+        alt="A smiling teacher working with a young student at her desk"
+        fill
+        priority
+        sizes="40vw"
+        className="object-cover object-[70%_50%]"
+      />
     </div>
   );
 }

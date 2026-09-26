@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
+import { PageHeader, PageShell } from "@/components/page-shell";
 import { getUserRole } from "@/lib/auth/require-admin";
 import { canViewUsers, ROLES, type Role } from "@/lib/roles";
 import { UsersClient } from "./_components/users-client";
@@ -15,7 +16,9 @@ export default function UsersPage() {
    return (
       <Suspense
          fallback={
-            <Spinner className="size-8 text-muted-foreground" />
+            <div className="flex flex-1 items-center justify-center">
+               <Spinner className="size-8 text-muted-foreground" />
+            </div>
          }
       >
          <UsersContent />
@@ -57,11 +60,14 @@ async function UsersContent() {
    ];
 
    return (
-      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
-         <h1 className="shrink-0 text-3xl font-bold">Users</h1>
+      <PageShell fill>
+         <PageHeader
+            title="Users"
+            description="Everyone with an account — parents, members, coordinators and admins."
+         />
          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <UsersClient {...userData} roleFilterOptions={roleFilterOptions} />
          </div>
-      </main>
+      </PageShell>
    );
 }

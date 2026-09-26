@@ -39,10 +39,10 @@ export function ServicesTable({
          <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as StatusTab)}
-            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden"
          >
-            <div className="flex shrink-0 items-center justify-between">
-               <TabsList className="border border-border">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+               <TabsList>
                   {statusTabs.map((status) => (
                      <TabsTrigger key={status} value={status}>
                         {status.charAt(0).toUpperCase() + status.slice(1)}
