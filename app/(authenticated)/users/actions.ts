@@ -14,6 +14,7 @@ import {
    sendRoleChangedNotice,
 } from "@/lib/auth/account-emails";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { emailConfirmationRequired } from "@/lib/auth/supabase-settings";
 import { createAdminClient } from "@/utils/supabase/admin";
 import type { Role } from "@/lib/roles";
 import { ROLES } from "@/lib/roles";
@@ -40,6 +41,9 @@ export type RefundActionState = {
 const USERS_PATH = "/users";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
+
+// How long Supabase email links work (its default "Email OTP Expiration").
+const EMAIL_CHANGE_LINK_LIFETIME_MS = 60 * 60 * 1000;
 
 // Supabase's generated link carries the token hash that is actually stored.
 // (For "email_change_new", `properties.hashed_token` is computed from the
@@ -106,6 +110,28 @@ async function requestEmailChange(
    return null;
 }
 
+/**
+ * Deletes an account this request just created, unless something has used it
+ * since (another request re-invited it, or it was accepted). The profile row
+ * has no foreign key to auth.users, so it's removed too.
+ */
+async function rollBackNewInvite(
+   admin: AdminClient,
+   userId: string,
+   invitedAt: string | undefined,
+): Promise<void> {
+   const { data } = await admin.auth.admin.getUserById(userId);
+   const user = data?.user;
+   if (!user || user.email_confirmed_at || user.invited_at !== invitedAt) {
+      return;
+   }
+   await admin.auth.admin.deleteUser(userId);
+   await db
+      .delete(profiles)
+      .where(eq(profiles.id, userId))
+      .catch(() => undefined);
+}
+
 export async function updateUserAdmin(
    _prev: UserAdminActionState,
    formData: FormData,
@@ -151,10 +177,17 @@ export async function updateUserAdmin(
    const currentEmail = authUser.email ?? "";
    const confirmed = Boolean(authUser.email_confirmed_at);
    const emailChanged = email.toLowerCase() !== currentEmail.toLowerCase();
+   // A change to this address was already requested and its links still work.
+   // (No sent time parses to NaN, which is never "recent".)
+   const changeSentAt = Date.parse(authUser.email_change_sent_at ?? "");
+   const emailChangePending =
+      emailChanged &&
+      authUser.new_email?.toLowerCase() === email.toLowerCase() &&
+      Date.now() - changeSentAt < EMAIL_CHANGE_LINK_LIFETIME_MS;
 
-   // Never switch the email directly: the current address approves and the new
-   // one confirms first. Starting that is the first step, so a failure here
-   // leaves everything else unchanged.
+   // Check what an email change needs before saving anything. The email is
+   // never switched directly: the current address approves and the new one
+   // confirms first.
    if (emailChanged) {
       if (!confirmed) {
          return {
@@ -165,13 +198,27 @@ export async function updateUserAdmin(
             },
          };
       }
-      const emailError = await requestEmailChange(admin, {
-         firstName: profile.firstName,
-         currentEmail,
-         newEmail: email,
-      });
-      if (emailError) {
-         return { errors: { email: [emailError] } };
+      let confirmationRequired: boolean;
+      try {
+         confirmationRequired = await emailConfirmationRequired();
+      } catch (error) {
+         console.error("[updateUserAdmin] auth settings check failed", error);
+         return {
+            errors: {
+               email: [
+                  "Could not check Supabase's email settings, so nothing was changed. Please try again.",
+               ],
+            },
+         };
+      }
+      if (!confirmationRequired) {
+         return {
+            errors: {
+               email: [
+                  "Email changes need Supabase's “Confirm email” setting turned on, so both addresses have to approve. Turn it on under Authentication → Sign In / Providers → Email, then try again.",
+               ],
+            },
+         };
       }
    }
 
@@ -206,11 +253,6 @@ export async function updateUserAdmin(
    }
 
    const messages = ["User updated."];
-   if (emailChanged) {
-      messages.push(
-         `Confirmation links were sent to ${currentEmail} and ${email}; the email changes once both are confirmed.`,
-      );
-   }
    // Only verified addresses get notices.
    if (profile.role !== role && confirmed && currentEmail) {
       const sent = await sendNotice("role changed", () =>
@@ -222,6 +264,34 @@ export async function updateUserAdmin(
          }),
       );
       if (!sent) messages.push("The role-change email couldn't be sent.");
+   }
+
+   // Last, so an edit that fails to save never emails both addresses.
+   if (emailChanged) {
+      if (emailChangePending) {
+         messages.push(
+            `A change to ${email} is already waiting for both addresses to confirm.`,
+         );
+      } else {
+         const emailError = await requestEmailChange(admin, {
+            firstName: profile.firstName,
+            currentEmail,
+            newEmail: email,
+         });
+         if (emailError) {
+            revalidatePath(USERS_PATH);
+            return {
+               errors: {
+                  email: [
+                     `Your other changes were saved, but the email wasn't changed: ${emailError}`,
+                  ],
+               },
+            };
+         }
+         messages.push(
+            `Confirmation links were sent to ${currentEmail} and ${email}; the email changes once both are confirmed.`,
+         );
+      }
    }
 
    revalidatePath(USERS_PATH);
@@ -272,6 +342,7 @@ export async function createUserAdmin(
       .select({
          id: authUsers.id,
          emailConfirmedAt: authUsers.emailConfirmedAt,
+         invitedAt: authUsers.invitedAt,
       })
       .from(authUsers)
       .where(sql`lower(${authUsers.email}) = lower(${email})`)
@@ -279,6 +350,17 @@ export async function createUserAdmin(
 
    if (existing?.emailConfirmedAt) {
       return { errors: { email: ["A user with this email already exists."] } };
+   }
+   // Someone signed up with this address but never confirmed it. Inviting
+   // that account would keep the password they chose, so don't.
+   if (existing && !existing.invitedAt) {
+      return {
+         errors: {
+            email: [
+               "Someone started signing up with this email but never confirmed it. Delete that account from the Users list, then send the invitation.",
+            ],
+         },
+      };
    }
 
    // Creates the account and an invitation token without emailing anything,
@@ -342,14 +424,9 @@ export async function createUserAdmin(
       if (metadataError) throw metadataError;
    } catch (error) {
       console.error("[createUserAdmin] account setup failed", error);
-      // Undo only an account this request created. The profile row has no
-      // foreign key to auth.users, so remove it too.
+      // Undo only an account this request created.
       if (!existing) {
-         await admin.auth.admin.deleteUser(userId);
-         await db
-            .delete(profiles)
-            .where(eq(profiles.id, userId))
-            .catch(() => undefined);
+         await rollBackNewInvite(admin, userId, link.user.invited_at);
       }
       return {
          errors: {
@@ -439,7 +516,11 @@ export async function resendInviteAdmin(
    }
    if (user.email_confirmed_at) {
       return {
-         errors: { _form: ["This user already accepted their invitation."] },
+         errors: {
+            _form: [
+               "This user already accepted their invitation. If they never set a password, they can use “Forgot password?” on the login page.",
+            ],
+         },
       };
    }
    if (!user.invited_at) {

@@ -65,6 +65,12 @@ jest.mock("@/lib/auth/account-emails", () => ({
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
+const emailConfirmationRequired = jest.fn();
+jest.mock("@/lib/auth/supabase-settings", () => ({
+   emailConfirmationRequired: (...args: unknown[]) =>
+      emailConfirmationRequired(...args),
+}));
+
 const findFirst = jest.fn();
 const updateWhere = jest.fn();
 const updateSet = jest.fn(() => ({ where: updateWhere })) as jest.Mock;
@@ -93,6 +99,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const USER_ID = "3f0c2a5e-8a4b-4d6e-9f1a-2b3c4d5e6f70";
+const INVITED_AT = "2026-09-26T12:00:00Z";
 
 function formData(fields: Record<string, string>) {
    const fd = new FormData();
@@ -141,7 +148,7 @@ function authUser(overrides: Record<string, unknown> = {}) {
 function link(type: string, token: string, hashedToken = token) {
    return {
       data: {
-         user: authUser({ email_confirmed_at: null }),
+         user: authUser({ email_confirmed_at: null, invited_at: INVITED_AT }),
          properties: {
             action_link: `https://example.supabase.co/auth/v1/verify?token=${token}&type=${type}&redirect_to=http%3A%2F%2Flocalhost%3A3000`,
             hashed_token: hashedToken,
@@ -177,6 +184,7 @@ beforeEach(() => {
       return { error: null };
    });
    generateLink.mockImplementation(async () => link("invite", "invite-token"));
+   emailConfirmationRequired.mockResolvedValue(true);
    grantComplimentarySubscription.mockImplementation(async () => {
       calls.push("subscription");
    });
@@ -338,7 +346,7 @@ describe("updateUserAdmin email changes", () => {
       expect(updateSet).not.toHaveBeenCalled();
    });
 
-   it("reports an address that another account uses, changing nothing", async () => {
+   it("reports an address that another account uses", async () => {
       generateLink.mockResolvedValueOnce({
          data: { user: null, properties: null },
          error: {
@@ -354,11 +362,13 @@ describe("updateUserAdmin email changes", () => {
       );
 
       expect(result).toEqual({
-         errors: { email: ["Another account already uses this email."] },
+         errors: {
+            email: [
+               "Your other changes were saved, but the email wasn't changed: Another account already uses this email.",
+            ],
+         },
       });
-      expect(updateUserById).not.toHaveBeenCalled();
-      expect(updateSet).not.toHaveBeenCalled();
-      expect(sendRoleChangedNotice).not.toHaveBeenCalled();
+      expect(sendEmailChangeRequest).not.toHaveBeenCalled();
    });
 
    it("explains when secure email change is turned off", async () => {
@@ -379,10 +389,10 @@ describe("updateUserAdmin email changes", () => {
       expect(result?.errors?.email?.[0]).toMatch(
          /Secure email change is turned off/,
       );
-      expect(updateSet).not.toHaveBeenCalled();
+      expect(sendEmailChangeRequest).not.toHaveBeenCalled();
    });
 
-   it("changes nothing else when the confirmation emails can't be sent", async () => {
+   it("says the other changes were saved when the confirmation emails can't be sent", async () => {
       generateLink
          .mockResolvedValueOnce(link("email_change", "current-token"))
          .mockResolvedValueOnce(link("email_change", "new-token"));
@@ -393,8 +403,97 @@ describe("updateUserAdmin email changes", () => {
          editForm({ email: "ada@new.example.com" }),
       );
 
-      expect(result?.errors?.email?.[0]).toMatch(/couldn't|Could not send/i);
+      expect(result?.errors?.email?.[0]).toMatch(
+         /^Your other changes were saved, but the email wasn't changed: Could not send/,
+      );
+      expect(updateSet).toHaveBeenCalled();
+   });
+
+   it("only starts the email change once everything else is saved", async () => {
+      generateLink
+         .mockResolvedValueOnce(link("email_change", "current-token"))
+         .mockResolvedValueOnce(link("email_change", "new-token"));
+
+      await updateUserAdmin(
+         null,
+         editForm({ email: "ada@new.example.com", role: "coordinator" }),
+      );
+
+      const firstLink = generateLink.mock.invocationCallOrder[0]!;
+      expect(updateSet.mock.invocationCallOrder[0]!).toBeLessThan(firstLink);
+      expect(sendRoleChangedNotice.mock.invocationCallOrder[0]!).toBeLessThan(
+         firstLink,
+      );
+   });
+
+   it("refuses while Supabase's Confirm email is off, before saving anything", async () => {
+      emailConfirmationRequired.mockResolvedValue(false);
+
+      const result = await updateUserAdmin(
+         null,
+         editForm({ email: "ada@new.example.com", role: "coordinator" }),
+      );
+
+      expect(result?.errors?.email?.[0]).toMatch(/“Confirm email” setting/);
+      expect(generateLink).not.toHaveBeenCalled();
+      expect(updateUserById).not.toHaveBeenCalled();
       expect(updateSet).not.toHaveBeenCalled();
+   });
+
+   it("refuses when Supabase's settings can't be checked", async () => {
+      emailConfirmationRequired.mockRejectedValue(new Error("network"));
+
+      const result = await updateUserAdmin(
+         null,
+         editForm({ email: "ada@new.example.com" }),
+      );
+
+      expect(result?.errors?.email?.[0]).toMatch(/Could not check/);
+      expect(generateLink).not.toHaveBeenCalled();
+      expect(updateSet).not.toHaveBeenCalled();
+   });
+
+   it("doesn't send a second pair while a change to that address is waiting", async () => {
+      getUserById.mockResolvedValue({
+         data: {
+            user: authUser({
+               new_email: "ada@new.example.com",
+               email_change_sent_at: new Date(
+                  Date.now() - 5 * 60_000,
+               ).toISOString(),
+            }),
+         },
+         error: null,
+      });
+
+      const result = await updateUserAdmin(
+         null,
+         editForm({ email: "ADA@new.example.com" }),
+      );
+
+      expect(generateLink).not.toHaveBeenCalled();
+      expect(result?.message).toContain("already waiting");
+   });
+
+   it("sends new links once the previous ones have expired", async () => {
+      getUserById.mockResolvedValue({
+         data: {
+            user: authUser({
+               new_email: "ada@new.example.com",
+               email_change_sent_at: new Date(
+                  Date.now() - 2 * 3600_000,
+               ).toISOString(),
+            }),
+         },
+         error: null,
+      });
+      generateLink
+         .mockResolvedValueOnce(link("email_change", "current-token"))
+         .mockResolvedValueOnce(link("email_change", "new-token"));
+
+      await updateUserAdmin(null, editForm({ email: "ada@new.example.com" }));
+
+      expect(generateLink).toHaveBeenCalledTimes(2);
    });
 });
 
@@ -531,6 +630,15 @@ describe("createUserAdmin invitation", () => {
 
    it("deletes a new account and sends nothing when setting it up fails", async () => {
       onConflictDoUpdate.mockRejectedValue(new Error("db down"));
+      getUserById.mockResolvedValue({
+         data: {
+            user: authUser({
+               email_confirmed_at: null,
+               invited_at: INVITED_AT,
+            }),
+         },
+         error: null,
+      });
 
       const result = await createUserAdmin(null, createForm({}));
 
@@ -541,8 +649,44 @@ describe("createUserAdmin invitation", () => {
       expect(grantComplimentarySubscription).not.toHaveBeenCalled();
    });
 
+   it("doesn't delete an account another request re-invited meanwhile", async () => {
+      onConflictDoUpdate.mockRejectedValue(new Error("db down"));
+      getUserById.mockResolvedValue({
+         data: {
+            user: authUser({
+               email_confirmed_at: null,
+               invited_at: "2026-09-26T12:00:01Z",
+            }),
+         },
+         error: null,
+      });
+
+      await createUserAdmin(null, createForm({}));
+
+      expect(deleteUser).not.toHaveBeenCalled();
+   });
+
+   it("refuses an address someone signed up with but never confirmed", async () => {
+      selectLimit.mockResolvedValue([
+         { id: USER_ID, emailConfirmedAt: null, invitedAt: null },
+      ]);
+
+      const result = await createUserAdmin(null, createForm({ role: "admin" }));
+
+      expect(result?.errors?.email?.[0]).toMatch(/never confirmed it/);
+      expect(generateLink).not.toHaveBeenCalled();
+      expect(updateUserById).not.toHaveBeenCalled();
+      expect(insertValues).not.toHaveBeenCalled();
+   });
+
    it("keeps a pending invitation's account when a retry fails to set it up", async () => {
-      selectLimit.mockResolvedValue([{ id: USER_ID, emailConfirmedAt: null }]);
+      selectLimit.mockResolvedValue([
+         {
+            id: USER_ID,
+            emailConfirmedAt: null,
+            invitedAt: new Date(INVITED_AT),
+         },
+      ]);
       updateUserById.mockResolvedValue({
          error: { message: "metadata failed" },
       });
