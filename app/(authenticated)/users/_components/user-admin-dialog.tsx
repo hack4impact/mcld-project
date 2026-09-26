@@ -48,6 +48,9 @@ function useActionConfirm(
    onSuccess: () => void,
 ) {
    const [confirmOpen, setConfirmOpen] = useState(false);
+   // State at the time the confirm was opened, so errors from a previous
+   // submit don't keep it hidden when the user retries.
+   const [openedAtState, setOpenedAtState] = useState(state);
    const prevStateRef = useRef(state);
 
    useEffect(() => {
@@ -59,9 +62,10 @@ function useActionConfirm(
    const confirmVisible =
       confirmOpen &&
       !state?.message &&
-      !(state?.errors && !pending);
+      !(state !== openedAtState && state?.errors && !pending);
 
    function openConfirm() {
+      setOpenedAtState(state);
       setConfirmOpen(false);
       queueMicrotask(() => setConfirmOpen(true));
    }
