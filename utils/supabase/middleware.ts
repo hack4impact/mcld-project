@@ -63,5 +63,20 @@ export async function updateSession(request: NextRequest) {
       }
    }
 
+   // Protect /registrations and /registrations/* — user role only
+   // TODO: replace with the shared user-dashboard gate once the sidebar / user-dashboard framework PR lands.
+   if (
+      request.nextUrl.pathname === "/registrations" ||
+      request.nextUrl.pathname.startsWith("/registrations/")
+   ) {
+      const { data: claimsData } = await supabase.auth.getClaims();
+      const role = claimsData?.claims?.user_role;
+      if (role !== ROLES.USER) {
+         const url = request.nextUrl.clone();
+         url.pathname = "/";
+         return NextResponse.redirect(url);
+      }
+   }
+
    return supabaseResponse;
 }

@@ -22,7 +22,7 @@ async function AuthGate({ children }: { children: React.ReactNode }) {
 
 async function RoleAwareSidebar() {
    const role = await getUserRole();
-   return <AppSidebar role={role ?? undefined} />;
+   return <AppSidebar role={role} />;
 }
 
 export default function AuthenticatedLayout({

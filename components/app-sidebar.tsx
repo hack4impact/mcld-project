@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { ROLES, type Role } from "@/lib/roles";
+import { canViewUsers, ROLES, type Role } from "@/lib/roles";
 
 type NavItem = {
    title: string;
@@ -49,21 +49,26 @@ const baseNavItems: NavItem[] = [
 const coordinatorNavItems: NavItem[] = [
    { title: "OVERVIEW", href: "/", icon: LayoutGrid },
    { title: "SERVICES", href: "/services", icon: BookOpen },
-   { title: "SCHEDULED LESSONS", href: "/scheduled-lessons", icon: CalendarClock },
+   {
+      title: "SCHEDULED LESSONS",
+      href: "/scheduled-lessons",
+      icon: CalendarClock,
+   },
 ];
 
 export function AppSidebar({
    className,
    role,
    ...props
-}: React.ComponentProps<typeof Sidebar> & { role?: Role | string | null }) {
+}: Omit<React.ComponentProps<typeof Sidebar>, "role"> & {
+   role?: Role | null;
+}) {
    const pathname = usePathname();
 
    const navItems = useMemo(() => {
-      if (role === ROLES.COORDINATOR) return coordinatorNavItems;
-      const isAdmin = role === ROLES.ADMIN;
+      const showUsers = canViewUsers(role);
       const items = baseNavItems.filter(
-         (item) => isAdmin || item.href !== "/users",
+         (item) => showUsers || item.href !== "/users",
       );
       if (role === ROLES.USER) {
          items.push({
