@@ -10,6 +10,7 @@ import {
    getActiveCouponForCustomerProduct,
    getOrCreateStripeCustomer,
    stripe,
+   userNeedsSubscriptionFor,
 } from "@/lib/stripe";
 import {
    submitAvailabilities,
@@ -103,6 +104,8 @@ export async function checkoutServiceBooking({
       return { error: "Service is not available" };
    if (service.type !== "programs")
       return { error: "Service is not a program" };
+   if (await userNeedsSubscriptionFor(service, user.id))
+      return { error: "An active membership is required to book this service." };
 
    const [row] = await db
       .insert(serviceBookings)
@@ -160,6 +163,11 @@ export async function checkoutCoachingSession({
       where: eq(services.id, row.serviceId),
    });
    if (!service) return { error: "Service not found" };
+   // The one place this is enforced for the private-lesson path: called
+   // right after submitAvailabilities (which doesn't check this itself)
+   // as well as directly, so it must always re-check here.
+   if (await userNeedsSubscriptionFor(service, user.id))
+      return { error: "An active membership is required to book this service." };
 
    const result = await createStripeCheckoutSession({
       userId: user.id,

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { priceId, mode = "subscription" } = await request.json();
+  const { priceId, mode = "subscription", returnTo } = await request.json();
 
   if (!priceId) {
     return NextResponse.json(
@@ -24,6 +24,14 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+
+  // Only allow same-origin relative paths, to avoid an open redirect via
+  // success_url.
+  const isSafeReturnPath =
+    typeof returnTo === "string" &&
+    returnTo.startsWith("/") &&
+    !returnTo.startsWith("//");
+  const successPath = isSafeReturnPath ? returnTo : "/checkout/success";
 
   const stripeCustomerId = await getOrCreateStripeCustomer(
     user.id,
@@ -46,7 +54,7 @@ export async function POST(request: NextRequest) {
     ...(couponId
       ? { discounts: [{ coupon: couponId }] }
       : {}),
-    success_url: `${request.nextUrl.origin}/checkout/success`,
+    success_url: `${request.nextUrl.origin}${successPath}`,
     cancel_url: `${request.nextUrl.origin}/checkout/cancel`,
   });
 

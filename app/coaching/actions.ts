@@ -59,6 +59,11 @@ export async function submitAvailabilities({
       return { error: "Service is not a private lesson" };
    if (!service.coordinatorId)
       return { error: "Service has no coordinator assigned" };
+   // Not checked here: this session is always immediately paid for via
+   // checkoutCoachingSession (see startPrivateLessonCheckout), which
+   // re-fetches this same service and enforces the subscription
+   // requirement before creating a Stripe session or leaving this row
+   // in place.
 
    const [row] = await db
       .insert(coachingSessions)
