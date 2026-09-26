@@ -34,11 +34,16 @@ const selectWhere = jest.fn(() => ({
 const selectFrom = jest.fn(() => ({ where: selectWhere }));
 const select = jest.fn(() => ({ from: selectFrom })) as jest.Mock;
 
+const findProfile = jest.fn();
+
 jest.mock("@/lib/db", () => ({
    db: {
       insert: (...args: unknown[]) => insert(...args),
       select: (...args: unknown[]) => select(...args),
       delete: (...args: unknown[]) => deleteFn(...args),
+      query: {
+         profiles: { findFirst: (...args: unknown[]) => findProfile(...args) },
+      },
    },
 }));
 
@@ -71,6 +76,7 @@ beforeEach(() => {
    jest.clearAllMocks();
    selectWhereResult = [];
    selectLimit.mockResolvedValue([]);
+   findProfile.mockResolvedValue({ role: "coordinator" });
 });
 
 describe("saveCoordinatorWeeklyHours", () => {
@@ -148,6 +154,117 @@ describe("saveCoordinatorWeeklyHours", () => {
       );
    });
 
+   it("blocks an admin from saving hours for a non-coordinator", async () => {
+      asAdmin();
+      findProfile.mockResolvedValue({ role: "user" });
+
+      const result = await saveCoordinatorWeeklyHours({
+         coordinatorId: OTHER_COORDINATOR_ID,
+         hours: EMPTY_WEEKLY_HOURS,
+      });
+
+      expect(result).toEqual({ error: "Coordinator not found" });
+      expect(insert).not.toHaveBeenCalled();
+   });
+
+   it("blocks an admin from saving hours for an unknown profile", async () => {
+      asAdmin();
+      findProfile.mockResolvedValue(undefined);
+
+      const result = await saveCoordinatorWeeklyHours({
+         coordinatorId: OTHER_COORDINATOR_ID,
+         hours: EMPTY_WEEKLY_HOURS,
+      });
+
+      expect(result).toEqual({ error: "Coordinator not found" });
+      expect(insert).not.toHaveBeenCalled();
+   });
+
+   it("rejects out-of-range times", async () => {
+      asCoordinator();
+
+      const result = await saveCoordinatorWeeklyHours({
+         coordinatorId: COORDINATOR_ID,
+         hours: {
+            ...EMPTY_WEEKLY_HOURS,
+            1: [{ start: "09:00", end: "99:99", recurrence: "weekly" }],
+         },
+      });
+
+      expect(result).toEqual({ error: "Invalid time" });
+      expect(insert).not.toHaveBeenCalled();
+   });
+
+   it("rejects an unknown timezone", async () => {
+      asCoordinator();
+
+      const result = await saveCoordinatorWeeklyHours({
+         coordinatorId: COORDINATOR_ID,
+         timezone: "Toronto",
+         hours: EMPTY_WEEKLY_HOURS,
+      });
+
+      expect(result).toEqual({ error: "Invalid timezone" });
+      expect(insert).not.toHaveBeenCalled();
+   });
+
+   it("allows overlapping biweekly windows on alternate weeks", async () => {
+      asCoordinator();
+
+      const result = await saveCoordinatorWeeklyHours({
+         coordinatorId: COORDINATOR_ID,
+         hours: {
+            ...EMPTY_WEEKLY_HOURS,
+            1: [
+               {
+                  start: "09:00",
+                  end: "12:00",
+                  recurrence: "biweekly",
+                  anchorDate: "2026-09-07",
+               },
+               {
+                  start: "10:00",
+                  end: "14:00",
+                  recurrence: "biweekly",
+                  anchorDate: "2026-09-14",
+               },
+            ],
+         },
+      });
+
+      expect(result).toEqual({ ok: true });
+   });
+
+   it("rejects overlapping biweekly windows on the same weeks", async () => {
+      asCoordinator();
+
+      const result = await saveCoordinatorWeeklyHours({
+         coordinatorId: COORDINATOR_ID,
+         hours: {
+            ...EMPTY_WEEKLY_HOURS,
+            1: [
+               {
+                  start: "09:00",
+                  end: "12:00",
+                  recurrence: "biweekly",
+                  anchorDate: "2026-09-07",
+               },
+               {
+                  start: "10:00",
+                  end: "14:00",
+                  recurrence: "biweekly",
+                  anchorDate: "2026-09-21",
+               },
+            ],
+         },
+      });
+
+      expect(result).toEqual({
+         error: "Windows on the same day must not overlap",
+      });
+      expect(insert).not.toHaveBeenCalled();
+   });
+
    it("rejects overlapping windows on the same day", async () => {
       asCoordinator();
 
@@ -197,6 +314,19 @@ describe("setCoordinatorAvailabilityOverride", () => {
       });
 
       expect(result).toEqual({ error: "Unauthorized" });
+      expect(insert).not.toHaveBeenCalled();
+   });
+
+   it("rejects an impossible date", async () => {
+      asCoordinator();
+
+      const result = await setCoordinatorAvailabilityOverride({
+         coordinatorId: COORDINATOR_ID,
+         date: "2026-02-30",
+         windows: [],
+      });
+
+      expect(result).toEqual({ error: "Invalid date" });
       expect(insert).not.toHaveBeenCalled();
    });
 });
@@ -254,6 +384,7 @@ describe("listCoordinatorAvailability", () => {
                source: "weekly",
             },
          ],
+         timezone: "America/Toronto",
       });
    });
 
@@ -268,7 +399,23 @@ describe("listCoordinatorAvailability", () => {
          to: "2026-03-07",
       });
 
-      expect(result).toEqual({ occurrences: [] });
+      expect(result).toEqual({
+         occurrences: [],
+         timezone: "America/Toronto",
+      });
+   });
+
+   it("rejects an impossible month", async () => {
+      asCoordinator();
+
+      const result = await listCoordinatorAvailability({
+         coordinatorId: COORDINATOR_ID,
+         from: "2026-13-01",
+         to: "2026-13-07",
+      });
+
+      expect(result).toEqual({ error: "Invalid date" });
+      expect(select).not.toHaveBeenCalled();
    });
 
    it("rejects a range longer than one year", async () => {

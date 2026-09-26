@@ -95,6 +95,29 @@ describe("availabilityForRange", () => {
       ]);
    });
 
+   it("does not emit biweekly windows before the anchor date", () => {
+      const hours: CoordinatorWeeklyHours = {
+         ...EMPTY_WEEKLY_HOURS,
+         1: [
+            {
+               start: "09:00",
+               end: "11:00",
+               recurrence: "biweekly",
+               anchorDate: "2026-10-05",
+            },
+         ],
+      };
+
+      expect(
+         availabilityForRange({
+            hours,
+            overrides: {},
+            from: "2026-09-01",
+            to: "2026-10-31",
+         }).map((occurrence) => occurrence.date),
+      ).toEqual(["2026-10-05", "2026-10-19"]);
+   });
+
    it("returns nothing when from is after to", () => {
       expect(
          availabilityForRange({
