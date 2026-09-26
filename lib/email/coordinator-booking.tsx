@@ -145,6 +145,13 @@ export function CoordinatorBookingEmail({
                ) : (
                   <>
                      <Text style={muted}>No time scheduled yet.</Text>
+                     {(!requestedAvailability ||
+                        requestedAvailability.length === 0) && (
+                        <Text style={paragraph}>
+                           Please reach out to {clientName} to arrange a time
+                           for the lesson.
+                        </Text>
+                     )}
                      {requestedAvailability &&
                         requestedAvailability.length > 0 && (
                            <>

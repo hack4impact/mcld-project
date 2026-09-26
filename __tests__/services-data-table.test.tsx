@@ -18,6 +18,7 @@ const service: ServiceView = {
    status: "active",
    stripeProductId: "prod_test",
    coordinatorId: null,
+   coordinatorIds: [],
    createdAt: new Date("2026-01-01T00:00:00Z"),
    updatedAt: new Date("2026-01-01T00:00:00Z"),
    title: "Summer Robotics Program",
@@ -25,6 +26,7 @@ const service: ServiceView = {
    priceCents: 10000,
    priceCurrency: "cad",
    requiresSubscription: false,
+   isScheduled: false,
 };
 
 function renderTable() {

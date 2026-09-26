@@ -136,7 +136,7 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
 
    const isPrivateLesson = service.type === "private_lessons";
    const pricing = buildPricing(service, discount);
-   const showAvailabilityStep = isPrivateLesson;
+   const showAvailabilityStep = isPrivateLesson && service.isScheduled;
 
    async function handleProgramCheckout() {
       setSubmitting(true);
@@ -150,14 +150,14 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
    }
 
    async function handlePrivateLessonCheckout() {
-      if (availabilities.length === 0) {
+      if (showAvailabilityStep && availabilities.length === 0) {
          toast.error("Pick at least one availability window.");
          return;
       }
       setSubmitting(true);
       const result = await startPrivateLessonCheckout({
          serviceId: service.id,
-         availabilities,
+         ...(showAvailabilityStep ? { availabilities } : {}),
       });
       if ("error" in result) {
          setSubmitting(false);
@@ -168,8 +168,12 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
    }
 
    function handleNextOnConfirm() {
-      if (isPrivateLesson) {
+      if (showAvailabilityStep) {
          setStep("availability");
+         return;
+      }
+      if (isPrivateLesson) {
+         void handlePrivateLessonCheckout();
          return;
       }
       void handleProgramCheckout();

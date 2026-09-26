@@ -306,6 +306,149 @@ describe("updateService", () => {
    });
 });
 
+describe("scheduling flag", () => {
+   const privateLesson = {
+      title: "1:1 Lesson",
+      description: "A private session",
+      type: "private_lessons",
+      duration_minutes: "60",
+      price_cad: "50.00",
+      requires_subscription: "true",
+      coordinator_id: COORDINATOR_A,
+   };
+
+   it("creates a scheduled private lesson", async () => {
+      const result = await createService(
+         null,
+         fd({ ...privateLesson, is_scheduled: "true" }),
+      );
+
+      expect(result).toEqual({ message: "Service created." });
+      expect(insertValues).toHaveBeenCalledWith(
+         expect.objectContaining({ isScheduled: true }),
+      );
+   });
+
+   it("defaults a private lesson to non-scheduled", async () => {
+      await createService(null, fd(privateLesson));
+
+      expect(insertValues).toHaveBeenCalledWith(
+         expect.objectContaining({ isScheduled: false }),
+      );
+   });
+
+   it("never marks a program as scheduled", async () => {
+      await createService(
+         null,
+         fd({
+            title: "Summer Program",
+            description: "Group program",
+            type: "programs",
+            duration_minutes: "60",
+            price_cad: "100.00",
+            start_date: "2026-01-01",
+            end_date: "2026-02-01",
+            slots: JSON.stringify([{ dayOfWeek: 1, time: "10:00" }]),
+            requires_subscription: "true",
+            is_scheduled: "true",
+         }),
+      );
+
+      expect(insertValues).toHaveBeenCalledWith(
+         expect.objectContaining({ type: "programs", isScheduled: false }),
+      );
+   });
+
+   it("rejects an invalid scheduling value", async () => {
+      const result = await createService(
+         null,
+         fd({ ...privateLesson, is_scheduled: "maybe" }),
+      );
+
+      expect(result?.errors?.is_scheduled).toBeDefined();
+      expect(insert).not.toHaveBeenCalled();
+   });
+
+   it("switches a private lesson to scheduled on update", async () => {
+      selectLimit.mockResolvedValue([
+         {
+            id: SERVICE_ID,
+            type: "private_lessons",
+            status: "active",
+            stripeProductId: "prod_1",
+         },
+      ]);
+
+      const result = await updateService(
+         null,
+         fd({ service_id: SERVICE_ID, is_scheduled: "true" }),
+      );
+
+      expect(result).toEqual({ message: "Service updated." });
+      expect(updateSet).toHaveBeenCalledWith(
+         expect.objectContaining({ isScheduled: true }),
+      );
+   });
+
+   it("switches a private lesson back to non-scheduled on update", async () => {
+      selectLimit.mockResolvedValue([
+         {
+            id: SERVICE_ID,
+            type: "private_lessons",
+            status: "active",
+            stripeProductId: "prod_1",
+         },
+      ]);
+
+      await updateService(
+         null,
+         fd({ service_id: SERVICE_ID, is_scheduled: "false" }),
+      );
+
+      expect(updateSet).toHaveBeenCalledWith(
+         expect.objectContaining({ isScheduled: false }),
+      );
+   });
+
+   it("leaves the flag alone when it is not sent", async () => {
+      selectLimit.mockResolvedValue([
+         {
+            id: SERVICE_ID,
+            type: "private_lessons",
+            status: "active",
+            stripeProductId: "prod_1",
+         },
+      ]);
+
+      await updateService(
+         null,
+         fd({ service_id: SERVICE_ID, coordinator_id: COORDINATOR_B }),
+      );
+
+      expect(updateSet).toHaveBeenCalledWith(
+         expect.not.objectContaining({ isScheduled: expect.anything() }),
+      );
+   });
+
+   it("ignores the flag on a program update", async () => {
+      selectLimit.mockResolvedValue([
+         {
+            id: SERVICE_ID,
+            type: "programs",
+            status: "active",
+            stripeProductId: "prod_1",
+         },
+      ]);
+
+      await updateService(
+         null,
+         fd({ service_id: SERVICE_ID, is_scheduled: "true" }),
+      );
+
+      expect(updateSet).not.toHaveBeenCalled();
+   });
+});
+
 describe("coordinator writes", () => {
    it("rejects a program coordinator that no longer exists", async () => {
       coordinatorLookup.mockReturnValue([{ id: COORDINATOR_A }]);
