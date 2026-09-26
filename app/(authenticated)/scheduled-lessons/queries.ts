@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/lib/db";
 import {
@@ -16,21 +17,36 @@ export type ScheduledLessonView = {
    id: string;
    serviceTitle: string | null;
    clientName: string;
+   coordinatorName: string;
    scheduledAt: Date | null;
    meetingUrl: string | null;
    selectedTimeSlots: TimeSlot[];
    status: string;
 };
 
-/**
- * Upcoming private-lesson sessions a coordinator is responsible for: sessions
- * that are still pending or confirmed (not cancelled/completed), ordered by
- * scheduled time. Includes the service title and the client's name.
- */
-export async function listUpcomingLessonsForCoordinator(
-   coordinatorId: string,
-): Promise<ScheduledLessonView[]> {
-   if (!UUID_RE.test(coordinatorId)) return [];
+async function fetchServiceTitle(productId: string): Promise<string | null> {
+   try {
+      return (await getStripeServiceData(productId))?.title ?? null;
+   } catch (error) {
+      console.error("[scheduled-lessons] Stripe lookup failed", {
+         productId,
+         error,
+      });
+      return null;
+   }
+}
+
+export async function listUpcomingLessons({
+   coordinatorId,
+   now = new Date(),
+}: {
+   coordinatorId?: string;
+   now?: Date;
+} = {}): Promise<ScheduledLessonView[]> {
+   if (coordinatorId !== undefined && !UUID_RE.test(coordinatorId)) return [];
+
+   const client = alias(profiles, "client");
+   const coordinator = alias(profiles, "coordinator");
 
    const rows = await db
       .select({
@@ -40,33 +56,53 @@ export async function listUpcomingLessonsForCoordinator(
          selectedTimeSlots: privateLessonSessions.selectedTimeSlots,
          status: privateLessonSessions.status,
          stripeProductId: services.stripeProductId,
-         clientFirstName: profiles.firstName,
-         clientLastName: profiles.lastName,
+         clientFirstName: client.firstName,
+         clientLastName: client.lastName,
+         coordinatorFirstName: coordinator.firstName,
+         coordinatorLastName: coordinator.lastName,
       })
       .from(privateLessonSessions)
       .innerJoin(services, eq(services.id, privateLessonSessions.serviceId))
-      .innerJoin(profiles, eq(profiles.id, privateLessonSessions.userId))
+      .innerJoin(client, eq(client.id, privateLessonSessions.userId))
+      .innerJoin(
+         coordinator,
+         eq(coordinator.id, privateLessonSessions.coordinatorId),
+      )
       .where(
          and(
-            eq(privateLessonSessions.coordinatorId, coordinatorId),
+            coordinatorId
+               ? eq(privateLessonSessions.coordinatorId, coordinatorId)
+               : undefined,
             inArray(privateLessonSessions.status, ["pending", "confirmed"]),
+            or(
+               isNull(privateLessonSessions.scheduledAt),
+               gt(
+                  sql`${privateLessonSessions.scheduledAt} + ${services.durationMinutes} * interval '1 minute'`,
+                  now,
+               ),
+            ),
          ),
       )
       .orderBy(asc(privateLessonSessions.scheduledAt));
 
-   return Promise.all(
-      rows.map(async (r) => {
-         const stripeData = await getStripeServiceData(r.stripeProductId);
-         return {
-            id: r.id,
-            serviceTitle: stripeData?.title ?? null,
-            clientName: `${r.clientFirstName} ${r.clientLastName}`.trim(),
-            scheduledAt: r.scheduledAt,
-            meetingUrl: r.meetingUrl,
-            selectedTimeSlots:
-               (r.selectedTimeSlots as TimeSlot[] | null) ?? [],
-            status: r.status,
-         };
-      }),
+   const productIds = [...new Set(rows.map((r) => r.stripeProductId))];
+   const titles = new Map(
+      await Promise.all(
+         productIds.map(
+            async (id) => [id, await fetchServiceTitle(id)] as const,
+         ),
+      ),
    );
+
+   return rows.map((r) => ({
+      id: r.id,
+      serviceTitle: titles.get(r.stripeProductId) ?? null,
+      clientName: `${r.clientFirstName} ${r.clientLastName}`.trim(),
+      coordinatorName:
+         `${r.coordinatorFirstName} ${r.coordinatorLastName}`.trim(),
+      scheduledAt: r.scheduledAt,
+      meetingUrl: r.meetingUrl,
+      selectedTimeSlots: (r.selectedTimeSlots as TimeSlot[] | null) ?? [],
+      status: r.status,
+   }));
 }

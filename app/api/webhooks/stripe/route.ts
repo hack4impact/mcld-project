@@ -51,13 +51,16 @@ export async function POST(request: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata ?? {};
 
-      if (metadata.type === "private_lesson" && metadata.privateLessonSessionId) {
+      const privateLessonSessionId =
+         metadata.privateLessonSessionId ?? metadata.coachingSessionId;
+
+      if (metadata.type === "private_lesson" && privateLessonSessionId) {
          const updated = await db
             .update(privateLessonSessions)
             .set({ status: "pending", stripeOrderId: session.id })
             .where(
                and(
-                  eq(privateLessonSessions.id, metadata.privateLessonSessionId),
+                  eq(privateLessonSessions.id, privateLessonSessionId),
                   eq(privateLessonSessions.status, "awaiting_payment"),
                ),
             )

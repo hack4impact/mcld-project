@@ -5,6 +5,7 @@ import {
    children,
    formQuestionAnswers,
    formQuestions,
+   privateLessonSessions,
    profiles,
    programCoordinators,
    serviceBookings,
@@ -258,54 +259,107 @@ export type ServiceRegistration = {
    answers: RegistrationAnswer[];
 };
 
-/**
- * List the people registered for a service (from `service_bookings`) together
- * with their form answers. Child registrations include the answers submitted
- * for that child; adult registrations have no form answers and show name only.
- *
- * Read-only; used by the admin and the coordinator (read-only) services views.
- */
+const REGISTERED_BOOKING_STATUSES = ["pending", "confirmed"] as const;
+const REGISTERED_LESSON_STATUSES = ["pending", "confirmed", "completed"] as const;
+
+type RegistrantRow = {
+   bookingId: string;
+   status: string;
+   createdAt: Date;
+   childId: string | null;
+   childFirstName: string | null;
+   childLastName: string | null;
+   userFirstName: string;
+   userLastName: string;
+};
+
 export async function listServiceRegistrations(
    serviceId: string,
 ): Promise<ServiceRegistration[]> {
    if (!UUID_RE.test(serviceId)) return [];
 
-   const rows = await db
-      .select({
-         bookingId: serviceBookings.id,
-         status: serviceBookings.status,
-         createdAt: serviceBookings.createdAt,
-         childId: serviceBookings.childId,
-         childFirstName: children.firstName,
-         childLastName: children.lastName,
-         userFirstName: profiles.firstName,
-         userLastName: profiles.lastName,
-      })
-      .from(serviceBookings)
-      .innerJoin(profiles, eq(profiles.id, serviceBookings.userId))
-      .leftJoin(children, eq(children.id, serviceBookings.childId))
-      .where(eq(serviceBookings.serviceId, serviceId))
-      .orderBy(desc(serviceBookings.createdAt));
+   const [service] = await db
+      .select({ type: services.type, formId: services.formId })
+      .from(services)
+      .where(eq(services.id, serviceId))
+      .limit(1);
+   if (!service) return [];
 
-   const childIds = rows
-      .map((r) => r.childId)
-      .filter((id): id is string => id !== null);
+   const rows: RegistrantRow[] =
+      service.type === "private_lessons"
+         ? await db
+              .select({
+                 bookingId: privateLessonSessions.id,
+                 status: privateLessonSessions.status,
+                 createdAt: privateLessonSessions.createdAt,
+                 childId: privateLessonSessions.childId,
+                 childFirstName: children.firstName,
+                 childLastName: children.lastName,
+                 userFirstName: profiles.firstName,
+                 userLastName: profiles.lastName,
+              })
+              .from(privateLessonSessions)
+              .innerJoin(profiles, eq(profiles.id, privateLessonSessions.userId))
+              .leftJoin(children, eq(children.id, privateLessonSessions.childId))
+              .where(
+                 and(
+                    eq(privateLessonSessions.serviceId, serviceId),
+                    inArray(privateLessonSessions.status, [
+                       ...REGISTERED_LESSON_STATUSES,
+                    ]),
+                 ),
+              )
+              .orderBy(desc(privateLessonSessions.createdAt))
+         : await db
+              .select({
+                 bookingId: serviceBookings.id,
+                 status: serviceBookings.status,
+                 createdAt: serviceBookings.createdAt,
+                 childId: serviceBookings.childId,
+                 childFirstName: children.firstName,
+                 childLastName: children.lastName,
+                 userFirstName: profiles.firstName,
+                 userLastName: profiles.lastName,
+              })
+              .from(serviceBookings)
+              .innerJoin(profiles, eq(profiles.id, serviceBookings.userId))
+              .leftJoin(children, eq(children.id, serviceBookings.childId))
+              .where(
+                 and(
+                    eq(serviceBookings.serviceId, serviceId),
+                    eq(serviceBookings.isActive, true),
+                    inArray(serviceBookings.status, [
+                       ...REGISTERED_BOOKING_STATUSES,
+                    ]),
+                 ),
+              )
+              .orderBy(desc(serviceBookings.createdAt));
+
+   const childIds = [
+      ...new Set(
+         rows.map((r) => r.childId).filter((id): id is string => id !== null),
+      ),
+   ];
 
    const answersByChild = new Map<string, RegistrationAnswer[]>();
-   if (childIds.length > 0) {
+   if (service.formId && childIds.length > 0) {
       const answerRows = await db
          .select({
             childId: formQuestionAnswers.childId,
             prompt: formQuestions.prompt,
             answer: formQuestionAnswers.answer,
-            sortOrder: formQuestions.sortOrder,
          })
          .from(formQuestionAnswers)
          .innerJoin(
             formQuestions,
             eq(formQuestions.id, formQuestionAnswers.formQuestionId),
          )
-         .where(inArray(formQuestionAnswers.childId, childIds))
+         .where(
+            and(
+               inArray(formQuestionAnswers.childId, childIds),
+               eq(formQuestions.formId, service.formId),
+            ),
+         )
          .orderBy(asc(formQuestions.sortOrder));
 
       for (const a of answerRows) {

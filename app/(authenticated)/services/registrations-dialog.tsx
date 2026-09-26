@@ -32,16 +32,20 @@ export function RegistrationsDialog({
 
    React.useEffect(() => {
       if (!open || !service) return;
+      let ignore = false;
       setRegistrations(null);
       setError(null);
       startTransition(async () => {
          try {
             const rows = await fetchServiceRegistrations(service.id);
-            setRegistrations(rows);
+            if (!ignore) setRegistrations(rows);
          } catch {
-            setError("Could not load registrations.");
+            if (!ignore) setError("Could not load registrations.");
          }
       });
+      return () => {
+         ignore = true;
+      };
    }, [open, service]);
 
    return (

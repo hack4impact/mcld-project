@@ -14,8 +14,10 @@ function formatSlot(iso: string): string {
 
 export function ScheduledLessonsTable({
    lessons,
+   showCoordinator = false,
 }: {
    lessons: ScheduledLessonView[];
+   showCoordinator?: boolean;
 }) {
    const columns = React.useMemo<ColumnDef<ScheduledLessonView>[]>(
       () => [
@@ -33,6 +35,15 @@ export function ScheduledLessonsTable({
             header: "Client",
             cell: ({ row }) => row.original.clientName || "—",
          },
+         ...(showCoordinator
+            ? [
+                 {
+                    accessorKey: "coordinatorName",
+                    header: "Coordinator",
+                    cell: ({ row }) => row.original.coordinatorName || "—",
+                 } satisfies ColumnDef<ScheduledLessonView>,
+              ]
+            : []),
          {
             id: "scheduledAt",
             header: "Scheduled at",
@@ -81,7 +92,7 @@ export function ScheduledLessonsTable({
             },
          },
       ],
-      [],
+      [showCoordinator],
    );
 
    return (

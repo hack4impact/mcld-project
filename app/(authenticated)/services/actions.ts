@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
+   profiles,
    programCoordinators,
    services,
    type ProgramSlot as DbProgramSlot,
@@ -169,18 +170,33 @@ function parseCoordinatorIds(formData: FormData): ParseResult<string[]> {
    return { ok: true, value: [...new Set(result.data)] };
 }
 
-/**
- * Replace the program-coordinator rows for a service with the given set.
- */
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function missingCoordinators(ids: string[]): Promise<boolean> {
+   if (ids.length === 0) return false;
+   const found = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(and(inArray(profiles.id, ids), eq(profiles.role, "coordinator")));
+   const foundIds = new Set(found.map((row) => row.id));
+   return ids.some((id) => !foundIds.has(id));
+}
+
 async function setProgramCoordinators(
+   tx: DbTransaction,
    serviceId: string,
    coordinatorIds: string[],
 ): Promise<void> {
-   await db
+   await tx
+      .select({ id: services.id })
+      .from(services)
+      .where(eq(services.id, serviceId))
+      .for("update");
+   await tx
       .delete(programCoordinators)
       .where(eq(programCoordinators.serviceId, serviceId));
    if (coordinatorIds.length > 0) {
-      await db.insert(programCoordinators).values(
+      await tx.insert(programCoordinators).values(
          coordinatorIds.map((coordinatorId) => ({
             serviceId,
             coordinatorId,
@@ -262,6 +278,20 @@ export async function createService(
       else coordinatorIdValue = coordinator.value;
    }
 
+   if (
+      Object.keys(errors).length === 0 &&
+      (await missingCoordinators(coordinatorIdsValue))
+   ) {
+      errors.coordinator_ids = ["One or more selected coordinators no longer exist"];
+   }
+   if (
+      Object.keys(errors).length === 0 &&
+      coordinatorIdValue &&
+      (await missingCoordinators([coordinatorIdValue]))
+   ) {
+      errors.coordinator_id = ["The selected coordinator no longer exists"];
+   }
+
    if (Object.keys(errors).length > 0) {
       return { errors };
    }
@@ -282,24 +312,26 @@ export async function createService(
 
       await createPrice(productId, priceCents);
 
-      const [created] = await db
-         .insert(services)
-         .values({
-            type,
-            startDate: scheduledAtValue?.startDate ?? null,
-            endDate: scheduledAtValue?.endDate ?? null,
-            slots: scheduledAtValue?.slots ?? null,
-            durationMinutes: duration_minutes,
-            stripeProductId: productId,
-            coordinatorId: coordinatorIdValue,
-            status: "active",
-            requiresSubscription: requires_subscription === "true",
-         })
-         .returning({ id: services.id });
+      await db.transaction(async (tx) => {
+         const [created] = await tx
+            .insert(services)
+            .values({
+               type,
+               startDate: scheduledAtValue?.startDate ?? null,
+               endDate: scheduledAtValue?.endDate ?? null,
+               slots: scheduledAtValue?.slots ?? null,
+               durationMinutes: duration_minutes,
+               stripeProductId: productId,
+               coordinatorId: coordinatorIdValue,
+               status: "active",
+               requiresSubscription: requires_subscription === "true",
+            })
+            .returning({ id: services.id });
 
-      if (type === "programs") {
-         await setProgramCoordinators(created.id, coordinatorIdsValue);
-      }
+         if (type === "programs") {
+            await setProgramCoordinators(tx, created.id, coordinatorIdsValue);
+         }
+      });
    } catch (e) {
       if (createdProductId) {
          try {
@@ -431,6 +463,21 @@ export async function updateService(
       else coordinatorIdValue = coordinator.value;
    }
 
+   if (
+      Object.keys(errors).length === 0 &&
+      coordinatorIdsValue &&
+      (await missingCoordinators(coordinatorIdsValue))
+   ) {
+      errors.coordinator_ids = ["One or more selected coordinators no longer exist"];
+   }
+   if (
+      Object.keys(errors).length === 0 &&
+      coordinatorIdValue &&
+      (await missingCoordinators([coordinatorIdValue]))
+   ) {
+      errors.coordinator_id = ["The selected coordinator no longer exists"];
+   }
+
    if (Object.keys(errors).length > 0) {
       return { errors };
    }
@@ -466,17 +513,19 @@ export async function updateService(
          dbPatch.requiresSubscription = requires_subscription === "true";
       }
 
-      if (Object.keys(dbPatch).length > 0) {
-         dbPatch.updatedAt = new Date();
-         await db
-            .update(services)
-            .set(dbPatch)
-            .where(eq(services.id, service_id));
-      }
+      await db.transaction(async (tx) => {
+         if (Object.keys(dbPatch).length > 0) {
+            dbPatch.updatedAt = new Date();
+            await tx
+               .update(services)
+               .set(dbPatch)
+               .where(eq(services.id, service_id));
+         }
 
-      if (coordinatorIdsValue !== undefined) {
-         await setProgramCoordinators(service_id, coordinatorIdsValue);
-      }
+         if (coordinatorIdsValue !== undefined) {
+            await setProgramCoordinators(tx, service_id, coordinatorIdsValue);
+         }
+      });
    } catch (e) {
       console.error(e);
       return {

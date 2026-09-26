@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getUserRole } from "@/lib/auth/require-admin";
 import { ROLES } from "@/lib/roles";
 
-import { listUpcomingLessonsForCoordinator } from "./queries";
+import { listUpcomingLessons } from "./queries";
 import { ScheduledLessonsTable } from "./scheduled-lessons-table";
 
 export default async function ScheduledLessonsPage() {
@@ -19,15 +19,20 @@ export default async function ScheduledLessonsPage() {
    } = await supabase.auth.getUser();
    if (!user) redirect("/login");
 
-   const lessons = await listUpcomingLessonsForCoordinator(user.id);
+   const isAdmin = role === ROLES.ADMIN;
+   const lessons = await listUpcomingLessons(
+      isAdmin ? {} : { coordinatorId: user.id },
+   );
 
    return (
       <main className="flex min-h-screen flex-col gap-6 p-8">
          <h1 className="text-3xl font-bold">Scheduled lessons</h1>
          <p className="text-sm text-muted-foreground">
-            Upcoming private lessons you coordinate.
+            {isAdmin
+               ? "Upcoming private lessons across all coordinators."
+               : "Upcoming private lessons you coordinate."}
          </p>
-         <ScheduledLessonsTable lessons={lessons} />
+         <ScheduledLessonsTable lessons={lessons} showCoordinator={isAdmin} />
       </main>
    );
 }
