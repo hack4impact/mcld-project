@@ -6,6 +6,7 @@ import { pgSchema, uuid, text } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
    children,
+   coordinatorAvailabilityHours,
    privateLessonSessions,
    emergencyContacts,
    formQuestionAnswers,
@@ -116,12 +117,23 @@ export async function sendCoordinatorBookingEmail(
          return;
       }
 
-      const [coordinator, client, service, hasActiveSubscription] =
+      const [coordinator, client, service, hasActiveSubscription, hoursRow] =
          await Promise.all([
             getProfileWithEmail(session.coordinatorId),
             getProfileWithEmail(session.userId),
             getService(session.serviceId),
             userHasActiveSubscription(session.userId),
+            db
+               .select({ timezone: coordinatorAvailabilityHours.timezone })
+               .from(coordinatorAvailabilityHours)
+               .where(
+                  eq(
+                     coordinatorAvailabilityHours.coordinatorId,
+                     session.coordinatorId,
+                  ),
+               )
+               .limit(1)
+               .then((rows) => rows[0]),
          ]);
 
       if (!coordinator?.email) {
@@ -172,6 +184,8 @@ export async function sendCoordinatorBookingEmail(
             (session.selectedTimeSlots as TimeSlot[] | null) ?? [],
          notes: session.notes,
          child,
+         // Show the booked time in the coordinator's availability time zone.
+         timeZone: hoursRow?.timezone,
       });
 
       await sendEmail({ to: coordinator.email, ...email });

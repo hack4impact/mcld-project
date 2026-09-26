@@ -134,3 +134,35 @@ export const listCoordinatorAvailabilitySchema = z
          path: ["to"],
       },
    );
+
+export const listBookableSlotsSchema = z
+   .object({
+      serviceId: z.string().uuid(),
+      from: dateSchema.optional(),
+      to: dateSchema.optional(),
+   })
+   .refine((range) => (range.from === undefined) === (range.to === undefined), {
+      message: "Provide both from and to",
+      path: ["to"],
+   })
+   .refine(
+      (range) =>
+         !range.from ||
+         !range.to ||
+         utcMidnight(range.from) <= utcMidnight(range.to),
+      { message: "from must be on or before to", path: ["to"] },
+   )
+   .refine(
+      (range) =>
+         !range.from ||
+         !range.to ||
+         utcMidnight(range.to) - utcMidnight(range.from) <=
+            MAX_RANGE_DAYS * MS_PER_DAY,
+      { message: "Range cannot be longer than one year", path: ["to"] },
+   );
+
+export const reservePrivateLessonSessionSchema = z.object({
+   serviceId: z.string().uuid(),
+   /** ISO instant of the chosen slot; required for scheduled lessons. */
+   slotStart: z.string().datetime({ offset: true }).optional(),
+});

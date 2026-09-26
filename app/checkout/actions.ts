@@ -16,12 +16,21 @@ import {
    stripe,
 } from "@/lib/stripe";
 import {
-   submitAvailabilities,
-   type Availability,
+   reservePrivateLessonSession,
+   type ReservePrivateLessonSessionResult,
 } from "@/app/private-lessons/actions";
+import { CHECKOUT_EXPIRY_MINUTES, isStaleHold } from "@/lib/booking-slots";
 import { createClient } from "@/utils/supabase/server";
 
-export type CheckoutResult = { url: string } | { error: string };
+export type CheckoutResult =
+   | { url: string }
+   | {
+        error: string;
+        code?: Extract<
+           ReservePrivateLessonSessionResult,
+           { error: string }
+        >["code"];
+     };
 
 async function getDefaultPriceId(stripeProductId: string): Promise<string> {
    const product = await stripe.products.retrieve(stripeProductId);
@@ -59,6 +68,7 @@ async function createStripeCheckoutSession(params: {
    email: string;
    stripeProductId: string;
    metadata: Record<string, string>;
+   expiresAt?: number;
 }): Promise<CreateSessionResult> {
    const priceId = await getDefaultPriceId(params.stripeProductId);
 
@@ -81,6 +91,7 @@ async function createStripeCheckoutSession(params: {
       success_url: `${origin}/checkout/success`,
       cancel_url: `${origin}/checkout/cancel`,
       metadata: params.metadata,
+      ...(params.expiresAt ? { expires_at: params.expiresAt } : {}),
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
    });
 
@@ -159,6 +170,12 @@ export async function checkoutPrivateLessonSession({
    if (!row) return { error: "Private lesson session not found" };
    if (row.status !== "awaiting_payment")
       return { error: "Private lesson session is not awaiting payment" };
+   if (row.scheduledAt && isStaleHold(row.createdAt, new Date())) {
+      return {
+         error: "Your hold on this time has expired. Please pick a time again.",
+         code: "slot_taken",
+      };
+   }
 
    const service = await db.query.services.findFirst({
       where: eq(services.id, row.serviceId),
@@ -173,6 +190,12 @@ export async function checkoutPrivateLessonSession({
          type: "private_lesson",
          privateLessonSessionId: row.id,
       },
+      ...(row.scheduledAt
+         ? {
+              expiresAt:
+                 Math.floor(Date.now() / 1000) + CHECKOUT_EXPIRY_MINUTES * 60,
+           }
+         : {}),
    });
    if ("error" in result) {
       await db
@@ -191,13 +214,13 @@ export async function checkoutPrivateLessonSession({
 
 export async function startPrivateLessonCheckout({
    serviceId,
-   availabilities,
+   slotStart,
 }: {
    serviceId: string;
-   availabilities?: Availability[];
+   slotStart?: string;
 }): Promise<CheckoutResult> {
-   const created = await submitAvailabilities({ serviceId, availabilities });
-   if ("error" in created) return { error: created.error };
+   const created = await reservePrivateLessonSession({ serviceId, slotStart });
+   if ("error" in created) return created;
 
    return checkoutPrivateLessonSession({
       privateLessonSessionId: created.privateLessonSessionId,
