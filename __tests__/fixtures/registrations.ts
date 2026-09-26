@@ -21,6 +21,7 @@ function service(overrides: Partial<ServiceRow> & Pick<ServiceRow, "id">) {
       formId: null,
       isForChildren: false,
       requiresSubscription: true,
+      isScheduled: false,
       createdAt: new Date("2026-01-01T00:00:00Z"),
       updatedAt: new Date("2026-01-01T00:00:00Z"),
       ...overrides,

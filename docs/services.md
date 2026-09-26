@@ -22,6 +22,7 @@ erDiagram
         uuid form_id FK "nullable"
         boolean is_for_children
         boolean requires_subscription
+        boolean is_scheduled "private_lessons only; default false"
         timestamp created_at
         timestamp updated_at
     }
@@ -69,6 +70,11 @@ erDiagram
   temporarily; `archived`/`deleted` retire it without dropping historical bookings.
 - `is_for_children` marks services booked on behalf of a child (via `child_id` on the booking).
 - `requires_subscription` (default `true`) gates the service behind an active subscription.
+- `is_scheduled` (default `false`) only applies to `private_lessons` and is ignored for
+  programs (always `false`). **Scheduled** lessons have the customer pick a time in a
+  calendar before paying. **Non-scheduled** lessons are bought like a normal product: no
+  calendar step, and the coordinator arranges a time with the customer after payment.
+  Private lessons that existed before the column was added are non-scheduled.
 - `form_id` optionally attaches an intake form (see `forms` / `form_questions`); it is
   set to null if the form is deleted.
 - **Bookings:** `child_id` is null for adult registrations. A partial unique index

@@ -39,11 +39,8 @@ export async function submitAvailabilities({
    availabilities,
 }: {
    serviceId: string;
-   availabilities: Availability[];
+   availabilities?: Availability[];
 }): Promise<SubmitAvailabilitiesResult> {
-   if (!availabilities?.length)
-      return { error: "At least one availability window is required" };
-
    const supabase = await createClient();
    const {
       data: { user },
@@ -60,6 +57,8 @@ export async function submitAvailabilities({
       return { error: "Service is not a private lesson" };
    if (!service.coordinatorId)
       return { error: "Service has no coordinator assigned" };
+   if (service.isScheduled && !availabilities?.length)
+      return { error: "At least one availability window is required" };
 
    const [row] = await db
       .insert(privateLessonSessions)
@@ -67,7 +66,7 @@ export async function submitAvailabilities({
          userId: user.id,
          serviceId: service.id,
          coordinatorId: service.coordinatorId,
-         selectedTimeSlots: availabilities,
+         selectedTimeSlots: service.isScheduled ? availabilities : null,
          status: "awaiting_payment",
       })
       .returning({ id: privateLessonSessions.id });

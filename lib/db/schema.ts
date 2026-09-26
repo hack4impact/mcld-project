@@ -115,6 +115,7 @@ export const services = pgTable(
       requiresSubscription: boolean("requires_subscription")
          .notNull()
          .default(true),
+      isScheduled: boolean("is_scheduled").notNull().default(false),
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().notNull(),
    },
@@ -203,7 +204,8 @@ export const privateLessonSessions = pgTable("private_lesson_sessions", {
    status: sessionStatusEnum("status").notNull().default("pending"),
    meetingUrl: text("meeting_url"),
    notes: text("notes"),
-   selectedTimeSlots: jsonb("selected_time_slots").notNull(),
+   /** Customer-submitted windows; null for non-scheduled private lessons. */
+   selectedTimeSlots: jsonb("selected_time_slots"),
    stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -18,3 +18,9 @@ export function subscriptionBadgeClass(requiresSubscription: boolean) {
       ? "bg-info-soft text-info"
       : "bg-muted text-muted-foreground ring-1 ring-inset ring-border";
 }
+
+export function schedulingBadgeClass(isScheduled: boolean) {
+   return isScheduled
+      ? "bg-primary/10 text-primary"
+      : "bg-muted text-muted-foreground ring-1 ring-inset ring-border";
+}
