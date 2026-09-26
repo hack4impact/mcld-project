@@ -25,8 +25,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Only allow same-origin relative paths, to avoid an open redirect via
-  // success_url.
   const isSafeReturnPath =
     typeof returnTo === "string" &&
     returnTo.startsWith("/") &&

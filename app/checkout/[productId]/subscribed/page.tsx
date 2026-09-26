@@ -6,12 +6,6 @@ import { profiles } from "@/lib/db/schema";
 import { syncStripeData } from "@/lib/stripe";
 import { createClient } from "@/utils/supabase/server";
 
-// Stripe redirects here right after a subscription checkout instead of
-// straight back to the service's checkout page. userHasActiveSubscription
-// only reads from our subscriptions table, which the Stripe webhook updates
-// asynchronously - the webhook can easily lose that race against the
-// redirect, so this step syncs synchronously first (same approach as
-// /checkout/success) before sending the user back to the service.
 export default async function SubscribedPage({
    params,
 }: {

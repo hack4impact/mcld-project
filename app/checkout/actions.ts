@@ -163,9 +163,6 @@ export async function checkoutCoachingSession({
       where: eq(services.id, row.serviceId),
    });
    if (!service) return { error: "Service not found" };
-   // The one place this is enforced for the private-lesson path: called
-   // right after submitAvailabilities (which doesn't check this itself)
-   // as well as directly, so it must always re-check here.
    if (await userNeedsSubscriptionFor(service, user.id))
       return { error: "An active membership is required to book this service." };
 
