@@ -24,8 +24,9 @@ tokens for through its own SMTP settings. The app sends the rest through Brevo
 
 Notices only go to a **verified** address, and only after the change succeeded.
 Failed changes, no-op edits and the rollback of a failed invitation send
-nothing. If a notice can't be delivered, the change stays done and the admin
-sees a warning.
+nothing. If a notice can't be delivered, the change stays done. For role changes
+and deletions the admin sees a warning. The email-changed and password-changed
+notices go out after the member finishes, so a failure there is only logged.
 
 ## Supabase dashboard setup
 

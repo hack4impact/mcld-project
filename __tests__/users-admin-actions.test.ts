@@ -1008,6 +1008,24 @@ describe("deleteUserAdmin notice", () => {
       });
    });
 
+   it("says so when the address to notify couldn't be looked up", async () => {
+      getUserById.mockResolvedValue({
+         data: { user: null },
+         error: { message: "lookup failed" },
+      });
+
+      const result = await deleteUserAdmin(
+         null,
+         formData({ user_id: USER_ID }),
+      );
+
+      expect(deleteUser).toHaveBeenCalled();
+      expect(sendAccountDeletedNotice).not.toHaveBeenCalled();
+      expect(result).toEqual({
+         message: "User deleted, but the notification email couldn't be sent.",
+      });
+   });
+
    it("doesn't delete a coordinator who still has private lessons", async () => {
       selectLimit.mockResolvedValue([{ id: "service-1" }]);
 

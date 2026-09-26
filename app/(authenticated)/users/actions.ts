@@ -586,7 +586,8 @@ export async function deleteUserAdmin(
 
    const admin = createAdminClient();
 
-   const { data: target } = await admin.auth.admin.getUserById(user_id);
+   const { data: target, error: targetError } =
+      await admin.auth.admin.getUserById(user_id);
    const recipient = target?.user?.email_confirmed_at
       ? (target.user.email ?? null)
       : null;
@@ -602,7 +603,9 @@ export async function deleteUserAdmin(
    }
 
    let message = "User deleted.";
-   if (recipient) {
+   if (targetError) {
+      message = "User deleted, but the notification email couldn't be sent.";
+   } else if (recipient) {
       const sent = await sendNotice("account deleted", () =>
          sendAccountDeletedNotice({
             to: recipient,
