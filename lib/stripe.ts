@@ -476,8 +476,8 @@ export async function grantComplimentarySubscription(
    userId: string,
    email: string,
    months: number,
-): Promise<void> {
-   if (months <= 0) return;
+): Promise<boolean> {
+   if (months <= 0) return false;
 
    const priceId = process.env.STRIPE_PRICE_ID;
    if (!priceId) {
@@ -494,7 +494,7 @@ export async function grantComplimentarySubscription(
    const hasLiveSubscription = existing.data.some(
       (s) => s.status !== "canceled" && s.status !== "incomplete_expired",
    );
-   if (hasLiveSubscription) return;
+   if (hasLiveSubscription) return false;
 
    const trialEndDate = new Date();
    trialEndDate.setMonth(trialEndDate.getMonth() + months);
@@ -510,4 +510,5 @@ export async function grantComplimentarySubscription(
       },
    });
    await syncStripeData(customerId);
+   return true;
 }

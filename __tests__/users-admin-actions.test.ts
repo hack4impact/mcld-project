@@ -189,6 +189,7 @@ beforeEach(() => {
    emailConfirmationRequired.mockResolvedValue(true);
    grantComplimentarySubscription.mockImplementation(async () => {
       calls.push("subscription");
+      return true;
    });
    sendInviteEmail.mockImplementation(async () => {
       calls.push("invite email");
@@ -611,6 +612,19 @@ describe("updateUserAdmin role notice", () => {
 });
 
 describe("createUserAdmin invitation", () => {
+   it("says so when the person already has a subscription", async () => {
+      grantComplimentarySubscription.mockResolvedValueOnce(false);
+
+      const result = await createUserAdmin(
+         null,
+         createForm({ role: "user", subscription_months: "12" }),
+      );
+
+      expect(result?.message).toBe(
+         "Invitation sent to ada@example.com. They already have a subscription, so it was left as it is.",
+      );
+   });
+
    it("sets the account up before emailing the invitation", async () => {
       const result = await createUserAdmin(
          null,
