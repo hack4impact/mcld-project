@@ -31,12 +31,12 @@ export function SlotExplainer({
          <CardHeader className="px-4">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                <Info className="size-4 text-primary" />
-               How bookable slots work
+               How windows split into lesson slots
             </CardTitle>
             <CardDescription className="text-[0.8rem]">
-               At checkout, each window is cut into back-to-back slots the
-               length of the lesson, starting at the window&apos;s start time.
-               Time left over at the end is not bookable.
+               Each window splits into back-to-back slots the length of the
+               lesson, starting at the window&apos;s start time. Time left over
+               at the end is too short for a lesson.
             </CardDescription>
          </CardHeader>
          <CardContent className="flex flex-col gap-2 px-4">

@@ -228,7 +228,7 @@ function OverrideForm({
 
                      {mode === "day_off" ? (
                         <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
-                           Nothing can be booked with you on this date.
+                           You won&apos;t have any availability on this date.
                         </p>
                      ) : (
                         <div className="flex flex-col gap-2.5">

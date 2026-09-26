@@ -121,8 +121,10 @@ export function AvailabilityPreview({
          <CardHeader className="border-b">
             <CardTitle className="text-base font-semibold">Preview</CardTitle>
             <CardDescription>
-               What families can book from once weekly hours and overrides are
-               combined. Times in {formatTimeZone(timezone, today)}.
+               Your configured weekly hours combined with date overrides. Booked
+               lessons aren&apos;t subtracted, so these windows aren&apos;t
+               guaranteed free slots. Times in {formatTimeZone(timezone, today)}
+               .
             </CardDescription>
             <CardAction className="flex items-center gap-1">
                <Button
