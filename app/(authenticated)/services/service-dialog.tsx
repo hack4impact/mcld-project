@@ -548,6 +548,7 @@ export function ServiceDialog(props: Props) {
                         />
                         <Label htmlFor="is_for_children">For children</Label>
                      </div>
+                     <FieldError messages={errors?.is_for_children} />
                   </div>
 
                   {isForChildren && (
@@ -572,6 +573,7 @@ export function ServiceDialog(props: Props) {
                               ))}
                            </SelectContent>
                         </Select>
+                        <FieldError messages={errors?.form_id} />
                      </div>
                   )}
 

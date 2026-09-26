@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ServiceDialog } from "@/app/(authenticated)/services/service-dialog";
+import { updateService } from "@/app/(authenticated)/services/actions";
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
 
 jest.mock("@/app/(authenticated)/services/actions", () => ({
@@ -67,5 +68,27 @@ describe("ServiceDialog (edit)", () => {
             'input[name="is_for_children"]',
          )?.value,
       ).toBe("true");
+   });
+
+   it("shows why the form was rejected", async () => {
+      jest.mocked(updateService).mockResolvedValue({
+         errors: { form_id: ["The selected form no longer exists"] },
+      });
+      render(
+         <ServiceDialog
+            mode="edit"
+            service={service}
+            open
+            onOpenChange={jest.fn()}
+            coordinators={[]}
+            forms={[{ id: FORM_ID, name: "Intake form" }]}
+         />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+      expect(
+         await screen.findByText("The selected form no longer exists"),
+      ).toBeInTheDocument();
    });
 });
