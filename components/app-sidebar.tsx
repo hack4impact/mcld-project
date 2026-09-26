@@ -11,6 +11,7 @@ import {
    MonitorSmartphone,
    Settings,
    Form,
+   CalendarClock,
    Baby,
    type LucideIcon,
 } from "lucide-react";
@@ -43,6 +44,16 @@ const baseNavItems: NavItem[] = [
    { title: "FINANCE", href: "/finance", icon: CreditCard },
    { title: "MEMBERSHIPS", href: "/memberships", icon: MonitorSmartphone },
    { title: "FORMS", href: "/forms", icon: Form },
+];
+
+const coordinatorNavItems: NavItem[] = [
+   { title: "OVERVIEW", href: "/", icon: LayoutGrid },
+   { title: "SERVICES", href: "/services", icon: BookOpen },
+   {
+      title: "SCHEDULED LESSONS",
+      href: "/scheduled-lessons",
+      icon: CalendarClock,
+   },
 ];
 
 export function AppSidebar({

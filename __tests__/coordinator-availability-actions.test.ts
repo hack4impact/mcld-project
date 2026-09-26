@@ -6,7 +6,7 @@ import {
    setCoordinatorAvailabilityOverride,
    clearCoordinatorAvailabilityOverride,
    listCoordinatorAvailability,
-} from "@/app/coaching/actions";
+} from "@/app/private-lessons/actions";
 import { EMPTY_WEEKLY_HOURS } from "@/lib/availability";
 
 const COORDINATOR_ID = "11111111-1111-1111-1111-111111111111";

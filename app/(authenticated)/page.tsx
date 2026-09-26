@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { signout } from "@/app/login/actions";
+import { getUserRole } from "@/lib/auth/require-admin";
+import { ROLES } from "@/lib/roles";
 import { getSubscriptionDetails } from "@/lib/stripe";
 import {
    Card,
@@ -23,6 +25,25 @@ export default function Page() {
    );
 }
 
+function WelcomeCard({ email }: { email: string }) {
+   return (
+      <Card className="flex-1">
+         <CardHeader>
+            <CardTitle className="text-2xl">Welcome</CardTitle>
+            <CardDescription>You are signed in as</CardDescription>
+         </CardHeader>
+         <CardContent className="space-y-4">
+            <p className="text-sm font-medium">{email}</p>
+            <form>
+               <Button formAction={signout} variant="outline">
+                  Sign out
+               </Button>
+            </form>
+         </CardContent>
+      </Card>
+   );
+}
+
 async function HomeContent() {
    const supabase = await createClient();
    const {
@@ -31,26 +52,26 @@ async function HomeContent() {
 
    if (!user) return null;
 
+   const role = await getUserRole();
+
+   // Coordinators get a minimal overview — just the welcome / sign-out card.
+   if (role === ROLES.COORDINATOR) {
+      return (
+         <main className="p-4">
+            <div className="max-w-sm">
+               <WelcomeCard email={user.email!} />
+            </div>
+         </main>
+      );
+   }
+
    const [subscription] = await Promise.all([getSubscriptionDetails(user.id)]);
    const ownsProduct = false;
 
    return (
       <main className="min-h-screen p-4 w-full">
          <div className="flex flex-row gap-4 w-full">
-            <Card className="flex-1">
-               <CardHeader>
-                  <CardTitle className="text-2xl">Welcome</CardTitle>
-                  <CardDescription>You are signed in as</CardDescription>
-               </CardHeader>
-               <CardContent className="space-y-4">
-                  <p className="text-sm font-medium">{user.email}</p>
-                  <form>
-                     <Button formAction={signout} variant="outline">
-                        Sign out
-                     </Button>
-                  </form>
-               </CardContent>
-            </Card>
+            <WelcomeCard email={user.email!} />
 
             <Card className="flex-1">
                <CardHeader>
