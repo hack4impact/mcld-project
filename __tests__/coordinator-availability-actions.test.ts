@@ -6,6 +6,7 @@ import {
    setCoordinatorAvailabilityOverride,
    clearCoordinatorAvailabilityOverride,
    listCoordinatorAvailability,
+   listCoordinatorAvailabilityOverrides,
 } from "@/app/private-lessons/actions";
 import { EMPTY_WEEKLY_HOURS } from "@/lib/availability";
 
@@ -22,8 +23,10 @@ const deleteFn = jest.fn(() => ({ where: deleteWhere })) as jest.Mock;
 
 const selectLimit = jest.fn();
 let selectWhereResult: unknown[] = [];
+const selectOrderBy = jest.fn(() => Promise.resolve(selectWhereResult));
 const selectWhere = jest.fn(() => ({
    limit: selectLimit,
+   orderBy: selectOrderBy,
    then(
       onFulfilled?: (value: unknown) => unknown,
       onRejected?: (reason: unknown) => unknown,
@@ -430,6 +433,84 @@ describe("listCoordinatorAvailability", () => {
       expect(result).toEqual({
          error: "Range cannot be longer than one year",
       });
+      expect(select).not.toHaveBeenCalled();
+   });
+});
+
+describe("listCoordinatorAvailabilityOverrides", () => {
+   it("returns upcoming overrides, including days off", async () => {
+      asCoordinator();
+      selectWhereResult = [
+         { date: "2026-10-12", windows: [] },
+         { date: "2026-10-15", windows: [{ start: "13:00", end: "15:00" }] },
+      ];
+
+      const result = await listCoordinatorAvailabilityOverrides({
+         coordinatorId: COORDINATOR_ID,
+         from: "2026-10-01",
+      });
+
+      expect(result).toEqual({
+         overrides: [
+            { date: "2026-10-12", windows: [] },
+            {
+               date: "2026-10-15",
+               windows: [{ start: "13:00", end: "15:00" }],
+            },
+         ],
+      });
+      expect(selectOrderBy).toHaveBeenCalled();
+   });
+
+   it("lets an admin list any coordinator's overrides", async () => {
+      asAdmin();
+
+      const result = await listCoordinatorAvailabilityOverrides({
+         coordinatorId: OTHER_COORDINATOR_ID,
+         from: "2026-10-01",
+      });
+
+      expect(result).toEqual({ overrides: [] });
+   });
+
+   it("returns Unauthorized for a parent", async () => {
+      getUser.mockResolvedValue({
+         data: { user: { id: COORDINATOR_ID } },
+      });
+      getClaims.mockResolvedValue({
+         data: { claims: { user_role: "user" } },
+      });
+
+      const result = await listCoordinatorAvailabilityOverrides({
+         coordinatorId: COORDINATOR_ID,
+         from: "2026-10-01",
+      });
+
+      expect(result).toEqual({ error: "Unauthorized" });
+      expect(select).not.toHaveBeenCalled();
+   });
+
+   it("blocks a coordinator from listing another coordinator's overrides", async () => {
+      asCoordinator();
+
+      const result = await listCoordinatorAvailabilityOverrides({
+         coordinatorId: OTHER_COORDINATOR_ID,
+         from: "2026-10-01",
+      });
+
+      expect(result).toEqual({ error: "Unauthorized" });
+      expect(select).not.toHaveBeenCalled();
+   });
+
+   it("rejects an invalid from date", async () => {
+      asCoordinator();
+
+      const result = await listCoordinatorAvailabilityOverrides({
+         coordinatorId: COORDINATOR_ID,
+         from: "2026-02-30",
+      });
+
+      expect(result).toEqual({ error: "Invalid date" });
       expect(select).not.toHaveBeenCalled();
    });
 });

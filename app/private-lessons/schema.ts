@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 import {
-   onSameBiweeklyCycle,
+   toMinutes,
    utcMidnight,
+   windowsConflict,
    ymdFromUtc,
 } from "@/lib/availability";
 
@@ -28,36 +29,12 @@ const timezoneSchema = z.string().refine((timeZone) => {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_RANGE_DAYS = 366;
 
-function toMinutes(time: string): number {
-   const [hours, minutes] = time.split(":").map(Number);
-   return hours * 60 + minutes;
-}
-
-type OverlapWindow = {
-   start: string;
-   end: string;
-   recurrence?: "weekly" | "biweekly";
-   anchorDate?: string;
-};
-
-function canCoincide(a: OverlapWindow, b: OverlapWindow): boolean {
-   if (a.recurrence !== "biweekly" || b.recurrence !== "biweekly") return true;
-   if (!a.anchorDate || !b.anchorDate) return true;
-   return onSameBiweeklyCycle(a.anchorDate, b.anchorDate);
-}
-
-function windowsOverlap(windows: OverlapWindow[]): boolean {
+function windowsOverlap(
+   windows: Parameters<typeof windowsConflict>[0][],
+): boolean {
    for (let i = 0; i < windows.length; i++) {
       for (let j = i + 1; j < windows.length; j++) {
-         const a = windows[i]!;
-         const b = windows[j]!;
-         if (
-            toMinutes(a.start) < toMinutes(b.end) &&
-            toMinutes(b.start) < toMinutes(a.end) &&
-            canCoincide(a, b)
-         ) {
-            return true;
-         }
+         if (windowsConflict(windows[i]!, windows[j]!)) return true;
       }
    }
    return false;
@@ -131,6 +108,11 @@ export const clearCoordinatorAvailabilityOverrideSchema = z.object({
 export const fetchCoordinatorAvailabilityEditorStateSchema = z.object({
    coordinatorId: z.string().uuid(),
    overrideDate: dateSchema.optional(),
+});
+
+export const listCoordinatorAvailabilityOverridesSchema = z.object({
+   coordinatorId: z.string().uuid(),
+   from: dateSchema,
 });
 
 export const listCoordinatorAvailabilitySchema = z
