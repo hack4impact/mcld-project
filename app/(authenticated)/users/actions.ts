@@ -40,17 +40,24 @@ export async function updateUserAdmin(
       return { errors: { _form: ["Unauthorized"] } };
    }
 
+   const submitted = (name: string) =>
+      formData.has(name) ? formData.get(name) : undefined;
+
    const parsed = updateUserAdminSchema.safeParse({
       user_id: formData.get("user_id"),
       email: formData.get("email"),
       role: formData.get("role"),
+      address: submitted("address"),
+      gender: submitted("gender"),
+      dob: submitted("dob"),
+      phone: submitted("phone"),
    });
 
    if (!parsed.success) {
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const { user_id, email, role } = parsed.data;
+   const { user_id, email, role, address, gender, dob, phone } = parsed.data;
 
    const profile = await db.query.profiles.findFirst({
       where: eq(profiles.id, user_id),
@@ -76,11 +83,17 @@ export async function updateUserAdmin(
       return { errors: { _form: [message] } };
    }
 
+   const patch: Partial<typeof profiles.$inferInsert> = {
+      role: role as Role,
+      updatedAt: new Date(),
+   };
+   if (address !== undefined) patch.address = address;
+   if (gender !== undefined) patch.gender = gender;
+   if (dob !== undefined) patch.dob = dob;
+   if (phone !== undefined) patch.phone = phone;
+
    try {
-      await db
-         .update(profiles)
-         .set({ role: role as Role, updatedAt: new Date() })
-         .where(eq(profiles.id, user_id));
+      await db.update(profiles).set(patch).where(eq(profiles.id, user_id));
    } catch {
       return {
          errors: { _form: ["Failed to update profile. Please try again."] },
@@ -109,14 +122,28 @@ export async function createUserAdmin(
       confirm_password: formData.get("confirm_password"),
       role: formData.get("role"),
       subscription_months: formData.get("subscription_months") ?? "0",
+      address: formData.get("address"),
+      gender: formData.get("gender"),
+      dob: formData.get("dob"),
+      phone: formData.get("phone"),
    });
 
    if (!parsed.success) {
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const { first_name, last_name, email, password, role, subscription_months } =
-      parsed.data;
+   const {
+      first_name,
+      last_name,
+      email,
+      password,
+      role,
+      subscription_months,
+      address,
+      gender,
+      dob,
+      phone,
+   } = parsed.data;
 
    const admin = createAdminClient();
    const { data: authData, error: authError } =
@@ -154,6 +181,10 @@ export async function createUserAdmin(
             firstName: first_name,
             lastName: last_name,
             role: role as Role,
+            address,
+            gender,
+            dob,
+            phone,
             lastLoginAt: new Date(),
          })
          .onConflictDoUpdate({
@@ -162,6 +193,10 @@ export async function createUserAdmin(
                firstName: first_name,
                lastName: last_name,
                role: role as Role,
+               address,
+               gender,
+               dob,
+               phone,
                updatedAt: new Date(),
             },
          });

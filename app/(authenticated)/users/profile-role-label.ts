@@ -18,6 +18,10 @@ export type ReadOnlyUserRow = {
    role: string;
    isActive: boolean;
    lastLoginAt: Date;
+   address: string | null;
+   gender: string | null;
+   dob: string | null;
+   phone: string | null;
 };
 
 export type UserRow = ReadOnlyUserRow & {

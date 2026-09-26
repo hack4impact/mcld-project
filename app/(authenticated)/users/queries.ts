@@ -22,6 +22,10 @@ const readOnlyColumns = {
    lastLoginAt: profiles.lastLoginAt,
    subscriptionStatus: subscriptions.status,
    email: authUsers.email,
+   address: profiles.address,
+   gender: profiles.gender,
+   dob: profiles.dob,
+   phone: profiles.phone,
 };
 
 type ReadOnlyColumnsRow = {
@@ -32,6 +36,10 @@ type ReadOnlyColumnsRow = {
    lastLoginAt: Date;
    subscriptionStatus: string | null;
    email: string | null;
+   address: string | null;
+   gender: string | null;
+   dob: string | null;
+   phone: string | null;
 };
 
 function toReadOnlyUserRow(row: ReadOnlyColumnsRow): ReadOnlyUserRow {
@@ -43,6 +51,10 @@ function toReadOnlyUserRow(row: ReadOnlyColumnsRow): ReadOnlyUserRow {
       lastLoginAt: row.lastLoginAt,
       email: row.email ?? "",
       isActive: row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_ACTIVE || row.subscriptionStatus === USERS_SUBSCRIPTION_STATUS_TRIAL,
+      address: row.address ?? null,
+      gender: row.gender ?? null,
+      dob: row.dob ?? null,
+      phone: row.phone ?? null,
    };
 }
 

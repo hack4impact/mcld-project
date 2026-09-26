@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const genderSchema = z.enum(["male", "female", "prefer_not_to_say"]);
+export const genderSchema = z.enum(["male", "female", "prefer_not_to_say"]);
 
 function isValidPastOrTodayDate(iso: string): boolean {
    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
@@ -28,7 +28,7 @@ export const emergencyContactSchema = z.object({
    relationship: z.string().min(1, "Relationship is required"),
 });
 
-const dobSchema = z
+export const dobSchema = z
    .string()
    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date of birth")
    .refine(isValidPastOrTodayDate, {
