@@ -19,12 +19,12 @@ const NOTICES = {
 
 export function authErrorMessage(code: string | null): string | null {
    if (!code) return null;
-   return code in ERRORS
+   return Object.hasOwn(ERRORS, code)
       ? ERRORS[code as keyof typeof ERRORS]
       : "Something went wrong. Please try again.";
 }
 
 export function authNoticeMessage(code: string | null): string | null {
-   if (!code || !(code in NOTICES)) return null;
+   if (!code || !Object.hasOwn(NOTICES, code)) return null;
    return NOTICES[code as keyof typeof NOTICES];
 }
