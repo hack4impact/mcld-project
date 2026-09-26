@@ -8,6 +8,10 @@
 - **UI**: shadcn/ui (Radix) + Tailwind
 - **Hosting**: Vercel
 
+## Feature requirements
+
+- [Authentication emails](docs/auth-emails.md) — repository review, required signup/invitation/password-recovery flows, additional account notifications, and implementation acceptance criteria.
+
 ## Setup
 
 ### 1. Install dependencies
