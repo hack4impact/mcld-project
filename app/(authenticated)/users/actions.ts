@@ -428,7 +428,7 @@ export async function createUserAdmin(
       return {
          errors: {
             _form: [
-               "The account is set up, but the invitation email could not be sent. Use “Resend invitation” on the user's row to try again.",
+               "The account is set up, but the invitation email could not be sent. In a minute, use “Resend invitation” on the user's row to try again.",
             ],
          },
          data: { user_id: userId },
@@ -493,11 +493,16 @@ export async function resendInviteAdmin(
       return {
          errors: {
             _form: [
-               "An invitation was sent less than a minute ago. Wait a moment before resending.",
+               "A new invitation can only be created once a minute. Wait a moment and try again.",
             ],
          },
       };
    }
+
+   const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, user.id),
+      columns: { firstName: true },
+   });
 
    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
       type: "invite",
@@ -513,11 +518,6 @@ export async function resendInviteAdmin(
       };
    }
 
-   const profile = await db.query.profiles.findFirst({
-      where: eq(profiles.id, user.id),
-      columns: { firstName: true },
-   });
-
    try {
       await sendInviteEmail({
          to: user.email,
@@ -528,7 +528,9 @@ export async function resendInviteAdmin(
       console.error("[resendInviteAdmin] invitation email failed", error);
       return {
          errors: {
-            _form: ["The invitation email could not be sent. Please try again."],
+            _form: [
+               "The invitation email could not be sent, and their previous invitation link no longer works. Try again in a minute.",
+            ],
          },
       };
    }

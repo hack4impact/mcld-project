@@ -882,7 +882,7 @@ describe("resendInviteAdmin", () => {
          formData({ user_id: USER_ID }),
       );
 
-      expect(result?.errors?._form?.[0]).toMatch(/less than a minute ago/);
+      expect(result?.errors?._form?.[0]).toMatch(/once a minute/);
       expect(generateLink).not.toHaveBeenCalled();
    });
 
@@ -896,6 +896,19 @@ describe("resendInviteAdmin", () => {
       );
 
       expect(result?.errors?._form?.[0]).toMatch(/could not be sent/);
+      expect(result?.errors?._form?.[0]).toMatch(
+         /previous invitation link no longer works/,
+      );
+   });
+
+   it("keeps the current link when the profile can't be read", async () => {
+      pendingUser("2026-01-01T00:00:00Z");
+      findFirst.mockRejectedValueOnce(new Error("db down"));
+
+      await expect(
+         resendInviteAdmin(null, formData({ user_id: USER_ID })),
+      ).rejects.toThrow("db down");
+      expect(generateLink).not.toHaveBeenCalled();
    });
 
    it("requires an admin", async () => {
