@@ -112,7 +112,7 @@ export function AppSidebar({
             icon: Baby,
          });
       }
-      if (role === ROLES.COORDINATOR) {
+      if (role === ROLES.COORDINATOR || role === ROLES.ADMIN) {
          items.push({
             title: "Availability",
             href: "/availability",
