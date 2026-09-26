@@ -42,8 +42,6 @@ const USERS_PATH = "/users";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-const EMAIL_CHANGE_LINK_LIFETIME_MS = 60 * 60 * 1000;
-
 function tokenHashFromLink(actionLink: string): string | null {
    try {
       return new URL(actionLink).searchParams.get("token");
@@ -166,11 +164,6 @@ export async function updateUserAdmin(
    const currentEmail = authUser.email ?? "";
    const confirmed = Boolean(authUser.email_confirmed_at);
    const emailChanged = email.toLowerCase() !== currentEmail.toLowerCase();
-   const changeSentAt = Date.parse(authUser.email_change_sent_at ?? "");
-   const emailChangePending =
-      emailChanged &&
-      authUser.new_email?.toLowerCase() === email.toLowerCase() &&
-      Date.now() - changeSentAt < EMAIL_CHANGE_LINK_LIFETIME_MS;
 
    if (emailChanged) {
       if (!confirmed) {
@@ -248,30 +241,24 @@ export async function updateUserAdmin(
    }
 
    if (emailChanged) {
-      if (emailChangePending) {
-         messages.push(
-            `A change to ${email} is already waiting for both addresses to confirm.`,
-         );
-      } else {
-         const emailError = await requestEmailChange(admin, {
-            firstName: profile.firstName,
-            currentEmail,
-            newEmail: email,
-         });
-         if (emailError) {
-            revalidatePath(USERS_PATH);
-            return {
-               errors: {
-                  email: [
-                     `Your other changes were saved, but the email wasn't changed: ${emailError}`,
-                  ],
-               },
-            };
-         }
-         messages.push(
-            `Confirmation links were sent to ${currentEmail} and ${email}; the email changes once both are confirmed.`,
-         );
+      const emailError = await requestEmailChange(admin, {
+         firstName: profile.firstName,
+         currentEmail,
+         newEmail: email,
+      });
+      if (emailError) {
+         revalidatePath(USERS_PATH);
+         return {
+            errors: {
+               email: [
+                  `Your other changes were saved, but the email wasn't changed: ${emailError}`,
+               ],
+            },
+         };
       }
+      messages.push(
+         `Confirmation links were sent to ${currentEmail} and ${email}; the email changes once both are confirmed.`,
+      );
    }
 
    revalidatePath(USERS_PATH);

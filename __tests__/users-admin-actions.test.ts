@@ -483,7 +483,7 @@ describe("updateUserAdmin email changes", () => {
       expect(updateSet).not.toHaveBeenCalled();
    });
 
-   it("doesn't send a second pair while a change to that address is waiting", async () => {
+   it("sends a fresh pair when the same change is requested again", async () => {
       getUserById.mockResolvedValue({
          data: {
             user: authUser({
@@ -495,14 +495,18 @@ describe("updateUserAdmin email changes", () => {
          },
          error: null,
       });
+      generateLink
+         .mockResolvedValueOnce(link("email_change", "current-token"))
+         .mockResolvedValueOnce(link("email_change", "new-token"));
 
       const result = await updateUserAdmin(
          null,
          editForm({ email: "ADA@new.example.com" }),
       );
 
-      expect(generateLink).not.toHaveBeenCalled();
-      expect(result?.message).toContain("already waiting");
+      expect(generateLink).toHaveBeenCalledTimes(2);
+      expect(sendEmailChangeRequest).toHaveBeenCalledTimes(1);
+      expect(result?.message).toContain("Confirmation links were sent");
    });
 
    it("sends new links once the previous ones have expired", async () => {
