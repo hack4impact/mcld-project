@@ -20,6 +20,7 @@ import {
    coachingSessions,
    coordinatorAvailabilityHours,
    coordinatorAvailabilityOverrides,
+   profiles,
    services,
    type AvailabilityOverrideWindow,
    type CoordinatorWeeklyHours,
@@ -73,26 +74,32 @@ export async function submitAvailabilities({
    return { coachingSessionId: row.id };
 }
 
-async function canEditCoordinatorAvailability(
+async function authorizeCoordinatorAvailability(
    coordinatorId: string,
-): Promise<boolean> {
+): Promise<{ error: string } | null> {
    const supabase = await createClient();
    const {
       data: { user },
    } = await supabase.auth.getUser();
-   if (!user) return false;
+   if (!user) return { error: "Unauthorized" };
 
    const { data } = await supabase.auth.getClaims();
    const role = data?.claims?.user_role;
 
-   if (role === ROLES.ADMIN) return true;
-   if (role === ROLES.COORDINATOR && user.id === coordinatorId) return true;
-   return false;
+   if (role === ROLES.COORDINATOR && user.id === coordinatorId) return null;
+   if (role !== ROLES.ADMIN) return { error: "Unauthorized" };
+
+   const coordinator = await db.query.profiles.findFirst({
+      where: eq(profiles.id, coordinatorId),
+      columns: { role: true },
+   });
+   if (coordinator?.role !== ROLES.COORDINATOR) {
+      return { error: "Coordinator not found" };
+   }
+   return null;
 }
 
-export type SaveCoordinatorWeeklyHoursResult =
-   | { ok: true }
-   | { error: string };
+export type SaveCoordinatorWeeklyHoursResult = { ok: true } | { error: string };
 
 export async function saveCoordinatorWeeklyHours(
    input: unknown,
@@ -105,9 +112,8 @@ export async function saveCoordinatorWeeklyHours(
    }
 
    const { coordinatorId, timezone, hours } = parsed.data;
-   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
-      return { error: "Unauthorized" };
-   }
+   const denied = await authorizeCoordinatorAvailability(coordinatorId);
+   if (denied) return denied;
 
    await db
       .insert(coordinatorAvailabilityHours)
@@ -119,7 +125,6 @@ export async function saveCoordinatorWeeklyHours(
 
    return { ok: true };
 }
-
 
 export type SetCoordinatorAvailabilityOverrideResult =
    | { ok: true }
@@ -136,9 +141,8 @@ export async function setCoordinatorAvailabilityOverride(
    }
 
    const { coordinatorId, date, windows } = parsed.data;
-   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
-      return { error: "Unauthorized" };
-   }
+   const denied = await authorizeCoordinatorAvailability(coordinatorId);
+   if (denied) return denied;
 
    await db
       .insert(coordinatorAvailabilityOverrides)
@@ -169,9 +173,8 @@ export async function clearCoordinatorAvailabilityOverride(
    }
 
    const { coordinatorId, date } = parsed.data;
-   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
-      return { error: "Unauthorized" };
-   }
+   const denied = await authorizeCoordinatorAvailability(coordinatorId);
+   if (denied) return denied;
 
    await db
       .delete(coordinatorAvailabilityOverrides)
@@ -206,9 +209,8 @@ export async function fetchCoordinatorAvailabilityEditorState(
    }
 
    const { coordinatorId, overrideDate } = parsed.data;
-   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
-      return { error: "Unauthorized" };
-   }
+   const denied = await authorizeCoordinatorAvailability(coordinatorId);
+   if (denied) return denied;
 
    const [hoursRow] = await db
       .select()
@@ -242,7 +244,10 @@ export async function fetchCoordinatorAvailabilityEditorState(
 }
 
 export type ListCoordinatorAvailabilityResult =
-   | { occurrences: AvailabilityOccurrence[] }
+   | {
+        occurrences: AvailabilityOccurrence[];
+        timezone: string;
+     }
    | { error: string };
 
 export async function listCoordinatorAvailability(
@@ -256,9 +261,8 @@ export async function listCoordinatorAvailability(
    }
 
    const { coordinatorId, from, to } = parsed.data;
-   if (!(await canEditCoordinatorAvailability(coordinatorId))) {
-      return { error: "Unauthorized" };
-   }
+   const denied = await authorizeCoordinatorAvailability(coordinatorId);
+   if (denied) return denied;
 
    const [hoursRow] = await db
       .select()
@@ -289,5 +293,6 @@ export async function listCoordinatorAvailability(
          from,
          to,
       }),
+      timezone: hoursRow?.timezone ?? "America/Toronto",
    };
 }
