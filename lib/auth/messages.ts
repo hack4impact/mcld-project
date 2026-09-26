@@ -3,8 +3,9 @@
 
 const ERRORS = {
    link_expired:
-      "That link has expired or was already used. Request a new one below.",
-   link_invalid: "That link isn't valid. Request a new one below.",
+      "That link has expired or was already used. To get a new one, log in (for a confirmation email) or use “Forgot password?” (for a reset link).",
+   link_invalid:
+      "That link isn't valid. To get a new one, log in (for a confirmation email) or use “Forgot password?” (for a reset link).",
    link_other_browser:
       "We couldn't finish signing you in from this browser. If you were confirming your email, it's confirmed — log in. Otherwise, request a new link.",
    email_not_confirmed:
