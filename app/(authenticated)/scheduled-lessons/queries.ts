@@ -78,7 +78,8 @@ export async function listUpcomingLessons({
                isNull(privateLessonSessions.scheduledAt),
                gt(
                   sql`${privateLessonSessions.scheduledAt} + ${services.durationMinutes} * interval '1 minute'`,
-                  now,
+                  // Raw SQL has no column encoder, so postgres-js can't bind a Date here.
+                  now.toISOString(),
                ),
             ),
          ),
