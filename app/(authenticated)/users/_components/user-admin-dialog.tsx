@@ -36,10 +36,109 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@/components/ui/select";
+import { DobField } from "./children/dob-field";
 
 function FieldError({ errors }: { errors?: string[] }) {
    if (!errors?.length) return null;
    return <p className="text-sm text-destructive">{errors[0]}</p>;
+}
+
+// Radix Select doesn't allow "" as an item value, so "not set" gets its own.
+const GENDER_UNSET = "unset";
+
+type ContactDetails = {
+   address: string;
+   gender: string;
+   dob: string;
+   phone: string;
+};
+
+const EMPTY_CONTACT_DETAILS: ContactDetails = {
+   address: "",
+   gender: "",
+   dob: "",
+   phone: "",
+};
+
+type ContactDetailsFieldsProps = {
+   idPrefix: string;
+   defaults: ContactDetails;
+   errors?: Record<string, string[]>;
+};
+
+function ContactDetailsFields({
+   idPrefix,
+   defaults,
+   errors,
+}: ContactDetailsFieldsProps) {
+   const [phone, setPhone] = useState(defaults.phone);
+   const [gender, setGender] = useState(defaults.gender || GENDER_UNSET);
+   const [dob, setDob] = useState(defaults.dob);
+   const [address, setAddress] = useState(defaults.address);
+
+   return (
+      <div className="space-y-4 border-t border-border pt-4">
+         <p className="text-sm font-medium">
+            Contact details{" "}
+            <span className="font-normal text-muted-foreground">
+               (optional)
+            </span>
+         </p>
+
+         <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+               <Label htmlFor={`${idPrefix}phone`}>Phone</Label>
+               <Input
+                  id={`${idPrefix}phone`}
+                  name="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+               />
+               <FieldError errors={errors?.phone} />
+            </div>
+            <div className="space-y-2">
+               <Label htmlFor={`${idPrefix}gender`}>Gender</Label>
+               <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger id={`${idPrefix}gender`} className="w-full">
+                     <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value={GENDER_UNSET}>Not specified</SelectItem>
+                     <SelectItem value="male">Male</SelectItem>
+                     <SelectItem value="female">Female</SelectItem>
+                     <SelectItem value="prefer_not_to_say">
+                        Prefer not to say
+                     </SelectItem>
+                  </SelectContent>
+               </Select>
+               <input
+                  type="hidden"
+                  name="gender"
+                  value={gender === GENDER_UNSET ? "" : gender}
+               />
+               <FieldError errors={errors?.gender} />
+            </div>
+         </div>
+
+         <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}dob`}>Date of birth</Label>
+            <DobField id={`${idPrefix}dob`} value={dob} onChange={setDob} />
+            <FieldError errors={errors?.dob} />
+         </div>
+
+         <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}address`}>Address</Label>
+            <Input
+               id={`${idPrefix}address`}
+               name="address"
+               value={address}
+               onChange={(e) => setAddress(e.target.value)}
+            />
+            <FieldError errors={errors?.address} />
+         </div>
+      </div>
+   );
 }
 
 function useActionConfirm(
@@ -282,6 +381,12 @@ function CreateUserFormContent({
                <input type="hidden" name="subscription_months" value="0" />
             )}
 
+            <ContactDetailsFields
+               idPrefix=""
+               defaults={EMPTY_CONTACT_DETAILS}
+               errors={state?.errors}
+            />
+
             <button type="submit" className="sr-only" tabIndex={-1}>
                Submit
             </button>
@@ -342,7 +447,7 @@ export function CreateUserDialog() {
             </Button>
          </DialogTrigger>
          {open && (
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                <CreateUserFormContent
                   key={formKey}
                   onSuccess={handleSuccess}
@@ -434,6 +539,17 @@ function EditUserFormContent({
                <FieldError errors={state?.errors?.role} />
             </div>
 
+            <ContactDetailsFields
+               idPrefix="edit_"
+               defaults={{
+                  address: user.address ?? "",
+                  gender: user.gender ?? "",
+                  dob: user.dob ?? "",
+                  phone: user.phone ?? "",
+               }}
+               errors={state?.errors}
+            />
+
             <button type="submit" className="sr-only" tabIndex={-1}>
                Submit
             </button>
@@ -497,7 +613,7 @@ export function EditUserDialog({
    return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
          {open && (
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                <EditUserFormContent
                   key={formKey}
                   user={user}

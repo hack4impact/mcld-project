@@ -20,6 +20,11 @@ export type ReadOnlyUserRow = {
    lastLoginAt: Date;
 };
 
+// Admin-only: the read-only rows sent to coordinators leave these out.
 export type UserRow = ReadOnlyUserRow & {
    stripeCustomerId: string | null;
+   address: string | null;
+   gender: string | null;
+   dob: string | null;
+   phone: string | null;
 };
