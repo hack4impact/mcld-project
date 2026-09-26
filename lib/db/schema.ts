@@ -10,10 +10,8 @@ import {
    date,
    uniqueIndex,
    check,
-   pgPolicy,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { supabaseAuthAdminRole } from "drizzle-orm/supabase";
 
 export type ProgramSlot = { dayOfWeek: number; time: string };
 
@@ -60,32 +58,22 @@ export const formQuestionTypeEnum = pgEnum("form_question_type", [
    "user_agreement",
 ]);
 
-export const profiles = pgTable(
-   "profiles",
-   {
-      id: uuid("id").primaryKey(),
-      firstName: text("first_name").notNull(),
-      lastName: text("last_name").notNull(),
-      role: roleEnum("role").notNull().default("user"),
-      address: text("address"),
-      gender: genderEnum("gender"),
-      dob: date("dob", { mode: "string" }),
-      phone: text("phone"),
-      stripeCustomerId: text("stripe_customer_id").unique(),
-      createdAt: timestamp("created_at").defaultNow().notNull(),
-      updatedAt: timestamp("updated_at").defaultNow().notNull(),
-      lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
-   },
-   () => [
-      // custom_access_token_hook reads `role` as supabase_auth_admin, which
-      // doesn't bypass RLS. Without this every user's user_role claim is "user".
-      pgPolicy("auth_admin_can_read_profiles", {
-         for: "select",
-         to: supabaseAuthAdminRole,
-         using: sql`true`,
-      }),
-   ],
-).enableRLS();
+// custom_access_token_hook (lib/db/auth-functions.sql) reads `role` for the
+// user_role JWT claim. It's security definer, so it doesn't need a policy here.
+export const profiles = pgTable("profiles", {
+   id: uuid("id").primaryKey(),
+   firstName: text("first_name").notNull(),
+   lastName: text("last_name").notNull(),
+   role: roleEnum("role").notNull().default("user"),
+   address: text("address"),
+   gender: genderEnum("gender"),
+   dob: date("dob", { mode: "string" }),
+   phone: text("phone"),
+   stripeCustomerId: text("stripe_customer_id").unique(),
+   createdAt: timestamp("created_at").defaultNow().notNull(),
+   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+   lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
+}).enableRLS();
 
 export const forms = pgTable("forms", {
    id: uuid("id").primaryKey().defaultRandom(),
