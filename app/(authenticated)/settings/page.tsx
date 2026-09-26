@@ -1,18 +1,14 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import {
-   Card,
-   CardContent,
-   CardDescription,
-   CardHeader,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { eq } from "drizzle-orm";
+
 import { Spinner } from "@/components/ui/spinner";
-import { PageHeader, PageShell } from "@/components/page-shell";
-import { CheckoutButton } from "@/components/subscribe-button";
-import { requireUser } from "@/lib/auth/require-user";
+import { db } from "@/lib/db";
+import { profiles } from "@/lib/db/schema";
+import { ROLES } from "@/lib/roles";
 import { getSubscriptionDetails } from "@/lib/stripe";
+import { createClient } from "@/utils/supabase/server";
+import { SettingsView } from "./_components/settings-view";
 
 export default function SettingsPage() {
    return (
@@ -29,84 +25,41 @@ export default function SettingsPage() {
 }
 
 async function SettingsContent() {
-   let userId: string;
-   try {
-      ({ userId } = await requireUser());
-   } catch {
-      redirect("/");
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) {
+      redirect("/login");
    }
 
-   const subscription = await getSubscriptionDetails(userId);
+   const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, user.id),
+      columns: {
+         firstName: true,
+         lastName: true,
+         role: true,
+         phone: true,
+         address: true,
+         gender: true,
+         dob: true,
+      },
+   });
+   if (!profile) {
+      redirect("/login");
+   }
+
+   // Only members (role "user") have a subscription to show or start.
+   const subscription =
+      profile.role === ROLES.USER
+         ? await getSubscriptionDetails(user.id)
+         : undefined;
 
    return (
-      <PageShell>
-         <PageHeader
-            title="Settings"
-            description="Manage your account and preferences."
-         />
-
-         <Card className="w-full max-w-xl overflow-hidden">
-            <CardHeader className="space-y-2">
-               <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-heading text-2xl font-semibold leading-tight">
-                     Subscription
-                  </h2>
-                  {subscription && (
-                     <Badge variant="success" className="shrink-0">
-                        {subscription.status === "trialing"
-                           ? "Trial"
-                           : "Active"}
-                     </Badge>
-                  )}
-               </div>
-               <CardDescription>
-                  {subscription
-                     ? "Your current plan"
-                     : "Subscribe to unlock members-only services"}
-               </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               <Separator />
-               {subscription ? (
-                  <>
-                     <dl className="space-y-3 text-sm">
-                        <div className="flex items-center justify-between">
-                           <dt className="text-muted-foreground">Plan</dt>
-                           <dd className="font-medium">
-                              {subscription.planName}
-                           </dd>
-                        </div>
-                        <div className="flex items-center justify-between">
-                           <dt className="text-muted-foreground">Price</dt>
-                           <dd className="font-medium">
-                              ${(subscription.priceAmount / 100).toFixed(2)}/
-                              {subscription.priceInterval}
-                           </dd>
-                        </div>
-                        {subscription.paymentMethodBrand && (
-                           <div className="flex items-center justify-between">
-                              <dt className="text-muted-foreground">Payment</dt>
-                              <dd className="font-medium capitalize">
-                                 {subscription.paymentMethodBrand} ••••{" "}
-                                 {subscription.paymentMethodLast4}
-                              </dd>
-                           </div>
-                        )}
-                     </dl>
-                     {subscription.cancelAtPeriodEnd && (
-                        <p className="text-sm text-warning">
-                           Cancels at end of billing period
-                        </p>
-                     )}
-                  </>
-               ) : (
-                  <CheckoutButton
-                     priceId={process.env.STRIPE_PRICE_ID!}
-                     label="Subscribe"
-                  />
-               )}
-            </CardContent>
-         </Card>
-      </PageShell>
+      <SettingsView
+         profile={profile}
+         email={user.email ?? ""}
+         subscription={subscription}
+      />
    );
 }
