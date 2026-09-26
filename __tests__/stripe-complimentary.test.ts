@@ -5,11 +5,13 @@ import { grantComplimentarySubscription } from "@/lib/stripe";
 
 const subscriptionsList = jest.fn();
 const subscriptionsCreate = jest.fn();
+const subscriptionsUpdate = jest.fn();
 jest.mock("stripe", () =>
    jest.fn(() => ({
       subscriptions: {
          list: (...args: unknown[]) => subscriptionsList(...args),
          create: (...args: unknown[]) => subscriptionsCreate(...args),
+         update: (...args: unknown[]) => subscriptionsUpdate(...args),
       },
       customers: { create: jest.fn() },
    })),
@@ -48,20 +50,22 @@ beforeEach(() => {
 });
 
 describe("grantComplimentarySubscription", () => {
-   it.each([
-      "trialing",
-      "active",
-      "past_due",
-      "unpaid",
-      "incomplete",
-      "paused",
-   ])("doesn't add a second subscription when one is %s", async (status) => {
-      subscriptionsList.mockResolvedValue({ data: [{ status }] });
+   it.each(["trialing", "active", "past_due", "unpaid"])(
+      "extends a %s subscription instead of adding a second one",
+      async (status) => {
+         subscriptionsList.mockResolvedValueOnce({
+            data: [{ id: "sub_live", status, trial_end: null }],
+         });
 
-      await grantComplimentarySubscription("u1", "ada@example.com", 3);
+         await grantComplimentarySubscription("u1", "ada@example.com", 3);
 
-      expect(subscriptionsCreate).not.toHaveBeenCalled();
-   });
+         expect(subscriptionsCreate).not.toHaveBeenCalled();
+         expect(subscriptionsUpdate).toHaveBeenCalledWith(
+            "sub_live",
+            expect.objectContaining({ trial_end: expect.any(Number) }),
+         );
+      },
+   );
 
    it("adds one when the customer only has ended subscriptions", async () => {
       subscriptionsList.mockResolvedValueOnce({
