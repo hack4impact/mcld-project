@@ -109,6 +109,10 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
             toast.success(result?.message ?? "User deleted");
             setConfirmOpen(false);
          }
+      } catch {
+         toast.error("Failed to delete user", {
+            description: "Something went wrong. Please try again.",
+         });
       } finally {
          setDeleting(false);
       }
@@ -127,6 +131,10 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
          } else {
             toast.success(result?.message ?? "Invitation re-sent");
          }
+      } catch {
+         toast.error("Failed to resend invitation", {
+            description: "Something went wrong. Please try again.",
+         });
       } finally {
          setResending(false);
       }
