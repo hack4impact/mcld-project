@@ -1,52 +1,146 @@
 <?php
 $api_url = isset($attributes['apiUrl']) ? $attributes['apiUrl'] : '';
 
+$wrapper_attrs = get_block_wrapper_attributes([
+	'data-api-url' => esc_attr($api_url),
+]);
+
 if (empty($api_url)) { ?>
-	<div <?= get_block_wrapper_attributes() ?>>
+	<div <?= $wrapper_attrs ?>>
 		<p><?= esc_html__('Set the Dashboard API URL in the block settings.', 'mcld-services') ?></p>
 	</div>
 	<?php return;
 }
 
-$transient_key = 'mcld_services_' . md5($api_url);
+$base_url = rtrim($api_url, '/');
+$transient_key = 'mcld_services_' . md5($base_url);
 $services = get_transient($transient_key);
 
 if (false === $services) {
-	$response = wp_remote_get(rtrim($api_url, '/') . '/api/public/services');
+	$response = wp_remote_get($base_url . '/api/public/services');
 
-	if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) { ?>
-		<div <?= get_block_wrapper_attributes() ?>>
-			<p><?= esc_html__('Could not load services.', 'mcld-services') ?></p>
-		</div>
-		<?php return;
+	if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
+		$services = [];
+	} else {
+		$services = json_decode(wp_remote_retrieve_body($response), true);
+		if (!is_array($services)) {
+			$services = [];
+		}
+		set_transient($transient_key, $services, 300);
 	}
-
-	$services = json_decode(wp_remote_retrieve_body($response), true);
-	set_transient($transient_key, $services, 60);
 }
 
-if (empty($services)) { ?>
-	<div <?= get_block_wrapper_attributes() ?>>
-		<p><?= esc_html__('No active services available.', 'mcld-services') ?></p>
-	</div>
-	<?php return;
-}
+$services_json = wp_json_encode($services);
 ?>
 
-<div <?= get_block_wrapper_attributes() ?>>
-	<div class="mcld-services-grid">
-		<?php foreach ($services as $service): ?>
-			<div class="mcld-service-card">
-				<h3><?= esc_html($service['title'] ?? '') ?></h3>
-				<?php if (!empty($service['description'])): ?>
-					<p><?= esc_html($service['description']) ?></p>
-				<?php endif; ?>
-				<?php if (isset($service['priceCents']) && null !== $service['priceCents']): ?>
-					<p class="mcld-service-price">
-						<?= esc_html(number_format($service['priceCents'] / 100, 2) . ' ' . strtoupper($service['priceCurrency'] ?? '')) ?>
-					</p>
-				<?php endif; ?>
-			</div>
-		<?php endforeach; ?>
+<div <?= $wrapper_attrs ?>>
+	<div class="mcld-tabs" role="tablist">
+		<button
+			type="button"
+			id="mcld-tab-services"
+			class="mcld-tab is-active"
+			role="tab"
+			aria-selected="true"
+			aria-controls="mcld-panel-services"
+			data-tab="services"
+		>
+			<?= esc_html__('Services', 'mcld-services') ?>
+		</button>
+		<button
+			type="button"
+			id="mcld-tab-membership"
+			class="mcld-tab"
+			role="tab"
+			aria-selected="false"
+			aria-controls="mcld-panel-membership"
+			data-tab="membership"
+		>
+			<?= esc_html__('Membership', 'mcld-services') ?>
+		</button>
+		<button
+			type="button"
+			id="mcld-tab-donations"
+			class="mcld-tab"
+			role="tab"
+			aria-selected="false"
+			aria-controls="mcld-panel-donations"
+			data-tab="donations"
+		>
+			<?= esc_html__('Donations', 'mcld-services') ?>
+		</button>
 	</div>
+
+	<div
+		id="mcld-panel-services"
+		class="mcld-panel"
+		data-panel="services"
+		role="tabpanel"
+		aria-labelledby="mcld-tab-services"
+	>
+		<div class="mcld-services-list">
+			<?php if (empty($services)): ?>
+				<p class="mcld-services-empty"><?= esc_html__('No active services available.', 'mcld-services') ?></p>
+			<?php else: ?>
+				<div class="mcld-services-grid">
+					<?php foreach ($services as $service):
+						$id = isset($service['id']) ? $service['id'] : '';
+						$title = isset($service['title']) ? $service['title'] : '';
+						$price_cents = isset($service['priceCents']) ? $service['priceCents'] : null;
+						$currency = isset($service['priceCurrency']) ? strtoupper($service['priceCurrency']) : '';
+					?>
+						<button
+							type="button"
+							class="mcld-service-card"
+							data-service-id="<?= esc_attr($id) ?>"
+						>
+							<h3><?= esc_html($title) ?></h3>
+							<?php if ($price_cents !== null): ?>
+								<p class="mcld-service-price">
+									<?= esc_html(number_format($price_cents / 100, 2) . ' ' . $currency) ?>
+								</p>
+							<?php endif; ?>
+						</button>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</div>
+
+		<div class="mcld-services-detail" hidden>
+			<button type="button" class="mcld-back-button">
+				<?= esc_html__('&larr; Back', 'mcld-services') ?>
+			</button>
+			<h3 class="mcld-detail-title"></h3>
+			<p class="mcld-detail-description"></p>
+			<p class="mcld-detail-price"></p>
+			<a class="mcld-register-button" href="#">
+				<?= esc_html__('Register', 'mcld-services') ?>
+			</a>
+		</div>
+	</div>
+
+	<div
+		id="mcld-panel-membership"
+		class="mcld-panel"
+		data-panel="membership"
+		role="tabpanel"
+		aria-labelledby="mcld-tab-membership"
+		hidden
+	>
+		<p><?= esc_html__('Coming soon.', 'mcld-services') ?></p>
+	</div>
+
+	<div
+		id="mcld-panel-donations"
+		class="mcld-panel"
+		data-panel="donations"
+		role="tabpanel"
+		aria-labelledby="mcld-tab-donations"
+		hidden
+	>
+		<p><?= esc_html__('Coming soon.', 'mcld-services') ?></p>
+	</div>
+
+	<script type="application/json" class="mcld-services-data">
+		<?= $services_json ?>
+	</script>
 </div>

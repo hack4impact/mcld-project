@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,8 +12,9 @@ import {
    Settings,
    Form,
    CalendarClock,
+   Baby,
+   type LucideIcon,
 } from "lucide-react";
-import { ROLES, type Role } from "@/lib/roles";
 import {
    Sidebar,
    SidebarContent,
@@ -27,8 +29,15 @@ import {
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { ROLES, type Role } from "@/lib/roles";
 
-const adminNavItems = [
+type NavItem = {
+   title: string;
+   href: string;
+   icon: LucideIcon;
+};
+
+const baseNavItems: NavItem[] = [
    { title: "OVERVIEW", href: "/", icon: LayoutGrid },
    { title: "SERVICES", href: "/services", icon: BookOpen },
    { title: "USERS", href: "/users", icon: Users },
@@ -37,20 +46,34 @@ const adminNavItems = [
    { title: "FORMS", href: "/forms", icon: Form },
 ];
 
-const coordinatorNavItems = [
+const coordinatorNavItems: NavItem[] = [
    { title: "OVERVIEW", href: "/", icon: LayoutGrid },
    { title: "SERVICES", href: "/services", icon: BookOpen },
    { title: "SCHEDULED LESSONS", href: "/scheduled-lessons", icon: CalendarClock },
 ];
 
 export function AppSidebar({
-   role,
    className,
+   role,
    ...props
-}: React.ComponentProps<typeof Sidebar> & { role: Role }) {
+}: React.ComponentProps<typeof Sidebar> & { role?: Role | string | null }) {
    const pathname = usePathname();
-   const navItems =
-      role === ROLES.COORDINATOR ? coordinatorNavItems : adminNavItems;
+
+   const navItems = useMemo(() => {
+      if (role === ROLES.COORDINATOR) return coordinatorNavItems;
+      const isAdmin = role === ROLES.ADMIN;
+      const items = baseNavItems.filter(
+         (item) => isAdmin || item.href !== "/users",
+      );
+      if (role === ROLES.USER) {
+         items.push({
+            title: "CHILDREN",
+            href: "/children",
+            icon: Baby,
+         });
+      }
+      return items;
+   }, [role]);
 
    return (
       <Sidebar
@@ -88,7 +111,11 @@ export function AppSidebar({
                <SidebarGroupContent>
                   <SidebarMenu className="gap-1">
                      {navItems.map((item) => {
-                        const isActive = pathname === item.href;
+                        const isActive =
+                           item.href === "/"
+                              ? pathname === "/"
+                              : pathname === item.href ||
+                                pathname.startsWith(`${item.href}/`);
                         return (
                            <SidebarMenuItem key={item.title}>
                               <SidebarMenuButton

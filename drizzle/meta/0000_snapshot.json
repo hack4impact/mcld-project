@@ -1,5 +1,5 @@
 {
-  "id": "ab0b6e9f-b354-444c-9b2e-01f343e923ab",
+  "id": "c5417e97-8724-4ca5-9531-d1c2ba511d23",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -958,6 +958,13 @@
           "notNull": true,
           "default": false
         },
+        "requires_subscription": {
+          "name": "requires_subscription",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -985,7 +992,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "services_form_id_forms_id_fk": {
@@ -1005,7 +1012,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "services_private_lessons_require_coach": {
+          "name": "services_private_lessons_require_coach",
+          "value": "\"services\".\"type\" <> 'private_lessons' OR \"services\".\"coach_id\" IS NOT NULL"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.subscriptions": {

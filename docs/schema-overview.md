@@ -3,11 +3,15 @@
 ```mermaid
 erDiagram
     profiles {
-        uuid id PK
+        uuid id PK "references auth.users(id)"
         text first_name
         text last_name
         role role
-        text stripe_customer_id
+        text address
+        gender gender
+        date dob
+        text phone
+        text stripe_customer_id "unique"
         timestamp last_login_at
         timestamp created_at
         timestamp updated_at
@@ -25,13 +29,14 @@ erDiagram
         service_type type
         date start_date "null for private_lessons"
         date end_date "null for private_lessons"
-        jsonb slots "array of {dayOfWeek, time}; null for private_lessons"
+        jsonb slots "ProgramSlot[] = {dayOfWeek, time}; null for private_lessons"
         int duration_minutes
         text stripe_product_id
         service_status status
-        uuid coordinator_id FK "private lessons only; programs use program_coordinators"
-        uuid form_id FK "nullable"
+        uuid coordinator_id FK "required for private_lessons (see constraint); programs use program_coordinators"
+        uuid form_id FK "nullable; set null on form delete"
         boolean is_for_children
+        boolean requires_subscription
         timestamp created_at
         timestamp updated_at
     }
@@ -44,7 +49,7 @@ erDiagram
         booking_status status
         text notes
         boolean is_active
-        text stripe_order_id
+        text stripe_order_id "unique"
         timestamp created_at
         timestamp updated_at
     }
@@ -67,12 +72,12 @@ erDiagram
         uuid coordinator_id FK
         uuid user_id FK
         uuid child_id FK "nullable; null means adult registration"
-        timestamp scheduled_at "set when slot is confirmed"
+        timestamp scheduled_at "set when a slot is confirmed"
         session_status status
         text meeting_url
         text notes
-        jsonb selected_time_slots "array of {start, end} objects"
-        text stripe_order_id
+        jsonb selected_time_slots "array of {start, end} ISO 8601 objects"
+        text stripe_order_id "unique"
         timestamp created_at
         timestamp updated_at
     }
@@ -86,8 +91,8 @@ erDiagram
 
     subscriptions {
         uuid id PK
-        uuid user_id FK
-        text stripe_subscription_id
+        uuid user_id FK "unique"
+        text stripe_subscription_id "unique"
         text status
         text stripe_price_id
         boolean cancel_at_period_end
@@ -101,7 +106,7 @@ erDiagram
         uuid id PK
         uuid user_id FK
         text stripe_price_id
-        text stripe_session_id
+        text stripe_session_id "unique"
         text product_name
         int amount
         text currency
@@ -139,7 +144,7 @@ erDiagram
         uuid form_id FK
         form_question_type type
         text prompt
-        jsonb options
+        jsonb options "FormQuestionOption[] = {id, title, description?}"
         int sort_order
         timestamp created_at
         timestamp updated_at
@@ -174,12 +179,18 @@ erDiagram
     children ||--o{ form_question_answers : "submits"
 ```
 
-## Indexes
+## Per-table docs
 
-| Table | Index | Type | Condition |
-|---|---|---|---|
-| `service_bookings` | `service_bookings_service_id_child_id_idx` | Unique (partial) | `WHERE child_id IS NOT NULL` — prevents the same child from registering for the same program twice |
-| `program_coordinators` | `program_coordinators_service_id_coordinator_id_idx` | Unique | prevents assigning the same coordinator to a program twice |
+| Table(s) | Doc |
+|---|---|
+| `profiles` | [profiles.md](./profiles.md) |
+| `services`, `service_bookings` | [services.md](./services.md) |
+| `private_lesson_sessions` | [private-lessons.md](./private-lessons.md) |
+| `webinars` | [webinars.md](./webinars.md) |
+
+Tables without a dedicated doc (`forms`, `form_questions`, `form_question_answers`,
+`children`, `emergency_contacts`, `subscriptions`, `purchases`, `program_coordinators`)
+are covered by the ER diagram above.
 
 ## Enums
 
@@ -187,9 +198,53 @@ erDiagram
 |---|---|
 | `role` | `user`, `admin`, `coordinator` |
 | `service_type` | `private_lessons`, `programs` |
-| `service_status` | `active`, `disabled`, `archived`, `deleted` |
+| `service_status` | `active`, `archived`, `deleted`, `disabled` |
 | `booking_status` | `awaiting_payment`, `pending`, `confirmed`, `cancelled` |
 | `session_status` | `awaiting_payment`, `pending`, `confirmed`, `cancelled`, `completed` |
 | `webinar_tier` | `free`, `premium` |
 | `gender` | `male`, `female`, `prefer_not_to_say` |
 | `form_question_type` | `text`, `multiple_choices`, `checkboxes`, `user_agreement` |
+
+## Constraints
+
+| Table | Constraint | Rule |
+|---|---|---|
+| `services` | `services_private_lessons_require_coordinator` (CHECK) | A `private_lessons` service must have a `coordinator_id`. Other types may leave it null. |
+
+## Indexes
+
+| Table | Index | Type | Condition |
+|---|---|---|---|
+| `service_bookings` | `service_bookings_service_id_child_id_idx` | Unique (partial) | `WHERE child_id IS NOT NULL` — prevents the same child from registering for the same service twice |
+| `program_coordinators` | `program_coordinators_service_id_coordinator_id_idx` | Unique | prevents assigning the same coordinator to a program twice |
+
+## JSONB shapes
+
+Some `jsonb` columns store typed structures defined in `lib/db/schema.ts`:
+
+| Column | Shape | Notes |
+|---|---|---|
+| `services.slots` | `ProgramSlot[]` — `{ dayOfWeek: number; time: string }` | Recurring weekly slots for `programs`; null for `private_lessons`. |
+| `private_lesson_sessions.selected_time_slots` | `{ start: string; end: string }[]` | ISO 8601 windows the user offered when requesting a session. Not `$type`-annotated in the schema. |
+| `form_questions.options` | `FormQuestionOption[]` — `{ id: string; title: string; description?: string }` | Choices for `multiple_choices` / `checkboxes` questions; null for other types. |
+
+## Working with the schema
+
+- **`lib/db/schema.ts` is the single source of truth.** The Drizzle config
+  (`drizzle.config.ts`) points at it, and all app code imports from it. This doc,
+  the ER diagram, and the migration files are all derived from it.
+- **Naming convention:** columns are `snake_case` in Postgres and `camelCase` in
+  the Drizzle/TypeScript layer (e.g. `coordinator_id` ↔ `coordinatorId`). Keep both
+  in sync when adding columns.
+- **Changing the schema — two workflows:**
+  - `pnpm db:push` — applies `schema.ts` directly to the database. Fast, good for
+    local prototyping; does **not** create a migration file.
+  - `pnpm db:generate` then `pnpm db:migrate` — generates a versioned SQL migration
+    under `drizzle/` and applies it. Use this for changes that ship to shared/prod
+    environments.
+  - Pick one workflow per change; don't run `db:push` and `db:migrate` against the
+    same environment expecting them to reconcile.
+- `pnpm db:studio` opens Drizzle Studio to inspect data.
+- **Keep the docs in sync:** the ER diagram and enum/constraint tables above are
+  hand-maintained. Update them (and the relevant per-table doc) in the same PR as
+  any `schema.ts` change.

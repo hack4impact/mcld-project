@@ -8,16 +8,19 @@ import { ServiceDialog } from "./service-dialog";
 import { ServicesDataTable } from "./services-data-table";
 import { RegistrationsDialog } from "./registrations-dialog";
 import type { CoordinatorOption, ServiceView } from "./queries";
+import type { FormListItem } from "@/app/(authenticated)/forms/queries";
 
 type StatusTab = "all" | "active" | "disabled" | "archived";
 
 export function ServicesTable({
    services,
    coordinators,
+   forms,
    readOnly = false,
 }: {
    services: ServiceView[];
    coordinators: CoordinatorOption[];
+   forms: FormListItem[];
    readOnly?: boolean;
 }) {
    const [tab, setTab] = React.useState<StatusTab>("active");
@@ -32,13 +35,13 @@ export function ServicesTable({
    }, [services, tab]);
 
    return (
-      <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
          <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as StatusTab)}
-            className="w-full"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
          >
-            <div className="flex items-center justify-between">
+            <div className="flex shrink-0 items-center justify-between">
                <TabsList className="border border-border">
                   {statusTabs.map((status) => (
                      <TabsTrigger key={status} value={status}>
@@ -47,11 +50,18 @@ export function ServicesTable({
                   ))}
                </TabsList>
                {!readOnly && (
-                  <ServiceDialog mode="add" coordinators={coordinators} />
+                  <ServiceDialog
+                     mode="add"
+                     coordinators={coordinators}
+                     forms={forms}
+                  />
                )}
             </div>
 
-            <TabsContent value={tab}>
+            <TabsContent
+               value={tab}
+               className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden focus-visible:outline-none"
+            >
                <ServicesDataTable
                   services={filtered}
                   onEdit={setEditing}
@@ -72,6 +82,7 @@ export function ServicesTable({
             <ServiceDialog
                mode="edit"
                coordinators={coordinators}
+               forms={forms}
                service={editing}
                open={editing !== null}
                onOpenChange={(v) => {
@@ -79,6 +90,6 @@ export function ServicesTable({
                }}
             />
          )}
-      </>
+      </div>
    );
 }

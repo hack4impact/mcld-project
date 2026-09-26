@@ -98,6 +98,9 @@ export const services = pgTable(
          onDelete: "set null",
       }),
       isForChildren: boolean("is_for_children").notNull().default(false),
+      requiresSubscription: boolean("requires_subscription")
+         .notNull()
+         .default(true),
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().notNull(),
    },
