@@ -85,5 +85,8 @@ export async function confirmEmailLink(
 
    if (type === "invite") redirect("/auth/set-password");
    if (type === "recovery") redirect("/auth/reset-password");
+   // Anyone can ask Supabase to resend a signup link for an invited address,
+   // which replaces the invitation. Such a person still needs a password.
+   if (data.user?.invited_at) redirect("/auth/set-password");
    redirect(nextPathFromLink(formData.get("next")));
 }

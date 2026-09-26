@@ -3,11 +3,14 @@
 import { redirect } from "next/navigation";
 
 import type { NewPasswordState } from "@/app/auth/_components/new-password-form";
-import { getFreshLinkSession } from "@/lib/auth/link-session";
+import {
+   acceptedInviteRecently,
+   getFreshLinkSession,
+} from "@/lib/auth/link-session";
 import { newPasswordSchema, passwordUpdateErrors } from "@/lib/auth/password";
 
 const EXPIRED =
-   "This invitation link has expired. Ask the MCLD office to send you a new one.";
+   "This invitation link has expired. If you already accepted it, use “Forgot password?” on the login page to set your password. Otherwise, ask the MCLD office to send you a new invitation.";
 
 export async function setInvitePassword(
    _prev: NewPasswordState,
@@ -19,13 +22,13 @@ export async function setInvitePassword(
       return { errors: { _form: [EXPIRED] } };
    }
 
+   // Only right after accepting an invitation: anyone else changes their
+   // password through the reset flow, which signs out and notifies.
    const {
       data: { user },
    } = await session.supabase.auth.getUser();
-   if (!user?.invited_at) {
-      return {
-         errors: { _form: ["This page is only for accepting an invitation."] },
-      };
+   if (!acceptedInviteRecently(user)) {
+      return { errors: { _form: [EXPIRED] } };
    }
 
    const parsed = newPasswordSchema.safeParse({

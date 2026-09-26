@@ -22,9 +22,9 @@ const DEAD_LINK_HELP: Record<
    email: SIGNUP_HELP,
    signup: SIGNUP_HELP,
    invite: {
-      text: "Ask the MCLD office to send you a new invitation.",
-      href: "/login",
-      label: "Go to log in",
+      text: "If you already accepted it, set your password with “Forgot password?”. Otherwise, ask the MCLD office to send you a new invitation.",
+      href: "/auth/forgot-password",
+      label: "Set my password",
    },
    recovery: {
       text: "Request a new password reset link.",

@@ -20,6 +20,7 @@ const signOut = jest.fn();
 const getUser = jest.fn();
 const getFreshLinkSession = jest.fn();
 jest.mock("@/lib/auth/link-session", () => ({
+   ...jest.requireActual("@/lib/auth/link-session"),
    getFreshLinkSession: (...args: unknown[]) => getFreshLinkSession(...args),
 }));
 
@@ -69,8 +70,15 @@ beforeEach(() => {
    resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
    updateUser.mockResolvedValue({ data: {}, error: null });
    signOut.mockResolvedValue({ error: null });
+   // Accepted an invitation a minute ago.
    getUser.mockResolvedValue({
-      data: { user: { id: USER_ID, invited_at: "2026-09-01T00:00:00Z" } },
+      data: {
+         user: {
+            id: USER_ID,
+            invited_at: "2026-09-01T00:00:00Z",
+            email_confirmed_at: new Date(Date.now() - 60_000).toISOString(),
+         },
+      },
    });
    sendPasswordChangedNotice.mockResolvedValue(undefined);
    getFreshLinkSession.mockResolvedValue({
@@ -87,8 +95,11 @@ describe("requestPasswordReset", () => {
          form({ email: " ada@example.com " }),
       );
 
+      // Supabase's default template sends a ?code= link, which the callback exchanges.
       expect(resetPasswordForEmail).toHaveBeenCalledWith("ada@example.com", {
-         redirectTo: expect.stringMatching(/\/auth\/reset-password$/),
+         redirectTo: expect.stringMatching(
+            /\/auth\/callback\?next=\/auth\/reset-password$/,
+         ),
       });
       expect(result).toEqual({ sent: true, email: "ada@example.com" });
    });
@@ -202,14 +213,35 @@ describe("setInvitePassword", () => {
 
    it("is only for invited accounts", async () => {
       getUser.mockResolvedValue({
-         data: { user: { id: USER_ID, invited_at: null } },
+         data: {
+            user: {
+               id: USER_ID,
+               invited_at: null,
+               email_confirmed_at: new Date().toISOString(),
+            },
+         },
       });
 
       const result = await setInvitePassword(null, passwords());
 
-      expect(result?.errors._form?.[0]).toMatch(
-         /only for accepting an invitation/,
-      );
+      expect(result?.errors._form?.[0]).toMatch(/Forgot password/);
+      expect(updateUser).not.toHaveBeenCalled();
+   });
+
+   it("won't change the password of an invitation accepted long ago", async () => {
+      getUser.mockResolvedValue({
+         data: {
+            user: {
+               id: USER_ID,
+               invited_at: "2026-01-01T00:00:00Z",
+               email_confirmed_at: "2026-01-01T00:05:00Z",
+            },
+         },
+      });
+
+      const result = await setInvitePassword(null, passwords());
+
+      expect(result?.errors._form?.[0]).toMatch(/Forgot password/);
       expect(updateUser).not.toHaveBeenCalled();
    });
 });

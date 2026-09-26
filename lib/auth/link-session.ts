@@ -68,3 +68,17 @@ export async function getFreshLinkSession(): Promise<LinkSession | null> {
       email: typeof claims.email === "string" ? claims.email : null,
    };
 }
+
+/**
+ * The person accepted an invitation (confirming their address) in the last 30
+ * minutes. Only then may /auth/set-password set a password without the usual
+ * reset flow.
+ */
+export function acceptedInviteRecently(
+   user: { invited_at?: string; email_confirmed_at?: string } | null,
+   now = Date.now(),
+): boolean {
+   if (!user?.invited_at || !user.email_confirmed_at) return false;
+   const confirmedAt = Date.parse(user.email_confirmed_at);
+   return now - confirmedAt <= LINK_SESSION_MAX_AGE_SECONDS * 1000;
+}

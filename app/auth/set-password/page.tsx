@@ -5,7 +5,10 @@ import { NewPasswordForm } from "@/app/auth/_components/new-password-form";
 import { AuthCard } from "@/components/auth-card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { getFreshLinkSession } from "@/lib/auth/link-session";
+import {
+   acceptedInviteRecently,
+   getFreshLinkSession,
+} from "@/lib/auth/link-session";
 import { setInvitePassword } from "./actions";
 
 export default function SetPasswordPage() {
@@ -28,15 +31,20 @@ async function SetPasswordContent() {
       ? (await session.supabase.auth.getUser()).data.user
       : null;
 
-   if (!user?.invited_at) {
+   if (!user || !acceptedInviteRecently(user)) {
       return (
          <AuthCard
             title="Invitation link expired"
-            description="Invitation links work once and only for a short time. Ask the MCLD office to send you a new invitation."
+            description="Invitation links work once and only for a short time. If you already accepted your invitation, set your password with “Forgot password?”. Otherwise, ask the MCLD office to send you a new invitation."
          >
-            <Button asChild variant="outline" className="w-full">
-               <Link href="/login">Go to log in</Link>
-            </Button>
+            <div className="space-y-2">
+               <Button asChild className="w-full">
+                  <Link href="/auth/forgot-password">Set my password</Link>
+               </Button>
+               <Button asChild variant="ghost" className="w-full">
+                  <Link href="/login">Go to log in</Link>
+               </Button>
+            </div>
          </AuthCard>
       );
    }

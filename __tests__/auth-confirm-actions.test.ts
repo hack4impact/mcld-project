@@ -112,6 +112,23 @@ describe("confirmEmailLink", () => {
       ).rejects.toThrow("REDIRECT:/");
    });
 
+   it("sends an invited person who confirmed through a signup link to set a password", async () => {
+      verifyOtp.mockResolvedValue({
+         data: {
+            user: { id: USER_ID, invited_at: "2026-09-26T12:00:00Z" },
+            session,
+         },
+         error: null,
+      });
+
+      await expect(
+         confirmEmailLink(
+            null,
+            form({ type: "email", token_hash: "abc", next: "/checkout/x" }),
+         ),
+      ).rejects.toThrow("REDIRECT:/auth/set-password");
+   });
+
    it.each([
       ["invite", "/auth/set-password"],
       ["recovery", "/auth/reset-password"],
