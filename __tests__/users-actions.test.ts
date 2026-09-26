@@ -12,14 +12,21 @@ const select = jest.fn(() => ({ from: selectFrom })) as jest.Mock;
 jest.mock("@/lib/db", () => ({
    db: {
       select: (...args: unknown[]) => select(...args),
+      query: { profiles: { findFirst: jest.fn().mockResolvedValue(null) } },
    },
 }));
 
 // supabase admin mock
 const deleteUser = jest.fn();
+const getUserById = jest.fn();
 jest.mock("@/utils/supabase/admin", () => ({
    createAdminClient: () => ({
-      auth: { admin: { deleteUser: (...args: unknown[]) => deleteUser(...args) } },
+      auth: {
+         admin: {
+            deleteUser: (...args: unknown[]) => deleteUser(...args),
+            getUserById: (...args: unknown[]) => getUserById(...args),
+         },
+      },
    }),
 }));
 
@@ -50,6 +57,11 @@ beforeEach(() => {
    requireAdmin.mockResolvedValue(undefined);
    selectLimit.mockResolvedValue([]);
    deleteUser.mockResolvedValue({ error: null });
+   // Unverified address: no deletion notice (covered in users-admin-actions).
+   getUserById.mockResolvedValue({
+      data: { user: { email: "coord@example.com", email_confirmed_at: null } },
+      error: null,
+   });
 });
 
 describe("deleteUserAdmin", () => {

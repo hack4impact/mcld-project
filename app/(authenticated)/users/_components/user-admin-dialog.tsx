@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
    createUserAdmin,
    updateUserAdmin,
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import {
    Dialog,
    DialogContent,
+   DialogDescription,
    DialogFooter,
    DialogHeader,
    DialogTitle,
@@ -144,7 +146,7 @@ function ContactDetailsFields({
 function useActionConfirm(
    state: UserAdminActionState | null,
    pending: boolean,
-   onSuccess: () => void,
+   onSuccess: (message: string) => void,
 ) {
    const [confirmOpen, setConfirmOpen] = useState(false);
    const prevStateRef = useRef(state);
@@ -152,7 +154,7 @@ function useActionConfirm(
    useEffect(() => {
       if (state === prevStateRef.current) return;
       prevStateRef.current = state;
-      if (state?.message) onSuccess();
+      if (state?.message) onSuccess(state.message);
    }, [state, onSuccess]);
 
    const confirmVisible =
@@ -215,14 +217,12 @@ const CREATE_DEFAULTS = {
    firstName: "",
    lastName: "",
    email: "",
-   password: "",
-   confirmPassword: "",
    role: ROLES.USER,
    subscriptionMonths: "0",
 };
 
 type CreateUserFormContentProps = {
-   onSuccess: () => void;
+   onSuccess: (message: string) => void;
    onCancel: () => void;
 };
 
@@ -233,10 +233,6 @@ function CreateUserFormContent({
    const [firstName, setFirstName] = useState(CREATE_DEFAULTS.firstName);
    const [lastName, setLastName] = useState(CREATE_DEFAULTS.lastName);
    const [email, setEmail] = useState(CREATE_DEFAULTS.email);
-   const [password, setPassword] = useState(CREATE_DEFAULTS.password);
-   const [confirmPassword, setConfirmPassword] = useState(
-      CREATE_DEFAULTS.confirmPassword,
-   );
    const [role, setRole] = useState<string>(CREATE_DEFAULTS.role);
    const [subscriptionMonths, setSubscriptionMonths] = useState(
       CREATE_DEFAULTS.subscriptionMonths,
@@ -258,6 +254,10 @@ function CreateUserFormContent({
       <>
          <DialogHeader>
             <DialogTitle>Add user</DialogTitle>
+            <DialogDescription>
+               We&apos;ll email them an invitation to choose their own
+               password.
+            </DialogDescription>
          </DialogHeader>
          <form
             ref={formRef}
@@ -307,35 +307,6 @@ function CreateUserFormContent({
                   required
                />
                <FieldError errors={state?.errors?.email} />
-            </div>
-
-            <div className="space-y-2">
-               <Label htmlFor="password">Password</Label>
-               <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-               />
-               <FieldError errors={state?.errors?.password} />
-            </div>
-
-            <div className="space-y-2">
-               <Label htmlFor="confirm_password">Confirm password</Label>
-               <Input
-                  id="confirm_password"
-                  name="confirm_password"
-                  type="password"
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-               />
-               <FieldError errors={state?.errors?.confirm_password} />
             </div>
 
             <div className="space-y-2">
@@ -405,7 +376,7 @@ function CreateUserFormContent({
                   onClick={openConfirm}
                   disabled={pending}
                >
-                  Create user
+                  Send invitation
                </Button>
             </DialogFooter>
          </form>
@@ -413,9 +384,9 @@ function CreateUserFormContent({
          <ConfirmAlert
             open={confirmVisible}
             onOpenChange={setConfirmOpen}
-            title="Create user?"
-            description="Are you sure you want to create this user?"
-            confirmLabel="Yes, create user"
+            title="Send invitation?"
+            description="This creates the account and emails an invitation to choose a password."
+            confirmLabel="Yes, send invitation"
             pending={pending}
             onConfirm={() => formRef.current?.requestSubmit()}
          />
@@ -434,7 +405,8 @@ export function CreateUserDialog() {
       }
    }
 
-   function handleSuccess() {
+   function handleSuccess(message: string) {
+      toast.success(message);
       setOpen(false);
       setFormKey((k) => k + 1);
    }
@@ -461,7 +433,7 @@ export function CreateUserDialog() {
 
 type EditUserFormContentProps = {
    user: UserRow;
-   onSuccess: () => void;
+   onSuccess: (message: string) => void;
    onCancel: () => void;
 };
 
@@ -489,6 +461,10 @@ function EditUserFormContent({
       <>
          <DialogHeader>
             <DialogTitle>Edit user</DialogTitle>
+            <DialogDescription>
+               A new email only takes effect once the current and the new
+               address both confirm it.
+            </DialogDescription>
          </DialogHeader>
          <form
             ref={formRef}
@@ -606,7 +582,8 @@ export function EditUserDialog({
       }
    }
 
-   function handleSuccess() {
+   function handleSuccess(message: string) {
+      toast.success(message);
       handleOpenChange(false);
    }
 

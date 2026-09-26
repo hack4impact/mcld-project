@@ -1,14 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { authUsers } from "@/lib/db/auth-users";
 import { profiles, services } from "@/lib/db/schema";
+import {
+   sendAccountDeletedNotice,
+   sendEmailChangeRequest,
+   sendInviteEmail,
+   sendNotice,
+   sendRoleChangedNotice,
+} from "@/lib/auth/account-emails";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/utils/supabase/admin";
 import type { Role } from "@/lib/roles";
 import { ROLES } from "@/lib/roles";
+import { profileRoleLabel } from "./profile-role-label";
 import { createUserAdminSchema, updateUserAdminSchema } from "./schema";
 import { grantComplimentarySubscription , stripe} from "@/lib/stripe";
 import type Stripe from "stripe";
@@ -29,6 +38,73 @@ export type RefundActionState = {
 } | null
 
 const USERS_PATH = "/users";
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+// Supabase's generated link carries the token hash that is actually stored.
+// (For "email_change_new", `properties.hashed_token` is computed from the
+// current address and doesn't verify, so always read it from the link.)
+function tokenHashFromLink(actionLink: string): string | null {
+   try {
+      return new URL(actionLink).searchParams.get("token");
+   } catch {
+      return null;
+   }
+}
+
+function emailChangeErrorMessage(error: { code?: string; message: string }) {
+   if (error.code === "email_exists") {
+      return "Another account already uses this email.";
+   }
+   if (/secure email change/i.test(error.message)) {
+      return "Secure email change is turned off in Supabase Auth. Turn it on so the current address has to approve changes.";
+   }
+   return "Could not start the email change. Please try again.";
+}
+
+/**
+ * Starts a verified email change: the current address must approve and the
+ * new address must confirm. The email stays the same until both have.
+ * Returns an error message, or null when both emails were sent.
+ */
+async function requestEmailChange(
+   admin: AdminClient,
+   params: { firstName: string; currentEmail: string; newEmail: string },
+): Promise<string | null> {
+   const current = await admin.auth.admin.generateLink({
+      type: "email_change_current",
+      email: params.currentEmail,
+      newEmail: params.newEmail,
+   });
+   if (current.error) return emailChangeErrorMessage(current.error);
+
+   const next = await admin.auth.admin.generateLink({
+      type: "email_change_new",
+      email: params.currentEmail,
+      newEmail: params.newEmail,
+   });
+   if (next.error) return emailChangeErrorMessage(next.error);
+
+   const currentTokenHash = tokenHashFromLink(current.data.properties.action_link);
+   const newTokenHash = tokenHashFromLink(next.data.properties.action_link);
+   if (!currentTokenHash || !newTokenHash) {
+      return "Could not start the email change. Please try again.";
+   }
+
+   try {
+      await sendEmailChangeRequest({
+         firstName: params.firstName,
+         currentEmail: params.currentEmail,
+         newEmail: params.newEmail,
+         currentTokenHash,
+         newTokenHash,
+      });
+   } catch (error) {
+      console.error("[updateUserAdmin] email change emails failed", error);
+      return "Could not send the confirmation emails, so the email wasn't changed. Please try again.";
+   }
+   return null;
+}
 
 export async function updateUserAdmin(
    _prev: UserAdminActionState,
@@ -65,8 +141,42 @@ export async function updateUserAdmin(
    }
 
    const admin = createAdminClient();
+   const { data: authData, error: getUserError } =
+      await admin.auth.admin.getUserById(user_id);
+   const authUser = authData?.user;
+   if (getUserError || !authUser) {
+      return { errors: { _form: ["User not found"] } };
+   }
+
+   const currentEmail = authUser.email ?? "";
+   const confirmed = Boolean(authUser.email_confirmed_at);
+   const emailChanged = email.toLowerCase() !== currentEmail.toLowerCase();
+
+   // Never switch the email directly: the current address approves and the new
+   // one confirms first. Starting that is the first step, so a failure here
+   // leaves everything else unchanged.
+   if (emailChanged) {
+      if (!confirmed) {
+         return {
+            errors: {
+               email: [
+                  "This user hasn't accepted their invitation yet, so their email can't be changed. Delete the account and invite the right address instead.",
+               ],
+            },
+         };
+      }
+      const emailError = await requestEmailChange(admin, {
+         firstName: profile.firstName,
+         currentEmail,
+         newEmail: email,
+      });
+      if (emailError) {
+         return { errors: { email: [emailError] } };
+      }
+   }
+
+   // Keep the role in Auth metadata in step with profiles.role.
    const { error: authError } = await admin.auth.admin.updateUserById(user_id, {
-      email,
       app_metadata: { user_role: role },
    });
 
@@ -74,9 +184,6 @@ export async function updateUserAdmin(
       const message = /prod_|price_|stripe/i.test(authError.message)
          ? "Something went wrong. Please try again."
          : authError.message;
-      if (authError.message.toLowerCase().includes("email")) {
-         return { errors: { email: [message] } };
-      }
       return { errors: { _form: [message] } };
    }
 
@@ -98,8 +205,27 @@ export async function updateUserAdmin(
       };
    }
 
+   const messages = ["User updated."];
+   if (emailChanged) {
+      messages.push(
+         `Confirmation links were sent to ${currentEmail} and ${email}; the email changes once both are confirmed.`,
+      );
+   }
+   // Only verified addresses get notices.
+   if (profile.role !== role && confirmed && currentEmail) {
+      const sent = await sendNotice("role changed", () =>
+         sendRoleChangedNotice({
+            to: currentEmail,
+            firstName: profile.firstName,
+            oldRole: profileRoleLabel(profile.role),
+            newRole: profileRoleLabel(role),
+         }),
+      );
+      if (!sent) messages.push("The role-change email couldn't be sent.");
+   }
+
    revalidatePath(USERS_PATH);
-   return { message: "User updated." };
+   return { message: messages.join(" ") };
 }
 
 export async function createUserAdmin(
@@ -116,8 +242,6 @@ export async function createUserAdmin(
       first_name: formData.get("first_name"),
       last_name: formData.get("last_name"),
       email: formData.get("email"),
-      password: formData.get("password"),
-      confirm_password: formData.get("confirm_password"),
       role: formData.get("role"),
       subscription_months: formData.get("subscription_months") ?? "0",
       address: formData.get("address"),
@@ -134,7 +258,6 @@ export async function createUserAdmin(
       first_name,
       last_name,
       email,
-      password,
       role,
       subscription_months,
       address,
@@ -143,35 +266,46 @@ export async function createUserAdmin(
       phone,
    } = parsed.data;
 
-   const admin = createAdminClient();
-   const { data: authData, error: authError } =
-      await admin.auth.admin.createUser({
-         email,
-         password,
-         email_confirm: true,
-         user_metadata: {
-            first_name,
-            last_name,
-         },
-         app_metadata: {
-            user_role: role as Role,
-         },
-      });
+   // An invitation that hasn't been accepted yet is set up and sent again, so
+   // retrying never creates a second account or subscription.
+   const [existing] = await db
+      .select({
+         id: authUsers.id,
+         emailConfirmedAt: authUsers.emailConfirmedAt,
+      })
+      .from(authUsers)
+      .where(sql`lower(${authUsers.email}) = lower(${email})`)
+      .limit(1);
 
-   if (authError || !authData.user) {
-      const raw = authError?.message ?? "Could not create user";
-      const message = /prod_|price_|stripe/i.test(raw)
-         ? "Something went wrong. Please try again."
-         : raw;
-      if (raw.toLowerCase().includes("email")) {
-         return { errors: { email: [message] } };
-      }
-      return { errors: { _form: [message] } };
+   if (existing?.emailConfirmedAt) {
+      return { errors: { email: ["A user with this email already exists."] } };
    }
 
-   const userId = authData.user.id;
+   // Creates the account and an invitation token without emailing anything,
+   // so the account is fully set up before the person can accept.
+   const admin = createAdminClient();
+   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { data: { first_name, last_name } },
+   });
+
+   if (linkError || !link.user) {
+      if (linkError?.code === "email_exists") {
+         return { errors: { email: ["A user with this email already exists."] } };
+      }
+      console.error("[createUserAdmin] invite link failed", linkError);
+      return {
+         errors: { _form: ["Could not create the account. Please try again."] },
+      };
+   }
+
+   const userId = link.user.id;
+   const inviteTokenHash = tokenHashFromLink(link.properties.action_link);
 
    try {
+      if (!inviteTokenHash) throw new Error("Invite link has no token");
+
       await db
          .insert(profiles)
          .values({
@@ -200,8 +334,30 @@ export async function createUserAdmin(
                updatedAt: new Date(),
             },
          });
-   } catch {
-      await admin.auth.admin.deleteUser(userId);
+
+      const { error: metadataError } = await admin.auth.admin.updateUserById(
+         userId,
+         { app_metadata: { user_role: role } },
+      );
+      if (metadataError) throw metadataError;
+   } catch (error) {
+      console.error("[createUserAdmin] account setup failed", error);
+      // Undo only an account this request created. The profile row has no
+      // foreign key to auth.users, so remove it too.
+      if (!existing) {
+         await admin.auth.admin.deleteUser(userId);
+         await db
+            .delete(profiles)
+            .where(eq(profiles.id, userId))
+            .catch(() => undefined);
+      }
+      return {
+         errors: {
+            _form: [
+               "Could not set up the account, so no invitation was sent. Please try again.",
+            ],
+         },
+      };
    }
 
    if (role === ROLES.USER && subscription_months > 0) {
@@ -211,11 +367,13 @@ export async function createUserAdmin(
             email,
             subscription_months,
          );
-      } catch {
+      } catch (error) {
+         console.error("[createUserAdmin] complimentary subscription failed", error);
+         revalidatePath(USERS_PATH);
          return {
             errors: {
                _form: [
-                  "User was created, but the complimentary subscription could not be added. Please try again or contact support.",
+                  "The account was created, but the complimentary subscription could not be added, so no invitation was sent. Submit the form again to retry.",
                ],
             },
             data: { user_id: userId },
@@ -223,13 +381,124 @@ export async function createUserAdmin(
       }
    }
 
+   // Delivery is reported separately: the account is ready and can be re-invited.
+   try {
+      await sendInviteEmail({
+         to: email,
+         firstName: first_name,
+         tokenHash: inviteTokenHash,
+      });
+   } catch (error) {
+      console.error("[createUserAdmin] invitation email failed", error);
+      revalidatePath(USERS_PATH);
+      return {
+         errors: {
+            _form: [
+               "The account is set up, but the invitation email could not be sent. Use “Resend invitation” on the user's row to try again.",
+            ],
+         },
+         data: { user_id: userId },
+      };
+   }
+
    revalidatePath(USERS_PATH);
-   return { message: "User created.", data: { user_id: userId } };
+   return {
+      message: `Invitation sent to ${email}.`,
+      data: { user_id: userId },
+   };
 }
 
-const deleteUserAdminSchema = z.object({
+const userIdSchema = z.object({
    user_id: z.string().uuid(),
 });
+
+const INVITE_RESEND_COOLDOWN_MS = 60_000;
+
+export async function resendInviteAdmin(
+   _prev: UserAdminActionState,
+   formData: FormData,
+): Promise<UserAdminActionState> {
+   try {
+      await requireAdmin();
+   } catch {
+      return { errors: { _form: ["Unauthorized"] } };
+   }
+
+   const parsed = userIdSchema.safeParse({ user_id: formData.get("user_id") });
+   if (!parsed.success) {
+      return { errors: parsed.error.flatten().fieldErrors };
+   }
+
+   const admin = createAdminClient();
+   const { data, error } = await admin.auth.admin.getUserById(
+      parsed.data.user_id,
+   );
+   const user = data?.user;
+   if (error || !user?.email) {
+      return { errors: { _form: ["User not found."] } };
+   }
+   if (user.email_confirmed_at) {
+      return {
+         errors: { _form: ["This user already accepted their invitation."] },
+      };
+   }
+   if (!user.invited_at) {
+      return {
+         errors: {
+            _form: [
+               "This user signed up themselves. They can get a new confirmation email from the login page.",
+            ],
+         },
+      };
+   }
+   if (Date.now() - Date.parse(user.invited_at) < INVITE_RESEND_COOLDOWN_MS) {
+      return {
+         errors: {
+            _form: [
+               "An invitation was sent less than a minute ago. Wait a moment before resending.",
+            ],
+         },
+      };
+   }
+
+   // A new link replaces the previous one, which stops working.
+   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+      type: "invite",
+      email: user.email,
+   });
+   const tokenHash = link?.properties
+      ? tokenHashFromLink(link.properties.action_link)
+      : null;
+   if (linkError || !tokenHash) {
+      console.error("[resendInviteAdmin] invite link failed", linkError);
+      return {
+         errors: { _form: ["Could not create a new invitation. Please try again."] },
+      };
+   }
+
+   const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, user.id),
+      columns: { firstName: true },
+   });
+
+   try {
+      await sendInviteEmail({
+         to: user.email,
+         firstName: profile?.firstName ?? null,
+         tokenHash,
+      });
+   } catch (error) {
+      console.error("[resendInviteAdmin] invitation email failed", error);
+      return {
+         errors: {
+            _form: ["The invitation email could not be sent. Please try again."],
+         },
+      };
+   }
+
+   revalidatePath(USERS_PATH);
+   return { message: `Invitation re-sent to ${user.email}.` };
+}
 
 export async function deleteUserAdmin(
    _prev: UserAdminActionState,
@@ -241,7 +510,7 @@ export async function deleteUserAdmin(
       return { errors: { _form: ["Unauthorized"] } };
    }
 
-   const parsed = deleteUserAdminSchema.safeParse({
+   const parsed = userIdSchema.safeParse({
       user_id: formData.get("user_id"),
    });
 
@@ -272,14 +541,39 @@ export async function deleteUserAdmin(
    }
 
    const admin = createAdminClient();
+
+   // Capture who to notify first: the address is gone once the account is.
+   // Only a verified address gets the notice.
+   const { data: target } = await admin.auth.admin.getUserById(user_id);
+   const recipient = target?.user?.email_confirmed_at
+      ? (target.user.email ?? null)
+      : null;
+   const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, user_id),
+      columns: { firstName: true },
+   });
+
    const { error: authError } = await admin.auth.admin.deleteUser(user_id);
 
    if (authError) {
       return { errors: { _form: [authError.message] } };
    }
 
+   let message = "User deleted.";
+   if (recipient) {
+      const sent = await sendNotice("account deleted", () =>
+         sendAccountDeletedNotice({
+            to: recipient,
+            firstName: profile?.firstName ?? null,
+         }),
+      );
+      if (!sent) {
+         message = "User deleted, but the notification email couldn't be sent.";
+      }
+   }
+
    revalidatePath(USERS_PATH);
-   return { message: "User deleted." };
+   return { message };
 }
 
 export type TransactionRefund = {

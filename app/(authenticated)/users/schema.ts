@@ -27,21 +27,15 @@ const profileDetailsFields = {
   ),
 };
 
-export const createUserAdminSchema = z
-  .object({
+// No password: the person chooses their own when they accept the invitation.
+export const createUserAdminSchema = z.object({
     first_name: z.string().min(1),
     last_name: z.string().min(1),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirm_password: z.string().min(1, "Please confirm the password"),
     email: z.string().email(),
     role: z.enum(Object.values(ROLES) as [string, ...string[]]),
     subscription_months: z.coerce.number().int().min(0).max(24).default(0),
     ...profileDetailsFields,
-  })
-  .refine((data) => data.password === data.confirm_password, {
-    message: "Passwords do not match",
-    path: ["confirm_password"],
-  });
+});
 
 export const updateUserAdminSchema = z.object({
     user_id: z.string().uuid(),

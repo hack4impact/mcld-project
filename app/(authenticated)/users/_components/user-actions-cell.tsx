@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import { Baby, Pencil, Tag, Trash2, ReceiptText } from "lucide-react";
+import { Baby, MailPlus, Pencil, Tag, Trash2, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -22,7 +22,10 @@ import {
    applyDiscountToCustomerProduct,
    removeCouponById,
 } from "@/app/(authenticated)/discounts/actions";
-import { deleteUserAdmin } from "@/app/(authenticated)/users/actions";
+import {
+   deleteUserAdmin,
+   resendInviteAdmin,
+} from "@/app/(authenticated)/users/actions";
 import { toast } from "sonner";
 import { profileRoleLabel, type UserRow } from "../profile-role-label";
 import { UserTransactionsModal } from "./components/user-transactions-modals";
@@ -42,6 +45,7 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
    const [discounts, setDiscounts] = useState<ActiveDiscount[]>([]);
    const [loading, setLoading] = useState(false);
    const [deleting, setDeleting] = useState(false);
+   const [resending, setResending] = useState(false);
    const [confirmOpen, setConfirmOpen] = useState(false);
    const servicesFetched = useRef(false);
 
@@ -102,11 +106,29 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
                description: Object.values(result.errors).flat().join(" "),
             });
          } else {
-            toast.success("User deleted");
+            toast.success(result?.message ?? "User deleted");
             setConfirmOpen(false);
          }
       } finally {
          setDeleting(false);
+      }
+   };
+
+   const handleResendInvite = async () => {
+      setResending(true);
+      try {
+         const fd = new FormData();
+         fd.append("user_id", user.id);
+         const result = await resendInviteAdmin(null, fd);
+         if (result?.errors) {
+            toast.error("Failed to resend invitation", {
+               description: Object.values(result.errors).flat().join(" "),
+            });
+         } else {
+            toast.success(result?.message ?? "Invitation re-sent");
+         }
+      } finally {
+         setResending(false);
       }
    };
 
@@ -125,6 +147,24 @@ export function UserActionsCell({ user, onEdit }: UserActionsCellProps) {
 
    return (
       <div className="flex items-center justify-end gap-0.5">
+         {user.invitePending && (
+            <Tooltip>
+               <TooltipTrigger asChild>
+                  <Button
+                     variant="ghost"
+                     size="icon-sm"
+                     aria-label="Resend invitation"
+                     disabled={resending}
+                     onClick={handleResendInvite}
+                  >
+                     <MailPlus />
+                  </Button>
+               </TooltipTrigger>
+               <TooltipContent>
+                  Invitation not accepted yet — resend it
+               </TooltipContent>
+            </Tooltip>
+         )}
          <Tooltip>
             <TooltipTrigger asChild>
                <Button

@@ -19,6 +19,8 @@ const dbRow = {
    gender: "female",
    dob: "1990-04-12",
    phone: "5145550100",
+   emailConfirmedAt: null,
+   invitedAt: new Date("2026-09-01T00:00:00Z"),
 };
 
 const CONTACT_FIELDS = ["address", "gender", "dob", "phone"];
@@ -92,5 +94,10 @@ describe("listUsersWithEmails", () => {
          dob: "1990-04-12",
          phone: "5145550100",
       });
+   });
+
+   it("flags invitations nobody accepted yet", async () => {
+      const [user] = await listUsersWithEmails();
+      expect(user?.invitePending).toBe(true);
    });
 });
