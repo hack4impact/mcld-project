@@ -397,14 +397,13 @@ export async function createUserAdmin(
       };
    }
 
-   let keptSubscription = false;
    if (role === ROLES.USER && subscription_months > 0) {
       try {
-         keptSubscription = !(await grantComplimentarySubscription(
+         await grantComplimentarySubscription(
             userId,
             email,
             subscription_months,
-         ));
+         );
       } catch (error) {
          console.error("[createUserAdmin] complimentary subscription failed", error);
          revalidatePath(USERS_PATH);
@@ -440,9 +439,7 @@ export async function createUserAdmin(
 
    revalidatePath(USERS_PATH);
    return {
-      message: keptSubscription
-         ? `Invitation sent to ${email}. They already have a subscription, so it was left as it is.`
-         : `Invitation sent to ${email}.`,
+      message: `Invitation sent to ${email}.`,
       data: { user_id: userId },
    };
 }

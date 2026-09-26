@@ -58,9 +58,7 @@ describe("grantComplimentarySubscription", () => {
    ])("doesn't add a second subscription when one is %s", async (status) => {
       subscriptionsList.mockResolvedValue({ data: [{ status }] });
 
-      await expect(
-         grantComplimentarySubscription("u1", "ada@example.com", 3),
-      ).resolves.toBe(false);
+      await grantComplimentarySubscription("u1", "ada@example.com", 3);
 
       expect(subscriptionsCreate).not.toHaveBeenCalled();
    });
@@ -70,9 +68,7 @@ describe("grantComplimentarySubscription", () => {
          data: [{ status: "canceled" }, { status: "incomplete_expired" }],
       });
 
-      await expect(
-         grantComplimentarySubscription("u1", "ada@example.com", 3),
-      ).resolves.toBe(true);
+      await grantComplimentarySubscription("u1", "ada@example.com", 3);
 
       expect(subscriptionsCreate).toHaveBeenCalledTimes(1);
       expect(subscriptionsCreate).toHaveBeenCalledWith(
