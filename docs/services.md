@@ -4,7 +4,9 @@
 
 The central catalog of offerings on the platform. Two types (`service_type`):
 
-- **`private_lessons`** — one-on-one coaching led by a coordinator. The user proposes availability and scheduling is handled through the `coaching_sessions` table. A coordinator is **required** (enforced by a check constraint).
+- **`private_lessons`** — one-on-one coaching led by a coordinator, recorded in the `coaching_sessions` table. A coordinator is **required** (enforced by a check constraint). Each private lesson is either:
+  - **scheduled** (`is_scheduled = true`) — the customer picks availability windows in a calendar before paying, or
+  - **non-scheduled** (`is_scheduled = false`, the default) — bought like a normal product with no calendar; the coordinator arranges a time with the customer after payment.
 - **`programs`** — recurring group offerings with a fixed schedule. `slots` holds the recurring weekly times, and `start_date`/`end_date` bound the program.
 
 ```mermaid
@@ -22,6 +24,7 @@ erDiagram
         uuid form_id FK "nullable"
         boolean is_for_children
         boolean requires_subscription
+        boolean is_scheduled "private_lessons only; programs ignore it"
         timestamp created_at
         timestamp updated_at
     }
@@ -68,6 +71,9 @@ erDiagram
   temporarily; `archived`/`deleted` retire it without dropping historical bookings.
 - `is_for_children` marks services booked on behalf of a child (via `child_id` on the booking).
 - `requires_subscription` (default `true`) gates the service behind an active subscription.
+- `is_scheduled` (default `false`) only has meaning for `private_lessons` and is always
+  `false` for `programs`. When `false`, checkout skips the calendar step and the
+  resulting `coaching_sessions` row has no `selected_time_slots`.
 - `form_id` optionally attaches an intake form (see `forms` / `form_questions`); it is
   set to null if the form is deleted.
 - **Bookings:** `child_id` is null for adult registrations. A partial unique index

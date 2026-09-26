@@ -166,7 +166,7 @@
           "name": "selected_time_slots",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "coach_time_slots": {
           "name": "coach_time_slots",
@@ -964,6 +964,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "is_scheduled": {
+          "name": "is_scheduled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",

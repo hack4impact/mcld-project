@@ -37,6 +37,7 @@ erDiagram
         uuid form_id FK "nullable; set null on form delete"
         boolean is_for_children
         boolean requires_subscription
+        boolean is_scheduled "private_lessons only"
         timestamp created_at
         timestamp updated_at
     }
@@ -76,7 +77,7 @@ erDiagram
         session_status status
         text meeting_url
         text notes
-        jsonb selected_time_slots "array of {start, end} ISO 8601 objects"
+        jsonb selected_time_slots "array of {start, end} ISO 8601 objects; null for non-scheduled lessons"
         text stripe_order_id "unique"
         timestamp created_at
         timestamp updated_at
@@ -215,7 +216,7 @@ Some `jsonb` columns store typed structures defined in `lib/db/schema.ts`:
 | Column | Shape | Notes |
 |---|---|---|
 | `services.slots` | `ProgramSlot[]` — `{ dayOfWeek: number; time: string }` | Recurring weekly slots for `programs`; null for `private_lessons`. |
-| `coaching_sessions.selected_time_slots` | `{ start: string; end: string }[]` | ISO 8601 windows the user offered when requesting a session. Not `$type`-annotated in the schema. |
+| `coaching_sessions.selected_time_slots` | `{ start: string; end: string }[]` | ISO 8601 windows the user offered when requesting a session. Null for non-scheduled private lessons. Not `$type`-annotated in the schema. |
 | `form_questions.options` | `FormQuestionOption[]` — `{ id: string; title: string; description?: string }` | Choices for `multiple_choices` / `checkboxes` questions; null for other types. |
 
 ## Working with the schema

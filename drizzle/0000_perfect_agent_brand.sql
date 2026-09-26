@@ -30,7 +30,7 @@ CREATE TABLE "coaching_sessions" (
 	"status" "session_status" DEFAULT 'pending' NOT NULL,
 	"meeting_url" text,
 	"notes" text,
-	"selected_time_slots" jsonb NOT NULL,
+	"selected_time_slots" jsonb,
 	"coach_time_slots" jsonb,
 	"coach_token" text,
 	"client_token" text,
@@ -132,6 +132,7 @@ CREATE TABLE "services" (
 	"form_id" uuid,
 	"is_for_children" boolean DEFAULT false NOT NULL,
 	"requires_subscription" boolean DEFAULT true NOT NULL,
+	"is_scheduled" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );

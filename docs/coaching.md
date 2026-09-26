@@ -15,7 +15,7 @@ erDiagram
         session_status status "awaiting_payment | pending | confirmed | cancelled | completed"
         text meeting_url
         text notes
-        jsonb selected_time_slots "array of {start, end} objects"
+        jsonb selected_time_slots "array of {start, end} objects; null for non-scheduled lessons"
         text stripe_order_id "unique"
         timestamp created_at
         timestamp updated_at
@@ -34,9 +34,11 @@ erDiagram
   of a child (null for adult registrations).
 - `scheduled_at` is null by default — it is set once a specific slot is confirmed from
   `selected_time_slots`.
-- `selected_time_slots` is a **required** JSON array of `{ start, end }` objects (ISO 8601
-  strings) representing the availability windows the user offered when requesting the
-  session, e.g. `[{ "start": "2026-04-14T14:00:00Z", "end": "2026-04-14T17:00:00Z" }]`.
+- `selected_time_slots` is a JSON array of `{ start, end }` objects (ISO 8601 strings)
+  representing the availability windows the user offered when requesting the session,
+  e.g. `[{ "start": "2026-04-14T14:00:00Z", "end": "2026-04-14T17:00:00Z" }]`. It is set
+  for **scheduled** private lessons (at least one window is required) and is **null** for
+  **non-scheduled** ones, where the coordinator arranges the time after payment.
 - `meeting_url` is provided after the session is confirmed.
 - `stripe_order_id` links the session to its Stripe payment (unique).
 - `status = completed` is set after the session ends.
