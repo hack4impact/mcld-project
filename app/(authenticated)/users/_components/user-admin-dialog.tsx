@@ -64,17 +64,29 @@ type ContactDetailsFieldsProps = {
    idPrefix: string;
    defaults: ContactDetails;
    errors?: Record<string, string[]>;
+   submitChangedOnly?: boolean;
 };
 
 function ContactDetailsFields({
    idPrefix,
    defaults,
    errors,
+   submitChangedOnly = false,
 }: ContactDetailsFieldsProps) {
    const [phone, setPhone] = useState(defaults.phone);
    const [gender, setGender] = useState(defaults.gender || GENDER_UNSET);
    const [dob, setDob] = useState(defaults.dob);
    const [address, setAddress] = useState(defaults.address);
+
+   const submittedGender = gender === GENDER_UNSET ? "" : gender;
+   const current: ContactDetails = {
+      phone,
+      gender: submittedGender,
+      dob,
+      address,
+   };
+   const nameFor = (field: keyof ContactDetails) =>
+      !submitChangedOnly || current[field] !== defaults[field] ? field : "";
 
    return (
       <div className="space-y-4 border-t border-border pt-4">
@@ -90,7 +102,7 @@ function ContactDetailsFields({
                <Label htmlFor={`${idPrefix}phone`}>Phone</Label>
                <Input
                   id={`${idPrefix}phone`}
-                  name="phone"
+                  name={nameFor("phone")}
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -114,8 +126,8 @@ function ContactDetailsFields({
                </Select>
                <input
                   type="hidden"
-                  name="gender"
-                  value={gender === GENDER_UNSET ? "" : gender}
+                  name={nameFor("gender")}
+                  value={submittedGender}
                />
                <FieldError errors={errors?.gender} />
             </div>
@@ -123,7 +135,12 @@ function ContactDetailsFields({
 
          <div className="space-y-2">
             <Label htmlFor={`${idPrefix}dob`}>Date of birth</Label>
-            <DobField id={`${idPrefix}dob`} value={dob} onChange={setDob} />
+            <DobField
+               id={`${idPrefix}dob`}
+               name={nameFor("dob")}
+               value={dob}
+               onChange={setDob}
+            />
             <FieldError errors={errors?.dob} />
          </div>
 
@@ -131,7 +148,7 @@ function ContactDetailsFields({
             <Label htmlFor={`${idPrefix}address`}>Address</Label>
             <Input
                id={`${idPrefix}address`}
-               name="address"
+               name={nameFor("address")}
                value={address}
                onChange={(e) => setAddress(e.target.value)}
             />
@@ -542,6 +559,7 @@ function EditUserFormContent({
 
             <ContactDetailsFields
                idPrefix="edit_"
+               submitChangedOnly
                defaults={{
                   address: user.address ?? "",
                   gender: user.gender ?? "",

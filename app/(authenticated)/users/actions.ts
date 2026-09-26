@@ -40,14 +40,17 @@ export async function updateUserAdmin(
       return { errors: { _form: ["Unauthorized"] } };
    }
 
+   const submitted = (name: string) =>
+      formData.has(name) ? formData.get(name) : undefined;
+
    const parsed = updateUserAdminSchema.safeParse({
       user_id: formData.get("user_id"),
       email: formData.get("email"),
       role: formData.get("role"),
-      address: formData.get("address"),
-      gender: formData.get("gender"),
-      dob: formData.get("dob"),
-      phone: formData.get("phone"),
+      address: submitted("address"),
+      gender: submitted("gender"),
+      dob: submitted("dob"),
+      phone: submitted("phone"),
    });
 
    if (!parsed.success) {
@@ -80,18 +83,17 @@ export async function updateUserAdmin(
       return { errors: { _form: [message] } };
    }
 
+   const patch: Partial<typeof profiles.$inferInsert> = {
+      role: role as Role,
+      updatedAt: new Date(),
+   };
+   if (address !== undefined) patch.address = address;
+   if (gender !== undefined) patch.gender = gender;
+   if (dob !== undefined) patch.dob = dob;
+   if (phone !== undefined) patch.phone = phone;
+
    try {
-      await db
-         .update(profiles)
-         .set({
-            role: role as Role,
-            address,
-            gender,
-            dob,
-            phone,
-            updatedAt: new Date(),
-         })
-         .where(eq(profiles.id, user_id));
+      await db.update(profiles).set(patch).where(eq(profiles.id, user_id));
    } catch {
       return {
          errors: { _form: ["Failed to update profile. Please try again."] },

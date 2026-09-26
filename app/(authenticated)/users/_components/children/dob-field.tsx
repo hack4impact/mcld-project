@@ -38,11 +38,17 @@ export function fromISODate(value: string | undefined): Date | undefined {
 
 type DobFieldProps = {
    id?: string;
+   name?: string;
    value: string;
    onChange: (value: string) => void;
 };
 
-export function DobField({ id = "dob", value, onChange }: DobFieldProps) {
+export function DobField({
+   id = "dob",
+   name = "dob",
+   value,
+   onChange,
+}: DobFieldProps) {
    const [open, setOpen] = useState(false);
    const selected = fromISODate(value);
 
@@ -84,7 +90,7 @@ export function DobField({ id = "dob", value, onChange }: DobFieldProps) {
                </PopoverContent>
             </Popover>
          </ButtonGroup>
-         <input type="hidden" name="dob" value={value} />
+         <input type="hidden" name={name} value={value} />
       </>
    );
 }

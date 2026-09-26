@@ -71,6 +71,10 @@ function editForm(details: Record<string, string>) {
    });
 }
 
+function roleOnlyForm(role: string) {
+   return formData({ user_id: USER_ID, email: "ada@example.com", role });
+}
+
 function createForm(details: Record<string, string>) {
    return formData({
       first_name: "Ada",
@@ -158,6 +162,34 @@ describe("updateUserAdmin contact details", () => {
       ]);
       expect(updateUserById).not.toHaveBeenCalled();
       expect(updateSet).not.toHaveBeenCalled();
+   });
+
+   it("leaves contact details alone when they are not submitted", async () => {
+      const result = await updateUserAdmin(null, roleOnlyForm("coordinator"));
+
+      expect(result).toEqual({ message: "User updated." });
+      const patch = updateSet.mock.calls[0]![0] as Record<string, unknown>;
+      expect(patch.role).toBe("coordinator");
+      for (const field of ["address", "gender", "dob", "phone"]) {
+         expect(patch).not.toHaveProperty(field);
+      }
+   });
+
+   it("writes only the contact fields that were submitted", async () => {
+      await updateUserAdmin(
+         null,
+         formData({
+            user_id: USER_ID,
+            email: "ada@example.com",
+            role: "user",
+            phone: "438 555 0199",
+         }),
+      );
+
+      const patch = updateSet.mock.calls[0]![0] as Record<string, unknown>;
+      expect(patch.phone).toBe("4385550199");
+      expect(patch).not.toHaveProperty("address");
+      expect(patch).not.toHaveProperty("dob");
    });
 
    it("still requires an admin", async () => {
