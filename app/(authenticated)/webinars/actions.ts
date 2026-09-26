@@ -8,7 +8,6 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import {
    createWebinarSchema,
    deleteWebinarSchema,
-   parseBooleanField,
    updateWebinarSchema,
 } from "./schema";
 
@@ -49,8 +48,6 @@ export async function createWebinar(
       duration_minutes: field(formData, "duration_minutes"),
       youtube_url: field(formData, "youtube_url") || undefined,
       is_active: field(formData, "is_active"),
-         ? parseBooleanField(formData.get("is_active"))
-         : true,
    });
 
    if (!parsed.success) {
@@ -98,9 +95,7 @@ export async function updateWebinar(
       youtube_url: formData.has("youtube_url")
          ? (field(formData, "youtube_url") ?? "")
          : undefined,
-      is_active: formData.has("is_active")
-         ? parseBooleanField(formData.get("is_active"))
-         : undefined,
+      is_active: field(formData, "is_active"),
    });
 
    if (!parsed.success) {
