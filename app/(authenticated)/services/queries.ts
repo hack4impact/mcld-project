@@ -13,6 +13,12 @@ import {
    services,
 } from "@/lib/db/schema";
 import { getStripeServiceData } from "@/lib/stripe";
+import {
+   loadCashSessionRegistrations,
+   withoutInvoiceDuplicates,
+   cashSessionDetails,
+   type CashSessionDetails,
+} from "@/lib/cash-session-read-model";
 import { isCashSession } from "@/lib/private-lessons";
 import type { ProgramSchedule } from "@/app/(authenticated)/services/actions";
 
@@ -284,10 +290,15 @@ export type ServiceRegistration = {
    answers: RegistrationAnswer[];
    /** Private lesson recorded after the fact and paid in cash. */
    paidInCash: boolean;
+   cashDetails?: CashSessionDetails;
 };
 
 const REGISTERED_BOOKING_STATUSES = ["pending", "confirmed"] as const;
-const REGISTERED_LESSON_STATUSES = ["pending", "confirmed", "completed"] as const;
+const REGISTERED_LESSON_STATUSES = [
+   "pending",
+   "confirmed",
+   "completed",
+] as const;
 
 type RegistrantRow = {
    bookingId: string;
@@ -299,6 +310,7 @@ type RegistrantRow = {
    userFirstName: string;
    userLastName: string;
    stripeOrderId?: string | null;
+   cashDetails?: CashSessionDetails;
 };
 
 export async function listServiceRegistrations(
@@ -313,7 +325,7 @@ export async function listServiceRegistrations(
       .limit(1);
    if (!service) return [];
 
-   const rows: RegistrantRow[] =
+   let rows: RegistrantRow[] =
       service.type === "private_lessons"
          ? await db
               .select({
@@ -328,8 +340,14 @@ export async function listServiceRegistrations(
                  stripeOrderId: privateLessonSessions.stripeOrderId,
               })
               .from(privateLessonSessions)
-              .innerJoin(profiles, eq(profiles.id, privateLessonSessions.userId))
-              .leftJoin(children, eq(children.id, privateLessonSessions.childId))
+              .innerJoin(
+                 profiles,
+                 eq(profiles.id, privateLessonSessions.userId),
+              )
+              .leftJoin(
+                 children,
+                 eq(children.id, privateLessonSessions.childId),
+              )
               .where(
                  and(
                     eq(privateLessonSessions.serviceId, serviceId),
@@ -363,6 +381,27 @@ export async function listServiceRegistrations(
                  ),
               )
               .orderBy(desc(serviceBookings.createdAt));
+
+   if (service.type === "private_lessons") {
+      const cash = await loadCashSessionRegistrations({ serviceId });
+      rows = [
+         ...withoutInvoiceDuplicates(rows, cash),
+         ...cash.map(
+            (record): RegistrantRow => ({
+               bookingId: record.invoiceId,
+               status: "completed",
+               createdAt: record.createdAt,
+               childId: record.childId,
+               childFirstName: record.child?.firstName ?? null,
+               childLastName: record.child?.lastName ?? null,
+               userFirstName: record.profile.firstName,
+               userLastName: record.profile.lastName,
+               stripeOrderId: record.invoiceId,
+               cashDetails: cashSessionDetails(record),
+            }),
+         ),
+      ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+   }
 
    const childIds = [
       ...new Set(
@@ -408,6 +447,7 @@ export async function listServiceRegistrations(
       createdAt: r.createdAt,
       answers: r.childId ? (answersByChild.get(r.childId) ?? []) : [],
       paidInCash: isCashSession(r.stripeOrderId ?? null),
+      cashDetails: r.cashDetails,
    }));
 }
 

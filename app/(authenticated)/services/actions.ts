@@ -1,20 +1,16 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
-   privateLessonSessions,
    profiles,
    programCoordinators,
    services,
    type ProgramSlot as DbProgramSlot,
 } from "@/lib/db/schema";
-import {
-   getUserRole,
-   requireAdmin,
-} from "@/lib/auth/require-admin";
+import { getUserRole, requireAdmin } from "@/lib/auth/require-admin";
 import { ROLES } from "@/lib/roles";
 import { createClient } from "@/utils/supabase/server";
 import {
@@ -25,9 +21,9 @@ import {
    type ServiceRegistration,
 } from "@/app/(authenticated)/services/queries";
 import { recordCashSessionSchema } from "@/app/(authenticated)/services/cash-session-schema";
-import { isCashSession } from "@/lib/private-lessons";
 import { cadStringToCents } from "@/lib/money";
 import {
+   CashInvoiceReviewError,
    createPrice,
    createProduct,
    getOrCreateStripeCustomer,
@@ -40,6 +36,14 @@ import {
 export type ServiceActionState = {
    errors?: Record<string, string[]>;
    message?: string;
+   cashSession?: {
+      invoiceId: string;
+      submissionId: string;
+      amountCents: number;
+      currency: string;
+   };
+   retryRequired?: boolean;
+   reviewRequired?: boolean;
 } | null;
 
 export type ProgramSlot = DbProgramSlot;
@@ -289,7 +293,9 @@ export async function createService(
       Object.keys(errors).length === 0 &&
       (await missingCoordinators(coordinatorIdsValue))
    ) {
-      errors.coordinator_ids = ["One or more selected coordinators no longer exist"];
+      errors.coordinator_ids = [
+         "One or more selected coordinators no longer exist",
+      ];
    }
    if (
       Object.keys(errors).length === 0 &&
@@ -459,10 +465,7 @@ export async function updateService(
       if (!coordinators.ok) Object.assign(errors, coordinators.errors);
       else coordinatorIdsValue = coordinators.value;
    }
-   if (
-      row.type === "private_lessons" &&
-      formData.has("coordinator_id")
-   ) {
+   if (row.type === "private_lessons" && formData.has("coordinator_id")) {
       // Private lessons can be reassigned to a different coordinator, but the
       // coordinator remains mandatory: an empty/invalid value is rejected.
       const coordinator = parseCoordinatorId(formData);
@@ -475,7 +478,9 @@ export async function updateService(
       coordinatorIdsValue &&
       (await missingCoordinators(coordinatorIdsValue))
    ) {
-      errors.coordinator_ids = ["One or more selected coordinators no longer exist"];
+      errors.coordinator_ids = [
+         "One or more selected coordinators no longer exist",
+      ];
    }
    if (
       Object.keys(errors).length === 0 &&
@@ -673,10 +678,9 @@ export async function fetchCashSessionClients(
 }
 
 /**
- * Record a private lesson that already happened and was paid in cash. Saves a
- * completed session, then records the payment in Stripe as an invoice paid out
- * of band. `submission_id` becomes the session id, so resubmitting the same
- * form never creates a second session or invoice.
+ * Cash attendance and its financial record are stored on the same Stripe
+ * invoice. No local session is created or deleted. The caller retains its
+ * submission identity so an uncertain response can resume the same invoice.
  */
 export async function recordCashSession(
    _prev: ServiceActionState,
@@ -684,137 +688,171 @@ export async function recordCashSession(
 ): Promise<ServiceActionState> {
    const parsed = recordCashSessionSchema.safeParse({
       submission_id: field(formData, "submission_id"),
+      submitted_at: field(formData, "submitted_at"),
       service_id: field(formData, "service_id"),
       user_id: field(formData, "user_id"),
       child_id: field(formData, "child_id"),
       session_at: field(formData, "session_at"),
+      collected_at: field(formData, "collected_at"),
       duration_minutes: field(formData, "duration_minutes"),
       amount: field(formData, "amount"),
       adjustment_reason: field(formData, "adjustment_reason"),
    });
-   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
+   if (!parsed.success)
+      return {
+         retryRequired: false,
+         errors: parsed.error.flatten().fieldErrors,
+      };
    const input = parsed.data;
 
-   const recorderId = await authorizeCashSession(input.service_id);
-   if (!recorderId) return { errors: { _form: ["Unauthorized"] } };
-
-   const [service] = await db
-      .select()
-      .from(services)
-      .where(eq(services.id, input.service_id))
-      .limit(1);
-   if (
-      !service ||
-      service.type !== "private_lessons" ||
-      service.status !== "active" ||
-      !service.coordinatorId
-   ) {
+   // Do all authorization and validation before attempting any Stripe writes.
+   let recorderId: string;
+   let service: typeof services.$inferSelect;
+   let client: CashSessionClient;
+   let stripeData: NonNullable<
+      Awaited<ReturnType<typeof getStripeServiceData>>
+   >;
+   try {
+      const authorizedRecorder = await authorizeCashSession(input.service_id);
+      if (!authorizedRecorder)
+         return { retryRequired: false, errors: { _form: ["Unauthorized"] } };
+      recorderId = authorizedRecorder;
+      const [selectedService] = await db
+         .select()
+         .from(services)
+         .where(eq(services.id, input.service_id))
+         .limit(1);
+      if (
+         !selectedService ||
+         selectedService.type !== "private_lessons" ||
+         selectedService.status !== "active" ||
+         !selectedService.coordinatorId
+      ) {
+         return {
+            retryRequired: false,
+            errors: {
+               _form: [
+                  "Cash sessions can only be recorded on active private lessons.",
+               ],
+            },
+         };
+      }
+      service = selectedService;
+      const [selectedClient] = await listCashSessionClients({
+         userId: input.user_id,
+      });
+      if (!selectedClient || !selectedClient.email) {
+         return {
+            retryRequired: false,
+            errors: { user_id: ["Select a registered client"] },
+         };
+      }
+      client = selectedClient;
+      if (service.isForChildren && !input.child_id) {
+         return {
+            retryRequired: false,
+            errors: { child_id: ["Select which child attended"] },
+         };
+      }
+      if (!service.isForChildren && input.child_id) {
+         return {
+            retryRequired: false,
+            errors: { child_id: ["This service is for adult clients"] },
+         };
+      }
+      if (
+         input.child_id &&
+         !client.children.some((c) => c.id === input.child_id)
+      ) {
+         return {
+            retryRequired: false,
+            errors: { child_id: ["This child doesn't belong to the client"] },
+         };
+      }
+      const data = await getStripeServiceData(service.stripeProductId);
+      if (!data?.priceCents || !data.priceCurrency) {
+         return {
+            retryRequired: false,
+            errors: { _form: ["This service has no price in Stripe."] },
+         };
+      }
+      stripeData = data;
+      if (input.amount !== data.priceCents && !input.adjustment_reason) {
+         return {
+            retryRequired: false,
+            errors: {
+               adjustment_reason: ["Explain why the price was adjusted"],
+            },
+         };
+      }
+   } catch (error) {
+      console.error("[recordCashSession] Could not validate recording", error);
       return {
-         errors: { _form: ["Cash sessions can only be recorded on active private lessons."] },
+         retryRequired: false,
+         errors: {
+            _form: ["Could not check this recording. Please try again."],
+         },
       };
-   }
-
-   const [client] = await listCashSessionClients({ userId: input.user_id });
-   if (!client || !client.email) {
-      return { errors: { user_id: ["Select a registered client"] } };
-   }
-   if (service.isForChildren && !input.child_id) {
-      return { errors: { child_id: ["Select which child attended"] } };
-   }
-   if (input.child_id && !client.children.some((c) => c.id === input.child_id)) {
-      return { errors: { child_id: ["This child doesn't belong to the client"] } };
-   }
-
-   const stripeData = await getStripeServiceData(service.stripeProductId);
-   if (!stripeData?.priceCents || !stripeData.priceCurrency) {
-      return { errors: { _form: ["This service has no price in Stripe."] } };
-   }
-   const isAdjusted = input.amount !== stripeData.priceCents;
-   if (isAdjusted && !input.adjustment_reason) {
-      return {
-         errors: { adjustment_reason: ["Explain why the price was adjusted"] },
-      };
-   }
-
-   const [existing] = await db
-      .select()
-      .from(privateLessonSessions)
-      .where(eq(privateLessonSessions.id, input.submission_id))
-      .limit(1);
-   if (existing && isCashSession(existing.stripeOrderId)) {
-      return { message: "Cash session recorded." };
-   }
-   if (
-      existing &&
-      (existing.stripeOrderId !== null ||
-         existing.status !== "completed" ||
-         existing.serviceId !== service.id ||
-         existing.userId !== client.id)
-   ) {
-      return { errors: { _form: ["This submission doesn't match."] } };
-   }
-
-   if (!existing) {
-      await db
-         .insert(privateLessonSessions)
-         .values({
-            id: input.submission_id,
-            serviceId: service.id,
-            coordinatorId: service.coordinatorId,
-            userId: client.id,
-            childId: input.child_id,
-            scheduledAt: input.session_at,
-            status: "completed",
-            selectedTimeSlots: [],
-         })
-         .onConflictDoNothing({ target: privateLessonSessions.id });
    }
 
    try {
-      const customerId = await getOrCreateStripeCustomer(client.id, client.email);
+      const customerId = await getOrCreateStripeCustomer(
+         client.id,
+         client.email,
+      );
       const invoiceId = await recordOutOfBandInvoice({
          customerId,
          productId: service.stripeProductId,
          amountCents: input.amount,
-         currency: stripeData.priceCurrency,
+         currency: stripeData.priceCurrency!,
          description: `${stripeData.title} — paid in cash`,
          metadata: {
             type: "cash_private_lesson",
+            schemaVersion: "1",
+            submissionId: input.submission_id,
             privateLessonSessionId: input.submission_id,
+            submittedAt: input.submitted_at.toISOString(),
             serviceId: service.id,
-            collectedBy: service.coordinatorId,
+            userId: client.id,
+            childId: input.child_id ?? "",
+            collectedBy: service.coordinatorId!,
             recordedBy: recorderId,
             sessionAt: input.session_at.toISOString(),
+            collectedAt: input.collected_at.toISOString(),
             durationMinutes: String(input.duration_minutes),
-            ...(isAdjusted && input.adjustment_reason
-               ? { adjustmentReason: input.adjustment_reason.slice(0, 500) }
+            ...(input.adjustment_reason
+               ? { adjustmentReason: input.adjustment_reason }
                : {}),
          },
          idempotencyKey: `cash-session:${input.submission_id}`,
+         submittedAt: input.submitted_at.getTime(),
       });
-
-      await db
-         .update(privateLessonSessions)
-         .set({ stripeOrderId: invoiceId, updatedAt: new Date() })
-         .where(eq(privateLessonSessions.id, input.submission_id));
-   } catch (e) {
-      console.error("[recordCashSession] Stripe invoice failed", e);
-      await db
-         .delete(privateLessonSessions)
-         .where(
-            and(
-               eq(privateLessonSessions.id, input.submission_id),
-               isNull(privateLessonSessions.stripeOrderId),
-            ),
-         );
       return {
+         message: "Cash session recorded.",
+         cashSession: {
+            invoiceId,
+            submissionId: input.submission_id,
+            amountCents: input.amount,
+            currency: stripeData.priceCurrency!,
+         },
+      };
+   } catch (error) {
+      console.error(
+         "[recordCashSession] Invoice could not be confirmed",
+         error,
+      );
+      return {
+         retryRequired: true,
+         ...(error instanceof CashInvoiceReviewError
+            ? { reviewRequired: true }
+            : {}),
          errors: {
-            _form: ["Could not record the payment in Stripe. Please try again."],
+            _form: [
+               error instanceof CashInvoiceReviewError
+                  ? error.message
+                  : "The recording could not be confirmed. Retry this same recording to avoid recording the payment twice.",
+            ],
          },
       };
    }
-
-   // No cache bust: services didn't change, and the registrations dialog
-   // fetches fresh. Busting would refetch every service from Stripe at once.
-   return { message: "Cash session recorded." };
 }

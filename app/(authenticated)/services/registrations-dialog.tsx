@@ -12,6 +12,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 
+import { CashSessionDetails } from "./cash-session-details";
 import { fetchServiceRegistrations } from "./actions";
 import type { ServiceRegistration, ServiceView } from "./queries";
 
@@ -88,6 +89,7 @@ export function RegistrationsDialog({
                                     {r.paidInCash && " · Paid in cash"}
                                  </span>
                               </div>
+                              <CashSessionDetails details={r.cashDetails} />
                               {r.answers.length > 0 ? (
                                  <dl className="mt-2 flex flex-col gap-1.5">
                                     {r.answers.map((a, i) => (

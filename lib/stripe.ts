@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { profiles, subscriptions } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { cacheLife } from "next/cache";
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -15,22 +16,33 @@ export async function getOrCreateStripeCustomer(userId: string, email: string) {
    const profile = await db.query.profiles.findFirst({
       where: eq(profiles.id, userId),
    });
+   if (!profile) throw new Error("Client profile not found");
+   if (profile.stripeCustomerId) return profile.stripeCustomerId;
 
-   if (profile?.stripeCustomerId) {
-      return profile.stripeCustomerId;
-   }
+   const customer = await stripe.customers.create(
+      { email, metadata: { userId } },
+      { idempotencyKey: `mcld-customer:${userId}` },
+   );
 
-   const customer = await stripe.customers.create({
-      email,
-      metadata: { userId },
-   });
-
-   await db
+   // A concurrent request may already have selected the canonical customer.
+   // Never replace that mapping with the customer returned by this request.
+   const [linked] = await db
       .update(profiles)
       .set({ stripeCustomerId: customer.id })
-      .where(eq(profiles.id, userId));
+      .where(and(eq(profiles.id, userId), isNull(profiles.stripeCustomerId)))
+      .returning({ stripeCustomerId: profiles.stripeCustomerId });
+   if (linked?.stripeCustomerId) return linked.stripeCustomerId;
 
-   return customer.id;
+   const winner = await db.query.profiles.findFirst({
+      where: eq(profiles.id, userId),
+      columns: { stripeCustomerId: true },
+   });
+   if (!winner?.stripeCustomerId) {
+      throw new Error(
+         "Could not link the Stripe customer to the profile. Please try again.",
+      );
+   }
+   return winner.stripeCustomerId;
 }
 
 export async function syncStripeData(stripeCustomerId: string) {
@@ -511,12 +523,15 @@ export async function grantComplimentarySubscription(
    await syncStripeData(customerId);
 }
 
-/**
- * Record a payment collected outside Stripe (e.g. cash) as a finalized
- * invoice marked `paid_out_of_band`, so it shows up in Stripe without charging
- * the customer. `idempotencyKey` must be stable per recorded payment so retries
- * reuse the same invoice.
- */
+/** Safe to show to staff; the existing Stripe record needs review, not a new payment. */
+export class CashInvoiceReviewError extends Error {
+   constructor(message: string) {
+      super(message);
+      this.name = "CashInvoiceReviewError";
+   }
+}
+
+/** Resume one immutable cash receipt using Stripe's own invoice and line-item state. */
 export async function recordOutOfBandInvoice(input: {
    customerId: string;
    productId: string;
@@ -525,47 +540,279 @@ export async function recordOutOfBandInvoice(input: {
    description: string;
    metadata: Record<string, string>;
    idempotencyKey: string;
+   submittedAt?: number;
 }): Promise<string> {
    const key = input.idempotencyKey;
+   const submissionId =
+      input.metadata.submissionId || input.metadata.privateLessonSessionId;
+   if (!submissionId || input.metadata.type !== "cash_private_lesson") {
+      throw new CashInvoiceReviewError(
+         "This cash submission is missing its reference. Please contact an administrator.",
+      );
+   }
+   if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0) {
+      throw new CashInvoiceReviewError(
+         "The cash amount must be a positive number of cents.",
+      );
+   }
+   const currency = input.currency.toLowerCase();
+   const fingerprint = createHash("sha256")
+      .update(
+         JSON.stringify({
+            customerId: input.customerId,
+            productId: input.productId,
+            amountCents: input.amountCents,
+            currency,
+            description: input.description,
+            metadata: Object.fromEntries(
+               Object.entries(input.metadata).sort(([a], [b]) =>
+                  a.localeCompare(b),
+               ),
+            ),
+         }),
+      )
+      .digest("hex");
+   const metadata = {
+      ...input.metadata,
+      cashPayloadHash: fingerprint,
+      cashAmountCents: String(input.amountCents),
+      cashProductId: input.productId,
+   };
 
-   const invoice = await stripe.invoices.create(
-      {
+   async function write<T>(operation: () => Promise<T>): Promise<T> {
+      try {
+         return await operation();
+      } catch (error) {
+         if (
+            error instanceof Error &&
+            "type" in error &&
+            error.type === "StripeIdempotencyError" &&
+            (!("code" in error) || error.code !== "idempotency_key_in_use")
+         ) {
+            throw new CashInvoiceReviewError(
+               "This submission was already used with different details. An administrator must review it before you record another payment.",
+            );
+         }
+         throw error;
+      }
+   }
+
+   function verify(invoice: Stripe.Invoice): void {
+      const customerId =
+         typeof invoice.customer === "string"
+            ? invoice.customer
+            : invoice.customer?.id;
+      if (
+         customerId !== input.customerId ||
+         invoice.metadata?.cashPayloadHash !== fingerprint ||
+         invoice.metadata.cashAmountCents !== String(input.amountCents) ||
+         invoice.metadata.cashProductId !== input.productId ||
+         Object.entries(input.metadata).some(
+            ([name, value]) => (invoice.metadata?.[name] ?? "") !== value,
+         ) ||
+         invoice.currency !== currency ||
+         invoice.description !== input.description
+      ) {
+         throw new CashInvoiceReviewError(
+            "The existing Stripe receipt does not match this submission. An administrator must review it before you record another payment.",
+         );
+      }
+      if (invoice.status === "void" || invoice.status === "uncollectible") {
+         throw new CashInvoiceReviewError(
+            "This receipt was voided or marked uncollectible in Stripe. Please ask an administrator to review it.",
+         );
+      }
+   }
+
+   function paidInvoiceId(invoice: Stripe.Invoice): string | null {
+      verify(invoice);
+      if (invoice.status !== "paid") return null;
+      if (
+         invoice.total !== input.amountCents ||
+         invoice.amount_paid !== input.amountCents ||
+         invoice.amount_remaining !== 0 ||
+         invoice.starting_balance !== 0 ||
+         (invoice.ending_balance !== null && invoice.ending_balance !== 0)
+      ) {
+         throw new CashInvoiceReviewError(
+            "Stripe applied a balance or a different total to this receipt. An administrator must reconcile it with the cash collected.",
+         );
+      }
+      return invoice.id!;
+   }
+
+   async function matchingLines(invoiceId: string): Promise<boolean> {
+      const lines: Stripe.InvoiceLineItem[] = [];
+      let startingAfter: string | undefined;
+      do {
+         const page = await stripe.invoices.listLineItems(invoiceId, {
+            limit: 100,
+            ...(startingAfter ? { starting_after: startingAfter } : {}),
+         });
+         lines.push(...page.data);
+         startingAfter = page.has_more ? page.data.at(-1)?.id : undefined;
+      } while (startingAfter);
+      if (!lines.length) return false;
+      if (
+         lines.length !== 1 ||
+         lines[0].metadata.cashPayloadHash !== fingerprint ||
+         lines[0].amount !== input.amountCents ||
+         lines[0].currency !== currency ||
+         lines[0].pricing?.price_details?.product !== input.productId
+      ) {
+         throw new CashInvoiceReviewError(
+            "The Stripe receipt contains different or duplicate items. Please ask an administrator to review it.",
+         );
+      }
+      return true;
+   }
+
+   // Read invoice pages directly rather than using delayed metadata search.
+   const candidates: Stripe.Invoice[] = [];
+   let startingAfter: string | undefined;
+   do {
+      const page = await stripe.invoices.list({
          customer: input.customerId,
-         collection_method: "charge_automatically",
-         auto_advance: false,
-         pending_invoice_items_behavior: "exclude",
-         description: input.description,
-         metadata: input.metadata,
-      },
-      { idempotencyKey: `${key}:invoice` },
-   );
+         limit: 100,
+         ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      candidates.push(
+         ...page.data.filter(
+            (invoice) =>
+               invoice.metadata?.type === "cash_private_lesson" &&
+               (invoice.metadata.submissionId ||
+                  invoice.metadata.privateLessonSessionId) === submissionId,
+         ),
+      );
+      startingAfter = page.has_more ? page.data.at(-1)?.id : undefined;
+   } while (startingAfter);
+   if (candidates.length > 1) {
+      throw new CashInvoiceReviewError(
+         "More than one Stripe receipt exists for this submission. Please ask an administrator to reconcile them.",
+      );
+   }
 
-   await stripe.invoiceItems.create(
-      {
-         customer: input.customerId,
-         invoice: invoice.id,
-         description: input.description,
-         price_data: {
-            currency: input.currency,
-            product: input.productId,
-            unit_amount: input.amountCents,
-         },
-         metadata: input.metadata,
-      },
-      { idempotencyKey: `${key}:item` },
-   );
+   let invoice: Stripe.Invoice;
+   if (candidates[0]) {
+      invoice = await stripe.invoices.retrieve(candidates[0].id!);
+   } else {
+      // Stripe may prune keys after 24h. Never recreate an ambiguous old request.
+      if (
+         input.submittedAt !== undefined &&
+         (!Number.isFinite(input.submittedAt) ||
+            input.submittedAt > Date.now() + 5 * 60_000 ||
+            Date.now() - input.submittedAt >= 23 * 60 * 60_000)
+      ) {
+         throw new CashInvoiceReviewError(
+            "No matching receipt was found for this older submission. An administrator must check Stripe before it can be recorded again.",
+         );
+      }
+      const created = await write(() =>
+         stripe.invoices.create(
+            {
+               customer: input.customerId,
+               currency,
+               collection_method: "charge_automatically",
+               auto_advance: false,
+               pending_invoice_items_behavior: "exclude",
+               discounts: "",
+               automatic_tax: { enabled: false },
+               description: input.description,
+               metadata,
+            },
+            { idempotencyKey: `${key}:invoice` },
+         ),
+      );
+      // An idempotent create can return its original draft even after a peer paid it.
+      invoice = await stripe.invoices.retrieve(created.id!);
+   }
+   const alreadyPaid = paidInvoiceId(invoice);
+   if (alreadyPaid) return alreadyPaid;
 
-   await stripe.invoices.finalizeInvoice(
-      invoice.id!,
-      { auto_advance: false },
-      { idempotencyKey: `${key}:finalize` },
-   );
+   if (!(await matchingLines(invoice.id!))) {
+      if (invoice.status !== "draft") {
+         throw new CashInvoiceReviewError(
+            "The finalized Stripe receipt has no matching session item. Please ask an administrator to review it.",
+         );
+      }
+      try {
+         await write(() =>
+            stripe.invoiceItems.create(
+               {
+                  customer: input.customerId,
+                  invoice: invoice.id,
+                  description: input.description,
+                  discountable: false,
+                  price_data: {
+                     currency,
+                     product: input.productId,
+                     unit_amount: input.amountCents,
+                  },
+                  metadata,
+               },
+               { idempotencyKey: `${key}:item` },
+            ),
+         );
+      } catch (error) {
+         // A peer may have finished this same item while this call was in flight.
+         if (!(await matchingLines(invoice.id!))) throw error;
+      }
+   }
 
-   const paid = await stripe.invoices.pay(
-      invoice.id!,
-      { paid_out_of_band: true },
-      { idempotencyKey: `${key}:pay` },
-   );
-
-   return paid.id!;
+   invoice = await stripe.invoices.retrieve(invoice.id!);
+   verify(invoice);
+   if (invoice.status === "draft") {
+      // Check the preview before finalization can consume a customer's credit.
+      if (
+         invoice.starting_balance !== 0 ||
+         invoice.total !== input.amountCents ||
+         invoice.amount_due !== input.amountCents
+      ) {
+         throw new CashInvoiceReviewError(
+            "Stripe would apply a balance or a different total to this receipt. An administrator must review it before finalization.",
+         );
+      }
+      try {
+         invoice = await write(() =>
+            stripe.invoices.finalizeInvoice(
+               invoice.id!,
+               { auto_advance: false },
+               { idempotencyKey: `${key}:finalize` },
+            ),
+         );
+      } catch (error) {
+         invoice = await stripe.invoices.retrieve(invoice.id!);
+         if (invoice.status === "draft") throw error;
+      }
+   }
+   const finalizedPaid = paidInvoiceId(invoice);
+   if (finalizedPaid) return finalizedPaid;
+   if (
+      invoice.status !== "open" ||
+      invoice.total !== input.amountCents ||
+      invoice.amount_due !== input.amountCents ||
+      invoice.amount_paid !== 0 ||
+      invoice.starting_balance !== 0 ||
+      (invoice.ending_balance !== null && invoice.ending_balance !== 0)
+   ) {
+      throw new CashInvoiceReviewError(
+         "Stripe applied a balance or a different total to this receipt. An administrator must reconcile it with the cash collected.",
+      );
+   }
+   try {
+      invoice = await write(() =>
+         stripe.invoices.pay(
+            invoice.id!,
+            { paid_out_of_band: true },
+            { idempotencyKey: `${key}:pay` },
+         ),
+      );
+   } catch (error) {
+      invoice = await stripe.invoices.retrieve(invoice.id!);
+      if (!paidInvoiceId(invoice)) throw error;
+   }
+   const paidId = paidInvoiceId(invoice);
+   if (!paidId)
+      throw new Error("The Stripe receipt has not been marked paid yet.");
+   return paidId;
 }

@@ -17,18 +17,21 @@ export function ServicesTable({
    services,
    coordinators,
    forms,
+   recorderId,
    readOnly = false,
 }: {
    services: ServiceView[];
    coordinators: CoordinatorOption[];
    forms: FormListItem[];
+   recorderId: string;
    readOnly?: boolean;
 }) {
    const [tab, setTab] = React.useState<StatusTab>("active");
    const [editing, setEditing] = React.useState<ServiceView | null>(null);
    const [viewing, setViewing] = React.useState<ServiceView | null>(null);
-   const [recordingCash, setRecordingCash] =
-      React.useState<ServiceView | null>(null);
+   const [recordingCash, setRecordingCash] = React.useState<ServiceView | null>(
+      null,
+   );
    const statusTabs: StatusTab[] = ["all", "active", "disabled", "archived"];
 
    const filtered = React.useMemo(() => {
@@ -95,6 +98,7 @@ export function ServicesTable({
             />
          )}
          <RecordCashSessionDialog
+            recorderId={recorderId}
             service={recordingCash}
             open={recordingCash !== null}
             onOpenChange={(v) => {

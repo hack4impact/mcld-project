@@ -6,10 +6,15 @@ import {
    serviceBookings,
    services,
 } from "@/lib/db/schema";
+import {
+   loadCashSessionRegistrations,
+   withoutInvoiceDuplicates,
+} from "@/lib/cash-session-read-model";
 import { getStripeServiceData } from "@/lib/stripe";
 import {
    buildRegistrations,
    type Registrations,
+   type SessionRow,
 } from "./build-registrations";
 
 async function fetchServiceTitle(productId: string): Promise<string | null> {
@@ -27,7 +32,7 @@ async function fetchServiceTitle(productId: string): Promise<string | null> {
 export async function listRegistrationsForUser(
    userId: string,
 ): Promise<Registrations> {
-   const [bookings, sessions] = await Promise.all([
+   const [bookings, sessions, cash] = await Promise.all([
       db
          .select({ service: services, child: children })
          .from(serviceBookings)
@@ -63,7 +68,25 @@ export async function listRegistrationsForUser(
                ]),
             ),
          ),
+      loadCashSessionRegistrations({ userId }),
    ]);
+
+   const mergedSessions: SessionRow[] = [
+      ...withoutInvoiceDuplicates(sessions, cash),
+      ...cash.map(
+         (record): SessionRow => ({
+            id: record.invoiceId,
+            status: "completed",
+            scheduledAt: record.sessionAt,
+            createdAt: record.createdAt,
+            stripeOrderId: record.invoiceId,
+            durationMinutes: record.durationMinutes,
+            title: record.title,
+            service: record.service,
+            child: record.child,
+         }),
+      ),
+   ];
 
    const productIds = new Map<string, string>();
    for (const { service } of [...bookings, ...sessions]) {
@@ -77,5 +100,10 @@ export async function listRegistrationsForUser(
       ),
    );
 
-   return buildRegistrations({ bookings, sessions, titles, now: new Date() });
+   return buildRegistrations({
+      bookings,
+      sessions: mergedSessions,
+      titles,
+      now: new Date(),
+   });
 }

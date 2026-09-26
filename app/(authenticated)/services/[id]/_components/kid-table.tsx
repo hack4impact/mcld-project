@@ -1,5 +1,7 @@
 "use client";
 
+import { CashSessionDetails } from "../../cash-session-details";
+
 import { useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Info } from "lucide-react";
@@ -16,7 +18,11 @@ import type { KidRegistration } from "../queries";
 import { ChildInfoModal } from "./child-info-modal";
 import { STATUS_VARIANT, GENDER_LABELS } from "./constants";
 
-export function KidTable({ registrations }: { registrations: KidRegistration[] }) {
+export function KidTable({
+   registrations,
+}: {
+   registrations: KidRegistration[];
+}) {
    const [selected, setSelected] = useState<KidRegistration | null>(null);
    const [modalOpen, setModalOpen] = useState(false);
 
@@ -48,7 +54,8 @@ export function KidTable({ registrations }: { registrations: KidRegistration[] }
             meta: { colWidth: "16%" },
             cell: ({ row }) => (
                <span className="text-sm text-muted-foreground">
-                  {GENDER_LABELS[row.original.child.gender] ?? row.original.child.gender}
+                  {GENDER_LABELS[row.original.child.gender] ??
+                     row.original.child.gender}
                </span>
             ),
          },
@@ -67,18 +74,28 @@ export function KidTable({ registrations }: { registrations: KidRegistration[] }
             header: "Status",
             meta: { colWidth: "14%" },
             cell: ({ row }) => (
-               <Badge
-                  variant={STATUS_VARIANT[row.original.status] ?? "secondary"}
-                  className="capitalize"
-               >
-                  {row.original.status.replace(/_/g, " ")}
-               </Badge>
+               <div className="space-y-1">
+                  <Badge
+                     variant={
+                        STATUS_VARIANT[row.original.status] ?? "secondary"
+                     }
+                     className="capitalize"
+                  >
+                     {row.original.status.replace(/_/g, " ")}
+                     {row.original.paidInCash && " · Paid in cash"}
+                  </Badge>
+                  <CashSessionDetails details={row.original.cashDetails} />
+               </div>
             ),
          },
          {
             id: "info",
             header: () => <div className="text-right">Info</div>,
-            meta: { colWidth: "12%", thClassName: "text-right", tdClassName: "text-right" },
+            meta: {
+               colWidth: "12%",
+               thClassName: "text-right",
+               tdClassName: "text-right",
+            },
             cell: ({ row }) => (
                <Tooltip>
                   <TooltipTrigger asChild>

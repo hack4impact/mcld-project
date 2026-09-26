@@ -15,6 +15,13 @@ import { PageHeader, PageShell } from "@/components/page-shell";
 
 export default async function ServicesPage() {
    const role = await getUserRole();
+   if (role !== ROLES.ADMIN && role !== ROLES.COORDINATOR) redirect("/");
+
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) redirect("/login");
 
    if (role === ROLES.ADMIN) {
       const [services, coordinators, forms] = await Promise.all([
@@ -34,6 +41,7 @@ export default async function ServicesPage() {
                   services={services}
                   coordinators={coordinators}
                   forms={forms}
+                  recorderId={user.id}
                />
             </div>
          </PageShell>
@@ -41,12 +49,6 @@ export default async function ServicesPage() {
    }
 
    if (role === ROLES.COORDINATOR) {
-      const supabase = await createClient();
-      const {
-         data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) redirect("/login");
-
       const services = await listServicesForCoordinator(user.id);
 
       return (
@@ -60,6 +62,7 @@ export default async function ServicesPage() {
                   services={services}
                   coordinators={[]}
                   forms={[]}
+                  recorderId={user.id}
                   readOnly
                />
             </div>
