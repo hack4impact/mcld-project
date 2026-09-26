@@ -391,14 +391,8 @@ export type CoordinatorOption = {
 
 /**
  * List all profiles with the `coordinator` role, ordered by name.
- *
- * Cached via Next Cache Components; bust via the `coordinators` tag when
- * coordinator assignments change.
  */
 export async function listCoordinators(): Promise<CoordinatorOption[]> {
-   "use cache";
-   cacheTag(COORDINATORS_TAG);
-
    return db
       .select({
          id: profiles.id,
