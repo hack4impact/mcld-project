@@ -9,6 +9,7 @@ import { profiles } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { appUrl } from "@/lib/app-url";
 import { safeNextPath } from "@/lib/auth/redirects";
+import { EMAIL_NOT_SENT, isTemporarySendFailure } from "@/lib/auth/send-errors";
 
 export type ActionState = {
   errors: Partial<Record<string, string[]>>;
@@ -121,6 +122,9 @@ export async function resendConfirmation(
   });
   if (error) {
     console.error("[resendConfirmation] failed", error.code ?? error.status);
+    if (isTemporarySendFailure(error)) {
+      return { errors: { email: [EMAIL_NOT_SENT] } };
+    }
   }
 
   return { errors: {}, checkEmail: email, resent: true };

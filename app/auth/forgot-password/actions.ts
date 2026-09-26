@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { appUrl } from "@/lib/app-url";
+import { EMAIL_NOT_SENT, isTemporarySendFailure } from "@/lib/auth/send-errors";
 import { createClient } from "@/utils/supabase/server";
 
 export type ForgotPasswordState =
@@ -33,6 +34,9 @@ export async function requestPasswordReset(
          "[requestPasswordReset] failed",
          error.code ?? error.status,
       );
+      if (isTemporarySendFailure(error)) {
+         return { errors: { email: [EMAIL_NOT_SENT] } };
+      }
    }
 
    return { sent: true, email };

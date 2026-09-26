@@ -1,6 +1,7 @@
 /**
  * @jest-environment node
  */
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { requestPasswordReset } from "@/app/auth/forgot-password/actions";
 import { resetPassword } from "@/app/auth/reset-password/actions";
 import { setInvitePassword } from "@/app/auth/set-password/actions";
@@ -116,6 +117,26 @@ describe("requestPasswordReset", () => {
       await expect(
          requestPasswordReset(null, form({ email: "ada@example.com" })),
       ).resolves.toEqual({ sent: true, email: "ada@example.com" });
+   });
+
+   it("says so when the email can't be sent right now", async () => {
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      for (const error of [
+         { code: "over_request_rate_limit", status: 429, message: "slow down" },
+         new AuthRetryableFetchError("fetch failed", 0),
+      ]) {
+         resetPasswordForEmail.mockResolvedValueOnce({ data: null, error });
+
+         await expect(
+            requestPasswordReset(null, form({ email: "ada@example.com" })),
+         ).resolves.toEqual({
+            errors: {
+               email: [
+                  "We couldn't send the email right now. Please try again in a few minutes.",
+               ],
+            },
+         });
+      }
    });
 
    it("checks the address format before calling Supabase", async () => {

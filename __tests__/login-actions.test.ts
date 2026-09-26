@@ -1,6 +1,7 @@
 /**
  * @jest-environment node
  */
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { login, resendConfirmation, signup } from "@/app/login/actions";
 
 const signInWithPassword = jest.fn();
@@ -192,6 +193,27 @@ describe("resendConfirmation", () => {
          errors: {},
          checkEmail: "ada@example.com",
          resent: true,
+      });
+   });
+
+   it("says so when the email can't be sent right now", async () => {
+      resend.mockResolvedValue({
+         data: {},
+         error: new AuthRetryableFetchError("fetch failed", 0),
+      });
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+      const result = await resendConfirmation(
+         null,
+         form({ email: "ada@example.com" }),
+      );
+
+      expect(result).toEqual({
+         errors: {
+            email: [
+               "We couldn't send the email right now. Please try again in a few minutes.",
+            ],
+         },
       });
    });
 
