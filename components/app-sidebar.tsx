@@ -11,6 +11,7 @@ import {
    MonitorSmartphone,
    Settings,
    Form,
+   CalendarClock,
    Baby,
    type LucideIcon,
 } from "lucide-react";
@@ -45,6 +46,12 @@ const baseNavItems: NavItem[] = [
    { title: "FORMS", href: "/forms", icon: Form },
 ];
 
+const coordinatorNavItems: NavItem[] = [
+   { title: "OVERVIEW", href: "/", icon: LayoutGrid },
+   { title: "SERVICES", href: "/services", icon: BookOpen },
+   { title: "SCHEDULED LESSONS", href: "/scheduled-lessons", icon: CalendarClock },
+];
+
 export function AppSidebar({
    className,
    role,
@@ -53,6 +60,7 @@ export function AppSidebar({
    const pathname = usePathname();
 
    const navItems = useMemo(() => {
+      if (role === ROLES.COORDINATOR) return coordinatorNavItems;
       const isAdmin = role === ROLES.ADMIN;
       const items = baseNavItems.filter(
          (item) => isAdmin || item.href !== "/users",

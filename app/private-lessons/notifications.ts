@@ -6,7 +6,7 @@ import { pgSchema, uuid, text } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
    children,
-   coachingSessions,
+   privateLessonSessions,
    emergencyContacts,
    formQuestionAnswers,
    formQuestions,
@@ -105,8 +105,8 @@ export async function sendCoordinatorBookingEmail(
    try {
       const [session] = await db
          .select()
-         .from(coachingSessions)
-         .where(eq(coachingSessions.id, sessionId))
+         .from(privateLessonSessions)
+         .where(eq(privateLessonSessions.id, sessionId))
          .limit(1);
       if (!session) {
          console.error(

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteCouponIfExhausted, stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import {
-   coachingSessions,
+   privateLessonSessions,
    profiles,
    purchases,
    serviceBookings,
 } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
-import { sendCoordinatorBookingEmail } from "@/app/coaching/notifications";
+import { sendCoordinatorBookingEmail } from "@/app/private-lessons/notifications";
 
 const allowedEvents: Stripe.Event.Type[] = [
    "checkout.session.completed",
@@ -51,17 +51,17 @@ export async function POST(request: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata ?? {};
 
-      if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
+      if (metadata.type === "private_lesson" && metadata.privateLessonSessionId) {
          const updated = await db
-            .update(coachingSessions)
+            .update(privateLessonSessions)
             .set({ status: "pending", stripeOrderId: session.id })
             .where(
                and(
-                  eq(coachingSessions.id, metadata.coachingSessionId),
-                  eq(coachingSessions.status, "awaiting_payment"),
+                  eq(privateLessonSessions.id, metadata.privateLessonSessionId),
+                  eq(privateLessonSessions.status, "awaiting_payment"),
                ),
             )
-            .returning({ id: coachingSessions.id });
+            .returning({ id: privateLessonSessions.id });
 
          const transitioned = updated[0];
          if (transitioned) {

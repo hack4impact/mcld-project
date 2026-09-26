@@ -4,8 +4,8 @@
 
 The central catalog of offerings on the platform. Two types (`service_type`):
 
-- **`private_lessons`** — one-on-one coaching led by a coordinator. The user proposes availability and scheduling is handled through the `coaching_sessions` table. A coordinator is **required** (enforced by a check constraint).
-- **`programs`** — recurring group offerings with a fixed schedule. `slots` holds the recurring weekly times, and `start_date`/`end_date` bound the program.
+- **`private_lessons`** — one-on-one lessons led by a single coordinator, assigned via `services.coordinator_id`. The user proposes availability and scheduling is handled through the `private_lesson_sessions` table. A coordinator is **required** (enforced by a check constraint).
+- **`programs`** — recurring group offerings with a fixed schedule. `slots` holds the recurring weekly times, and `start_date`/`end_date` bound the program. One or more coordinators are assigned via the `program_coordinators` join table.
 
 ```mermaid
 erDiagram
@@ -18,7 +18,7 @@ erDiagram
         int duration_minutes
         text stripe_product_id
         service_status status "active | archived | deleted | disabled"
-        uuid coordinator_id FK "required for private_lessons"
+        uuid coordinator_id FK "required for private_lessons; programs use program_coordinators"
         uuid form_id FK "nullable"
         boolean is_for_children
         boolean requires_subscription
@@ -33,7 +33,7 @@ erDiagram
 ## Service Bookings
 
 A user's enrollment in a service. For `programs` this represents a seat; for
-`private_lessons` the scheduling detail lives in `coaching_sessions`.
+`private_lessons` the scheduling detail lives in `private_lesson_sessions`.
 
 ```mermaid
 erDiagram
@@ -59,7 +59,8 @@ erDiagram
 
 - **`coordinator_id` is required for `private_lessons`** — enforced by the
   `services_private_lessons_require_coordinator` check constraint. It may be null
-  for `programs`. Deleting a referenced coordinator is restricted (`onDelete: restrict`).
+  for `programs`, which assign coordinators through the `program_coordinators` join
+  table instead. Deleting a referenced coordinator is restricted (`onDelete: restrict`).
 - `slots` is a JSON array of `ProgramSlot` objects (`{ dayOfWeek: number; time: string }`)
   describing the recurring weekly schedule of a program. It is null for `private_lessons`.
 - `stripe_product_id` links the service to its Stripe product (required). Pricing lives

@@ -33,7 +33,7 @@ erDiagram
         int duration_minutes
         text stripe_product_id
         service_status status
-        uuid coordinator_id FK "required for private_lessons (see constraint)"
+        uuid coordinator_id FK "required for private_lessons (see constraint); programs use program_coordinators"
         uuid form_id FK "nullable; set null on form delete"
         boolean is_for_children
         boolean requires_subscription
@@ -66,7 +66,7 @@ erDiagram
         timestamp updated_at
     }
 
-    coaching_sessions {
+    private_lesson_sessions {
         uuid id PK
         uuid service_id FK
         uuid coordinator_id FK
@@ -80,6 +80,13 @@ erDiagram
         text stripe_order_id "unique"
         timestamp created_at
         timestamp updated_at
+    }
+
+    program_coordinators {
+        uuid id PK
+        uuid service_id FK
+        uuid coordinator_id FK
+        timestamp created_at
     }
 
     subscriptions {
@@ -155,15 +162,17 @@ erDiagram
     profiles ||--o{ service_bookings : "books"
     services ||--o{ service_bookings : "booked via"
     children |o--o{ service_bookings : "registered for"
-    profiles ||--o{ coaching_sessions : "coordinates"
-    profiles ||--o{ coaching_sessions : "attends"
-    services ||--o{ coaching_sessions : "fulfilled by"
-    children |o--o{ coaching_sessions : "registered for"
+    profiles ||--o{ private_lesson_sessions : "coordinates"
+    profiles ||--o{ private_lesson_sessions : "attends"
+    services ||--o{ private_lesson_sessions : "fulfilled by"
+    children |o--o{ private_lesson_sessions : "registered for"
     profiles ||--o{ children : "parent of"
     children ||--o{ emergency_contacts : "has"
     profiles ||--o| subscriptions : "has"
     profiles ||--o{ purchases : "makes"
-    profiles |o--o{ services : "coordinates"
+    profiles |o--o{ services : "coordinates (private lessons)"
+    services ||--o{ program_coordinators : "assigned via"
+    profiles ||--o{ program_coordinators : "coordinates (programs)"
     forms ||--o{ form_questions : "contains"
     services }o--o| forms : "uses"
     form_questions ||--o{ form_question_answers : "answered via"
@@ -176,12 +185,12 @@ erDiagram
 |---|---|
 | `profiles` | [profiles.md](./profiles.md) |
 | `services`, `service_bookings` | [services.md](./services.md) |
-| `coaching_sessions` | [coaching.md](./coaching.md) |
+| `private_lesson_sessions` | [private-lessons.md](./private-lessons.md) |
 | `webinars` | [webinars.md](./webinars.md) |
 
 Tables without a dedicated doc (`forms`, `form_questions`, `form_question_answers`,
-`children`, `emergency_contacts`, `subscriptions`, `purchases`) are covered by the
-ER diagram above.
+`children`, `emergency_contacts`, `subscriptions`, `purchases`, `program_coordinators`)
+are covered by the ER diagram above.
 
 ## Enums
 
@@ -207,6 +216,7 @@ ER diagram above.
 | Table | Index | Type | Condition |
 |---|---|---|---|
 | `service_bookings` | `service_bookings_service_id_child_id_idx` | Unique (partial) | `WHERE child_id IS NOT NULL` — prevents the same child from registering for the same service twice |
+| `program_coordinators` | `program_coordinators_service_id_coordinator_id_idx` | Unique | prevents assigning the same coordinator to a program twice |
 
 ## JSONB shapes
 
@@ -215,7 +225,7 @@ Some `jsonb` columns store typed structures defined in `lib/db/schema.ts`:
 | Column | Shape | Notes |
 |---|---|---|
 | `services.slots` | `ProgramSlot[]` — `{ dayOfWeek: number; time: string }` | Recurring weekly slots for `programs`; null for `private_lessons`. |
-| `coaching_sessions.selected_time_slots` | `{ start: string; end: string }[]` | ISO 8601 windows the user offered when requesting a session. Not `$type`-annotated in the schema. |
+| `private_lesson_sessions.selected_time_slots` | `{ start: string; end: string }[]` | ISO 8601 windows the user offered when requesting a session. Not `$type`-annotated in the schema. |
 | `form_questions.options` | `FormQuestionOption[]` — `{ id: string; title: string; description?: string }` | Choices for `multiple_choices` / `checkboxes` questions; null for other types. |
 
 ## Working with the schema

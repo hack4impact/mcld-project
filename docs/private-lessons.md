@@ -1,11 +1,11 @@
-# Coaching Sessions Table
+# Private Lesson Sessions Table
 
 One-on-one sessions booked between a user and a coordinator. Each session is linked
 to a `private_lessons`-type entry in `services`.
 
 ```mermaid
 erDiagram
-    coaching_sessions {
+    private_lesson_sessions {
         uuid id PK
         uuid service_id FK
         uuid coordinator_id FK
@@ -21,10 +21,10 @@ erDiagram
         timestamp updated_at
     }
 
-    profiles ||--o{ coaching_sessions : "coordinator leads"
-    profiles ||--o{ coaching_sessions : "user attends"
-    services ||--o{ coaching_sessions : "fulfilled by"
-    children |o--o{ coaching_sessions : "registered for"
+    profiles ||--o{ private_lesson_sessions : "coordinator leads"
+    profiles ||--o{ private_lesson_sessions : "user attends"
+    services ||--o{ private_lesson_sessions : "fulfilled by"
+    children |o--o{ private_lesson_sessions : "registered for"
 ```
 
 ## Notes

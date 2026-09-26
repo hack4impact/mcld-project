@@ -1,10 +1,29 @@
 import { createClient } from "@/utils/supabase/server";
-import { ROLES } from "@/lib/roles";
+import { ROLES, type Role } from "@/lib/roles";
 
-export async function requireAdmin(): Promise<void> {
+/**
+ * Resolve the current user's role from Supabase auth claims, or null if the
+ * user is unauthenticated / has no role claim.
+ */
+export async function getUserRole(): Promise<Role | null> {
    const supabase = await createClient();
    const { data } = await supabase.auth.getClaims();
-   if (data?.claims?.user_role !== ROLES.ADMIN) {
+   const role = data?.claims?.user_role;
+   if (role === ROLES.ADMIN || role === ROLES.COORDINATOR || role === ROLES.USER)
+      return role;
+   return null;
+}
+
+export async function requireAdmin(): Promise<void> {
+   const role = await getUserRole();
+   if (role !== ROLES.ADMIN) {
+      throw new Error("Forbidden");
+   }
+}
+
+export async function requireCoordinatorOrAdmin(): Promise<void> {
+   const role = await getUserRole();
+   if (role !== ROLES.ADMIN && role !== ROLES.COORDINATOR) {
       throw new Error("Forbidden");
    }
 }
