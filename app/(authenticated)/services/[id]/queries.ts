@@ -32,7 +32,7 @@ export type KidRegistration = {
    bookingId: string;
    status: string;
    registeredAt: Date;
-   child: {
+   child: null | {
       id: string;
       firstName: string;
       lastName: string;
@@ -121,25 +121,34 @@ export async function getServiceRegistrations(
          parentEmail: authUsers.email,
       })
       .from(serviceBookings)
-      .innerJoin(children, eq(children.id, serviceBookings.childId))
-      .innerJoin(profiles, eq(profiles.id, children.parentId))
-      .innerJoin(authUsers, eq(authUsers.id, children.parentId))
+      .leftJoin(children, eq(children.id, serviceBookings.childId))
+      .innerJoin(profiles, eq(profiles.id, serviceBookings.userId))
+      .innerJoin(authUsers, eq(authUsers.id, serviceBookings.userId))
       .where(eq(serviceBookings.serviceId, serviceId));
 
    if (bookingRows.length === 0) return { kind: "kid", registrations: [] };
 
-   const childIds = [...new Set(bookingRows.map((r) => r.childId))];
+   const childIds = [
+      ...new Set(
+         bookingRows
+            .map((r) => r.childId)
+            .filter((id): id is string => id !== null),
+      ),
+   ];
 
-   const contactRows = await db
-      .select({
-         childId: emergencyContacts.childId,
-         fullName: emergencyContacts.fullName,
-         emailAddress: emergencyContacts.emailAddress,
-         phoneNumber: emergencyContacts.phoneNumber,
-         relationship: emergencyContacts.relationship,
-      })
-      .from(emergencyContacts)
-      .where(inArray(emergencyContacts.childId, childIds));
+   const contactRows =
+      childIds.length > 0
+         ? await db
+              .select({
+                 childId: emergencyContacts.childId,
+                 fullName: emergencyContacts.fullName,
+                 emailAddress: emergencyContacts.emailAddress,
+                 phoneNumber: emergencyContacts.phoneNumber,
+                 relationship: emergencyContacts.relationship,
+              })
+              .from(emergencyContacts)
+              .where(inArray(emergencyContacts.childId, childIds))
+         : [];
 
    const contactsByChild = new Map<
       string,
@@ -180,23 +189,25 @@ export async function getServiceRegistrations(
          bookingId: r.bookingId,
          status: r.status,
          registeredAt: r.registeredAt,
-         child: {
-            id: r.childId,
-            firstName: r.childFirstName,
-            lastName: r.childLastName,
-            dob: r.childDob,
-            gender: r.childGender,
-            allergies: r.childAllergies,
-            medicalConditions: r.childMedicalConditions,
-            medications: r.childMedications,
-            emergencyContacts: contactsByChild.get(r.childId) ?? [],
-         },
+         child: r.childId
+            ? {
+                 id: r.childId,
+                 firstName: r.childFirstName ?? "",
+                 lastName: r.childLastName ?? "",
+                 dob: r.childDob ?? "",
+                 gender: r.childGender ?? "",
+                 allergies: r.childAllergies,
+                 medicalConditions: r.childMedicalConditions,
+                 medications: r.childMedications,
+                 emergencyContacts: contactsByChild.get(r.childId) ?? [],
+              }
+            : null,
          parent: {
             firstName: r.parentFirstName,
             lastName: r.parentLastName,
             email: r.parentEmail ?? "",
          },
-         formAnswers: answersByChild.get(r.childId) ?? [],
+         formAnswers: r.childId ? (answersByChild.get(r.childId) ?? []) : [],
       })),
    };
 }
