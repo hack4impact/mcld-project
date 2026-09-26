@@ -156,23 +156,22 @@ describe("login", () => {
       });
    });
 
-   it("won't redirect off-site after logging in", async () => {
-      signInWithPassword.mockResolvedValue({
-         data: { user: { id: "u1" }, session: {} },
-         error: null,
-      });
+   it.each(["/\\evil.example", "/.//evil.example", "/%2e%2e//evil.example"])(
+      "won't redirect off-site to %s after logging in",
+      async (next) => {
+         signInWithPassword.mockResolvedValue({
+            data: { user: { id: "u1" }, session: {} },
+            error: null,
+         });
 
-      await expect(
-         login(
-            null,
-            form({
-               email: "ada@example.com",
-               password: "abc123",
-               next: "/\\evil.example",
-            }),
-         ),
-      ).rejects.toThrow(/^REDIRECT:\/$/);
-   });
+         await expect(
+            login(
+               null,
+               form({ email: "ada@example.com", password: "abc123", next }),
+            ),
+         ).rejects.toThrow(/^REDIRECT:\/$/);
+      },
+   );
 });
 
 describe("resendConfirmation", () => {

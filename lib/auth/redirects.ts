@@ -26,7 +26,11 @@ export function safeNextPath(raw: unknown, fallback = "/"): string {
    }
    if (url.origin !== PLACEHOLDER_ORIGIN) return fallback;
 
-   return `${url.pathname}${url.search}${url.hash}`;
+   // Check the result too: resolving dot segments can turn "/.//evil.com"
+   // into "//evil.com".
+   const path = `${url.pathname}${url.search}${url.hash}`;
+   if (path.startsWith("//") || path.startsWith("/\\")) return fallback;
+   return path;
 }
 
 /**

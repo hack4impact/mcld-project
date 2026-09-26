@@ -33,15 +33,18 @@ describe("GET /auth/callback", () => {
       );
    });
 
-   it.each(["//evil.example", "/\\evil.example", "https://evil.example"])(
-      "won't redirect to %s",
-      async (next) => {
-         const res = await GET(
-            request(`?code=abc&next=${encodeURIComponent(next)}`),
-         );
-         expect(res.headers.get("location")).toBe("http://localhost:3000/");
-      },
-   );
+   it.each([
+      "//evil.example",
+      "/\\evil.example",
+      "https://evil.example",
+      "/.//evil.example",
+      "/a/..//evil.example",
+   ])("won't redirect to %s", async (next) => {
+      const res = await GET(
+         request(`?code=abc&next=${encodeURIComponent(next)}`),
+      );
+      expect(res.headers.get("location")).toBe("http://localhost:3000/");
+   });
 
    it("shows an expired link on the login page", async () => {
       const res = await GET(

@@ -23,6 +23,9 @@ describe("safeNextPath", () => {
       ["relative path", "checkout/abc"],
       ["userinfo trick", "@evil.com"],
       ["empty string", ""],
+      ["dot segment before //", "/.//evil.com"],
+      ["parent segment before //", "/a/..//evil.com"],
+      ["encoded parent segment before //", "/%2e%2e//evil.com/x"],
    ])("rejects %s", (_label, raw) => {
       expect(safeNextPath(raw)).toBe("/");
    });
@@ -61,6 +64,7 @@ describe("nextPathFromLink", () => {
       ["a lookalike host", "https://app.mcld.example.evil.example/"],
       ["plain http on this host", "http://app.mcld.example/checkout"],
       ["an unsafe path", "//evil.example"],
+      ["a dot-segment path", "https://app.mcld.example/.//evil.example"],
       ["garbage", "not a url"],
    ])("falls back to / for %s", (_label, raw) => {
       expect(nextPathFromLink(raw)).toBe("/");
