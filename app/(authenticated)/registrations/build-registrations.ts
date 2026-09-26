@@ -1,6 +1,10 @@
 import type { ProgramSchedule } from "@/app/(authenticated)/services/actions";
 import type { ServiceStatus } from "@/app/(authenticated)/services/queries";
-import type { children, coachingSessions, services } from "@/lib/db/schema";
+import type {
+   children,
+   privateLessonSessions,
+   services,
+} from "@/lib/db/schema";
 
 export const DISPLAY_TIME_ZONE = "America/Toronto";
 
@@ -58,7 +62,7 @@ export type BookingRow = { service: ServiceRow; child: ChildRow | null };
 
 export type SessionRow = {
    id: string;
-   status: (typeof coachingSessions.$inferSelect)["status"];
+   status: (typeof privateLessonSessions.$inferSelect)["status"];
    scheduledAt: Date | null;
    createdAt: Date;
    service: ServiceRow;
