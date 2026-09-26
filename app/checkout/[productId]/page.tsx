@@ -1,8 +1,9 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/server";
-import { getProductDiscountForUser } from "@/lib/stripe";
+import { getProductDiscountForUser, userHasActiveSubscription } from "@/lib/stripe";
 import { getService } from "@/app/(authenticated)/services/queries";
 
 import { CheckoutFlow } from "./checkout-flow";
@@ -28,6 +29,19 @@ export default async function CheckoutPage({
       return <NotAvailable message="This product isn't available." />;
    }
 
+   if (
+      service.requiresSubscription &&
+      !(await userHasActiveSubscription(user.id))
+   ) {
+      return (
+         <NotAvailable message="This service requires an active membership.">
+            <Button asChild>
+               <Link href="/">Subscribe</Link>
+            </Button>
+         </NotAvailable>
+      );
+   }
+
    const discount = await getProductDiscountForUser({
       userId: user.id,
       productId: service.stripeProductId,
@@ -40,7 +54,13 @@ export default async function CheckoutPage({
    );
 }
 
-function NotAvailable({ message }: { message: string }) {
+function NotAvailable({
+   message,
+   children,
+}: {
+   message: string;
+   children?: ReactNode;
+}) {
    return (
       <div className="flex flex-col items-center justify-center gap-4 w-full max-w-md">
          <h1 className="text-xl font-bold text-muted-foreground">
@@ -49,9 +69,11 @@ function NotAvailable({ message }: { message: string }) {
                {message}
             </span>
          </h1>
-         <Button asChild>
-            <Link href="/">Go back home</Link>
-         </Button>
+         {children ?? (
+            <Button asChild>
+               <Link href="/">Go back home</Link>
+            </Button>
+         )}
       </div>
    );
 }

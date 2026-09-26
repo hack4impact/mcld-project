@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { coachingSessions, services } from "@/lib/db/schema";
+import { userHasActiveSubscription } from "@/lib/stripe";
 import { createClient } from "@/utils/supabase/server";
 
 export type Availability = { start: string; end: string };
@@ -38,6 +39,11 @@ export async function submitAvailabilities({
       return { error: "Service is not a private lesson" };
    if (!service.coordinatorId)
       return { error: "Service has no coordinator assigned" };
+   if (
+      service.requiresSubscription &&
+      !(await userHasActiveSubscription(user.id))
+   )
+      return { error: "An active membership is required to book this service." };
 
    const [row] = await db
       .insert(coachingSessions)
