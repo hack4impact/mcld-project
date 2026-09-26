@@ -37,7 +37,10 @@ export const updateUserAdminSchema = z.object({
     user_id: z.string().uuid(),
     email: z.string().email(),
     role: z.enum(Object.values(ROLES) as [string, ...string[]]),
-    ...profileDetailsFields,
+    address: profileDetailsFields.address.optional(),
+    gender: profileDetailsFields.gender.optional(),
+    dob: profileDetailsFields.dob.optional(),
+    phone: profileDetailsFields.phone.optional(),
 })
 
 export const getTransactionsSchema = z.object({

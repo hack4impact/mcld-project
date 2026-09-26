@@ -4,16 +4,32 @@ import {
    setCoordinatorAvailabilityOverrideSchema,
    clearCoordinatorAvailabilityOverrideSchema,
    listCoordinatorAvailabilitySchema,
+   listCoordinatorAvailabilityOverridesSchema,
    fetchCoordinatorAvailabilityEditorStateSchema,
+   listBookableSlotsSchema,
+   reservePrivateLessonSessionSchema,
 } from "@/app/private-lessons/schema";
 import {
    availabilityForRange,
    EMPTY_WEEKLY_HOURS,
    type AvailabilityOccurrence,
 } from "@/lib/availability";
+import {
+   addDays,
+   startOfWeekMonday,
+   todayInTimeZone,
+} from "@/lib/availability-editor";
+import {
+   generateBookableSlots,
+   isStaleHold,
+   NEXT_AVAILABLE_SEARCH_DAYS,
+   rangeBounds,
+   type BookableSlot,
+   type BusyInterval,
+} from "@/lib/booking-slots";
 import { ROLES } from "@/lib/roles";
 
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -27,28 +43,21 @@ import {
 } from "@/lib/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
-export type Availability = { start: string; end: string };
+type Executor = Pick<typeof db, "select">;
 
-export type SubmitAvailabilitiesResult =
-   | { privateLessonSessionId: string }
-   | { error: string };
+const MAX_LESSON_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_TIMEZONE = "America/Toronto";
 
-export async function submitAvailabilities({
-   serviceId,
-   availabilities,
-}: {
-   serviceId: string;
-   availabilities: Availability[];
-}): Promise<SubmitAvailabilitiesResult> {
-   if (!availabilities?.length)
-      return { error: "At least one availability window is required" };
+type SchedulableService = {
+   id: string;
+   coordinatorId: string;
+   durationMinutes: number;
+   isScheduled: boolean;
+};
 
-   const supabase = await createClient();
-   const {
-      data: { user },
-   } = await supabase.auth.getUser();
-   if (!user) return { error: "Not authenticated" };
-
+async function loadPrivateLesson(
+   serviceId: string,
+): Promise<SchedulableService | { error: string }> {
    const service = await db.query.services.findFirst({
       where: eq(services.id, serviceId),
    });
@@ -59,19 +68,290 @@ export async function submitAvailabilities({
       return { error: "Service is not a private lesson" };
    if (!service.coordinatorId)
       return { error: "Service has no coordinator assigned" };
+   return {
+      id: service.id,
+      coordinatorId: service.coordinatorId,
+      durationMinutes: service.durationMinutes,
+      isScheduled: service.isScheduled,
+   };
+}
 
-   const [row] = await db
-      .insert(privateLessonSessions)
-      .values({
-         userId: user.id,
-         serviceId: service.id,
-         coordinatorId: service.coordinatorId,
-         selectedTimeSlots: availabilities,
-         status: "awaiting_payment",
+async function loadWeeklyHours(executor: Executor, coordinatorId: string) {
+   const [row] = await executor
+      .select()
+      .from(coordinatorAvailabilityHours)
+      .where(eq(coordinatorAvailabilityHours.coordinatorId, coordinatorId))
+      .limit(1);
+   return {
+      hours: row?.hours ?? EMPTY_WEEKLY_HOURS,
+      timezone: row?.timezone ?? DEFAULT_TIMEZONE,
+   };
+}
+
+async function loadBusyIntervals(
+   executor: Executor,
+   coordinatorId: string,
+   bounds: { start: Date; end: Date },
+   now: Date,
+): Promise<BusyInterval[]> {
+   const rows = await executor
+      .select({
+         scheduledAt: privateLessonSessions.scheduledAt,
+         status: privateLessonSessions.status,
+         createdAt: privateLessonSessions.createdAt,
+         durationMinutes: services.durationMinutes,
       })
-      .returning({ id: privateLessonSessions.id });
+      .from(privateLessonSessions)
+      .innerJoin(services, eq(services.id, privateLessonSessions.serviceId))
+      .where(
+         and(
+            eq(privateLessonSessions.coordinatorId, coordinatorId),
+            isNotNull(privateLessonSessions.scheduledAt),
+            inArray(privateLessonSessions.status, [
+               "awaiting_payment",
+               "pending",
+               "confirmed",
+               "completed",
+            ]),
+            gte(
+               privateLessonSessions.scheduledAt,
+               new Date(bounds.start.getTime() - MAX_LESSON_MS),
+            ),
+            lt(privateLessonSessions.scheduledAt, bounds.end),
+         ),
+      );
 
-   return { privateLessonSessionId: row.id };
+   return rows
+      .filter(
+         (row) =>
+            row.scheduledAt &&
+            !(
+               row.status === "awaiting_payment" &&
+               isStaleHold(row.createdAt, now)
+            ),
+      )
+      .map((row) => ({
+         start: row.scheduledAt!,
+         end: new Date(
+            row.scheduledAt!.getTime() + row.durationMinutes * 60_000,
+         ),
+      }));
+}
+
+async function computeSlots(
+   executor: Executor,
+   {
+      service,
+      hours,
+      timezone,
+      from,
+      to,
+      now,
+      ignoreBookings = false,
+   }: {
+      service: SchedulableService;
+      hours: CoordinatorWeeklyHours;
+      timezone: string;
+      from: string;
+      to: string;
+      now: Date;
+      ignoreBookings?: boolean;
+   },
+): Promise<BookableSlot[]> {
+   const overrideRows = await executor
+      .select({
+         date: coordinatorAvailabilityOverrides.date,
+         windows: coordinatorAvailabilityOverrides.windows,
+      })
+      .from(coordinatorAvailabilityOverrides)
+      .where(
+         and(
+            eq(
+               coordinatorAvailabilityOverrides.coordinatorId,
+               service.coordinatorId,
+            ),
+            gte(coordinatorAvailabilityOverrides.date, from),
+            lte(coordinatorAvailabilityOverrides.date, to),
+         ),
+      );
+   const overrides: Record<string, AvailabilityOverrideWindow[]> = {};
+   for (const row of overrideRows) overrides[row.date] = row.windows;
+
+   const busy = ignoreBookings
+      ? []
+      : await loadBusyIntervals(
+           executor,
+           service.coordinatorId,
+           rangeBounds(from, to, timezone),
+           now,
+        );
+
+   return generateBookableSlots({
+      occurrences: availabilityForRange({ hours, overrides, from, to }),
+      timeZone: timezone,
+      durationMinutes: service.durationMinutes,
+      busy,
+      now,
+   });
+}
+
+export type ListBookableSlotsResult =
+   | {
+        timezone: string;
+        from: string;
+        to: string;
+        today: string;
+        slots: BookableSlot[];
+        nextAvailableDate: string | null;
+     }
+   | { error: string };
+
+export async function listBookableSlots(
+   input: unknown,
+): Promise<ListBookableSlotsResult> {
+   const parsed = listBookableSlotsSchema.safeParse(input);
+   if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+   }
+
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) return { error: "Not authenticated" };
+
+   const service = await loadPrivateLesson(parsed.data.serviceId);
+   if ("error" in service) return service;
+   if (!service.isScheduled)
+      return { error: "This lesson is not booked at a set time" };
+
+   const now = new Date();
+   const { hours, timezone } = await loadWeeklyHours(db, service.coordinatorId);
+   const today = todayInTimeZone(timezone, now);
+   const from = parsed.data.from ?? startOfWeekMonday(today);
+   const to = parsed.data.to ?? addDays(from, 6);
+
+   const slots = await computeSlots(db, {
+      service,
+      hours,
+      timezone,
+      from,
+      to,
+      now,
+   });
+
+   let nextAvailableDate: string | null = null;
+   if (slots.length === 0) {
+      const searchFrom = addDays(to, 1) > today ? addDays(to, 1) : today;
+      const upcoming = await computeSlots(db, {
+         service,
+         hours,
+         timezone,
+         from: searchFrom,
+         to: addDays(searchFrom, NEXT_AVAILABLE_SEARCH_DAYS),
+         now,
+      });
+      nextAvailableDate = upcoming[0]?.date ?? null;
+   }
+
+   return { timezone, from, to, today, slots, nextAvailableDate };
+}
+
+export type ReservePrivateLessonSessionResult =
+   | { privateLessonSessionId: string }
+   | { error: string; code?: "slot_required" | "slot_taken" | "invalid_slot" };
+
+export async function reservePrivateLessonSession(
+   input: unknown,
+): Promise<ReservePrivateLessonSessionResult> {
+   const parsed = reservePrivateLessonSessionSchema.safeParse(input);
+   if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+   }
+
+   const supabase = await createClient();
+   const {
+      data: { user },
+   } = await supabase.auth.getUser();
+   if (!user) return { error: "Not authenticated" };
+
+   const service = await loadPrivateLesson(parsed.data.serviceId);
+   if ("error" in service) return service;
+
+   if (!service.isScheduled) {
+      const [row] = await db
+         .insert(privateLessonSessions)
+         .values({
+            userId: user.id,
+            serviceId: service.id,
+            coordinatorId: service.coordinatorId,
+            selectedTimeSlots: null,
+            status: "awaiting_payment",
+         })
+         .returning({ id: privateLessonSessions.id });
+      return { privateLessonSessionId: row.id };
+   }
+
+   const { slotStart } = parsed.data;
+   if (!slotStart) {
+      return { error: "Pick a time for your lesson", code: "slot_required" };
+   }
+   const requested = new Date(slotStart).toISOString();
+
+   return db.transaction(async (tx) => {
+      // Serialize bookings per coordinator for the rest of the transaction.
+      await tx
+         .select({ id: profiles.id })
+         .from(profiles)
+         .where(eq(profiles.id, service.coordinatorId))
+         .for("update");
+
+      const now = new Date();
+      const { hours, timezone } = await loadWeeklyHours(
+         tx,
+         service.coordinatorId,
+      );
+      const date = todayInTimeZone(timezone, new Date(requested));
+      const range = {
+         service,
+         hours,
+         timezone,
+         from: addDays(date, -1),
+         to: addDays(date, 1),
+         now,
+      };
+
+      const open = await computeSlots(tx, range);
+      const slot = open.find((candidate) => candidate.start === requested);
+      if (!slot) {
+         const offered = await computeSlots(tx, {
+            ...range,
+            ignoreBookings: true,
+         });
+         return offered.some((candidate) => candidate.start === requested)
+            ? {
+                 error: "That time was just booked. Please pick another time.",
+                 code: "slot_taken" as const,
+              }
+            : {
+                 error: "That time isn't available. Please pick another time.",
+                 code: "invalid_slot" as const,
+              };
+      }
+
+      const [row] = await tx
+         .insert(privateLessonSessions)
+         .values({
+            userId: user.id,
+            serviceId: service.id,
+            coordinatorId: service.coordinatorId,
+            scheduledAt: new Date(slot.start),
+            selectedTimeSlots: null,
+            status: "awaiting_payment",
+         })
+         .returning({ id: privateLessonSessions.id });
+      return { privateLessonSessionId: row.id };
+   });
 }
 
 async function authorizeCoordinatorAvailability(
@@ -241,6 +521,46 @@ export async function fetchCoordinatorAvailabilityEditorState(
       timezone: hoursRow?.timezone ?? "America/Toronto",
       override,
    };
+}
+
+export type CoordinatorAvailabilityOverride = {
+   date: string;
+   windows: AvailabilityOverrideWindow[];
+};
+
+export type ListCoordinatorAvailabilityOverridesResult =
+   | { overrides: CoordinatorAvailabilityOverride[] }
+   | { error: string };
+
+export async function listCoordinatorAvailabilityOverrides(
+   input: unknown,
+): Promise<ListCoordinatorAvailabilityOverridesResult> {
+   const parsed = listCoordinatorAvailabilityOverridesSchema.safeParse(input);
+   if (!parsed.success) {
+      return {
+         error: parsed.error.issues[0]?.message ?? "Invalid input",
+      };
+   }
+
+   const { coordinatorId, from } = parsed.data;
+   const denied = await authorizeCoordinatorAvailability(coordinatorId);
+   if (denied) return denied;
+
+   const rows = await db
+      .select({
+         date: coordinatorAvailabilityOverrides.date,
+         windows: coordinatorAvailabilityOverrides.windows,
+      })
+      .from(coordinatorAvailabilityOverrides)
+      .where(
+         and(
+            eq(coordinatorAvailabilityOverrides.coordinatorId, coordinatorId),
+            gte(coordinatorAvailabilityOverrides.date, from),
+         ),
+      )
+      .orderBy(asc(coordinatorAvailabilityOverrides.date));
+
+   return { overrides: rows };
 }
 
 export type ListCoordinatorAvailabilityResult =

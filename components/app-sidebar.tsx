@@ -13,6 +13,7 @@ import {
    Form,
    CalendarClock,
    Baby,
+   CalendarRange,
    LogOut,
    type LucideIcon,
 } from "lucide-react";
@@ -109,6 +110,13 @@ export function AppSidebar({
             title: "My children",
             href: "/children",
             icon: Baby,
+         });
+      }
+      if (role === ROLES.COORDINATOR) {
+         items.push({
+            title: "Availability",
+            href: "/availability",
+            icon: CalendarRange,
          });
       }
       return items;

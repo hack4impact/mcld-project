@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -28,18 +28,14 @@ import type { ProductDiscountForUser } from "@/lib/stripe";
 import { serviceTypeLabel } from "@/lib/service-labels";
 
 import { checkoutServiceBooking, startPrivateLessonCheckout } from "../actions";
-import { AvailabilityCalendar } from "@/components/scheduling/availability-calendar";
-import type { TimeSlot, Weekday } from "@/lib/scheduling/time-slot";
+import { SlotPicker } from "@/components/scheduling/slot-picker";
+import { formatShortDate, formatTime } from "@/lib/availability-editor";
+import type { BookableSlot } from "@/lib/booking-slots";
 
 type CheckoutFlowProps = {
    service: ServiceView;
    discount: ProductDiscountForUser | null;
 };
-
-const AVAILABILITY_WEEKS = 2;
-const AVAILABILITY_DAYS: Weekday[] = ["mon", "tue", "wed", "thu", "fri"];
-const AVAILABILITY_START_HOUR = 8;
-const AVAILABILITY_END_HOUR = 20;
 
 function formatPrice(cents: number | null, currency: string | null) {
    if (cents === null) return "—";
@@ -123,20 +119,15 @@ function PoweredByStripe() {
 }
 
 export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
-   const [step, setStep] = React.useState<"confirm" | "availability">(
-      "confirm",
-   );
+   const [step, setStep] = React.useState<"confirm" | "time">("confirm");
    const [submitting, setSubmitting] = React.useState(false);
-   const [availabilities, setAvailabilities] = React.useState<TimeSlot[]>([]);
-   const [anchor, setAnchor] = React.useState<Date | null>(null);
-
-   React.useEffect(() => {
-      setAnchor(new Date());
-   }, []);
+   const [slot, setSlot] = React.useState<BookableSlot | null>(null);
+   const [slotError, setSlotError] = React.useState<string | null>(null);
+   const [pickerRefresh, setPickerRefresh] = React.useState(0);
 
    const isPrivateLesson = service.type === "private_lessons";
    const pricing = buildPricing(service, discount);
-   const showAvailabilityStep = isPrivateLesson;
+   const showTimeStep = isPrivateLesson && service.isScheduled;
 
    async function handleProgramCheckout() {
       setSubmitting(true);
@@ -150,17 +141,23 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
    }
 
    async function handlePrivateLessonCheckout() {
-      if (availabilities.length === 0) {
-         toast.error("Pick at least one availability window.");
+      if (showTimeStep && !slot) {
+         toast.error("Pick a time for your lesson.");
          return;
       }
       setSubmitting(true);
+      setSlotError(null);
       const result = await startPrivateLessonCheckout({
          serviceId: service.id,
-         availabilities,
+         ...(showTimeStep && slot ? { slotStart: slot.start } : {}),
       });
       if ("error" in result) {
          setSubmitting(false);
+         if (result.code === "slot_taken" || result.code === "invalid_slot") {
+            setSlot(null);
+            setSlotError(result.error);
+            setPickerRefresh((n) => n + 1);
+         }
          toast.error(result.error);
          return;
       }
@@ -168,8 +165,12 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
    }
 
    function handleNextOnConfirm() {
+      if (showTimeStep) {
+         setStep("time");
+         return;
+      }
       if (isPrivateLesson) {
-         setStep("availability");
+         void handlePrivateLessonCheckout();
          return;
       }
       void handleProgramCheckout();
@@ -177,7 +178,7 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
 
    return (
       <div className="flex flex-col gap-6">
-         {showAvailabilityStep && (
+         {showTimeStep && (
             <Stepper
                value={step}
                nonInteractive
@@ -191,10 +192,10 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
                      </StepperTrigger>
                      <StepperSeparator />
                   </StepperItem>
-                  <StepperItem value="availability">
+                  <StepperItem value="time">
                      <StepperTrigger className="gap-2">
                         <StepperIndicator>2</StepperIndicator>
-                        <StepperTitle>Availability</StepperTitle>
+                        <StepperTitle>Time</StepperTitle>
                      </StepperTrigger>
                   </StepperItem>
                </StepperList>
@@ -281,23 +282,33 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
             <Card>
                <CardHeader className="space-y-2">
                   <h2 className="font-heading text-xl font-semibold">
-                     Pick your availabilities
+                     Pick a time
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                     Click and drag any time blocks that work for you over the
-                     next two weeks. Your coordinator will be in touch to
-                     confirm a time from your choices.
+                     Choose one of the open times below for your{" "}
+                     {service.durationMinutes}-minute lesson. Your time is held
+                     for 30 minutes while you pay, and the lesson is confirmed
+                     as soon as payment goes through.
                   </p>
                </CardHeader>
-               <CardContent>
-                  <AvailabilityCalendar
-                     weeks={AVAILABILITY_WEEKS}
-                     daysOfWeek={AVAILABILITY_DAYS}
-                     startHour={AVAILABILITY_START_HOUR}
-                     endHour={AVAILABILITY_END_HOUR}
-                     anchor={anchor}
-                     value={availabilities}
-                     onChange={setAvailabilities}
+               <CardContent className="flex flex-col gap-4">
+                  {slotError && (
+                     <p
+                        role="alert"
+                        className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive"
+                     >
+                        <AlertCircle className="size-4 shrink-0" />
+                        {slotError}
+                     </p>
+                  )}
+                  <SlotPicker
+                     serviceId={service.id}
+                     value={slot}
+                     onChange={(next) => {
+                        setSlot(next);
+                        setSlotError(null);
+                     }}
+                     refreshKey={pickerRefresh}
                   />
                </CardContent>
                <CardFooter className="flex-col gap-3 border-t bg-muted/40 px-6 py-4 sm:flex-row sm:justify-between">
@@ -310,14 +321,23 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
                      <ArrowLeft className="mr-1 h-4 w-4" />
                      Back
                   </Button>
-                  <Button
-                     onClick={handlePrivateLessonCheckout}
-                     disabled={submitting || availabilities.length === 0}
-                     size="lg"
-                     className="w-full sm:w-auto"
-                  >
-                     {submitting ? "Redirecting…" : "Continue to payment"}
-                  </Button>
+                  <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
+                     {slot && (
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                           <CalendarCheck className="size-4 text-primary" />
+                           {formatShortDate(slot.date)} at{" "}
+                           {formatTime(slot.time)}
+                        </p>
+                     )}
+                     <Button
+                        onClick={handlePrivateLessonCheckout}
+                        disabled={submitting || !slot}
+                        size="lg"
+                        className="w-full sm:w-auto"
+                     >
+                        {submitting ? "Redirecting…" : "Continue to payment"}
+                     </Button>
+                  </div>
                </CardFooter>
             </Card>
          )}

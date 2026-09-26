@@ -28,6 +28,10 @@ const user: UserRow = {
    invitePending: false,
 };
 
+function isSubmitted(name: string) {
+   return document.querySelector(`input[name="${name}"]`) !== null;
+}
+
 function submitted(name: string) {
    const inputs = document.querySelectorAll<HTMLInputElement>(
       `input[name="${name}"]`,
@@ -39,7 +43,7 @@ function submitted(name: string) {
 }
 
 describe("EditUserDialog", () => {
-   it("prefills the user's contact details under the names the action reads", () => {
+   it("prefills the user's contact details but submits none until changed", () => {
       render(<EditUserDialog user={user} open onOpenChange={jest.fn()} />);
 
       expect(screen.getByLabelText("Phone")).toHaveValue("5145550100");
@@ -49,10 +53,35 @@ describe("EditUserDialog", () => {
          screen.getByRole("combobox", { name: "Gender" }),
       ).toHaveTextContent("Female");
 
-      expect(submitted("phone")).toBe("5145550100");
-      expect(submitted("dob")).toBe("1990-04-12");
-      expect(submitted("address")).toBe("123 Main St");
-      expect(submitted("gender")).toBe("female");
+      for (const name of ["phone", "dob", "address", "gender"]) {
+         expect(isSubmitted(name)).toBe(false);
+      }
+   });
+
+   it("submits a field once it changes, including a cleared one", () => {
+      render(<EditUserDialog user={user} open onOpenChange={jest.fn()} />);
+
+      fireEvent.change(screen.getByLabelText("Phone"), {
+         target: { value: "438 555 0199" },
+      });
+      fireEvent.change(screen.getByLabelText("Address"), {
+         target: { value: "" },
+      });
+
+      expect(submitted("phone")).toBe("438 555 0199");
+      expect(submitted("address")).toBe("");
+      expect(isSubmitted("dob")).toBe(false);
+      expect(isSubmitted("gender")).toBe(false);
+   });
+
+   it("stops submitting a field changed back to its original value", () => {
+      render(<EditUserDialog user={user} open onOpenChange={jest.fn()} />);
+      const phone = screen.getByLabelText("Phone");
+
+      fireEvent.change(phone, { target: { value: "438 555 0199" } });
+      fireEvent.change(phone, { target: { value: "5145550100" } });
+
+      expect(isSubmitted("phone")).toBe(false);
    });
 
    it("leaves every field empty when the user has no details", () => {
@@ -73,10 +102,11 @@ describe("EditUserDialog", () => {
       expect(
          screen.getByRole("combobox", { name: "Gender" }),
       ).toHaveTextContent("Not specified");
-      expect(submitted("gender")).toBe("");
-      expect(submitted("phone")).toBe("");
-      expect(submitted("dob")).toBe("");
-      expect(submitted("address")).toBe("");
+      expect(screen.getByLabelText("Phone")).toHaveValue("");
+      expect(screen.getByLabelText("Address")).toHaveValue("");
+      for (const name of ["phone", "dob", "address", "gender"]) {
+         expect(isSubmitted(name)).toBe(false);
+      }
    });
 
    it("keeps the typed values when the server rejects them", async () => {
@@ -101,7 +131,10 @@ describe("EditUserDialog", () => {
       expect(formData.get("address")).toBe("456 Side St");
       expect(screen.getByLabelText("Phone")).toHaveValue("12345");
       expect(screen.getByLabelText("Address")).toHaveValue("456 Side St");
-      expect(submitted("gender")).toBe("female");
+      expect(formData.has("gender")).toBe(false);
+      expect(
+         screen.getByRole("combobox", { name: "Gender" }),
+      ).toHaveTextContent("Female");
    });
 });
 
