@@ -26,11 +26,18 @@ export function KidTable({ registrations }: { registrations: KidRegistration[] }
             id: "child",
             header: "Child",
             meta: { colWidth: "22%" },
-            cell: ({ row }) => (
-               <span className="font-medium text-sm">
-                  {row.original.child.firstName} {row.original.child.lastName}
-               </span>
-            ),
+            cell: ({ row }) => {
+               const child = row.original.child;
+               return child ? (
+                  <span className="font-medium text-sm">
+                     {child.firstName} {child.lastName}
+                  </span>
+               ) : (
+                  <span className="text-sm text-muted-foreground">
+                     Not selected
+                  </span>
+               );
+            },
          },
          {
             id: "dob",
@@ -38,7 +45,9 @@ export function KidTable({ registrations }: { registrations: KidRegistration[] }
             meta: { colWidth: "16%" },
             cell: ({ row }) => (
                <span className="text-sm text-muted-foreground">
-                  {formatDate(row.original.child.dob)}
+                  {row.original.child
+                     ? formatDate(row.original.child.dob)
+                     : "—"}
                </span>
             ),
          },
@@ -46,11 +55,16 @@ export function KidTable({ registrations }: { registrations: KidRegistration[] }
             id: "gender",
             header: "Gender",
             meta: { colWidth: "16%" },
-            cell: ({ row }) => (
-               <span className="text-sm text-muted-foreground">
-                  {GENDER_LABELS[row.original.child.gender] ?? row.original.child.gender}
-               </span>
-            ),
+            cell: ({ row }) => {
+               const child = row.original.child;
+               return (
+                  <span className="text-sm text-muted-foreground">
+                     {child
+                        ? (GENDER_LABELS[child.gender] ?? child.gender)
+                        : "—"}
+                  </span>
+               );
+            },
          },
          {
             id: "parent",
@@ -79,24 +93,25 @@ export function KidTable({ registrations }: { registrations: KidRegistration[] }
             id: "info",
             header: () => <div className="text-right">Info</div>,
             meta: { colWidth: "12%", thClassName: "text-right", tdClassName: "text-right" },
-            cell: ({ row }) => (
-               <Tooltip>
-                  <TooltipTrigger asChild>
-                     <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="View child profile"
-                        onClick={() => {
-                           setSelected(row.original);
-                           setModalOpen(true);
-                        }}
-                     >
-                        <Info />
-                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>View profile</TooltipContent>
-               </Tooltip>
-            ),
+            cell: ({ row }) =>
+               row.original.child && (
+                  <Tooltip>
+                     <TooltipTrigger asChild>
+                        <Button
+                           variant="ghost"
+                           size="icon-sm"
+                           aria-label="View child profile"
+                           onClick={() => {
+                              setSelected(row.original);
+                              setModalOpen(true);
+                           }}
+                        >
+                           <Info />
+                        </Button>
+                     </TooltipTrigger>
+                     <TooltipContent>View profile</TooltipContent>
+                  </Tooltip>
+               ),
          },
       ],
       [],

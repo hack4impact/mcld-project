@@ -5,6 +5,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
+   forms,
    profiles,
    programCoordinators,
    services,
@@ -45,6 +46,8 @@ export type ProgramSchedule = {
 
 const SERVICES_PATH = "/services";
 const SERVICES_TAG = "services";
+const FORMS_PATH = "/forms";
+const FORMS_TAG = "forms";
 
 const serviceTypeSchema = z.enum(["private_lessons", "programs"]);
 const statusSchema = z.enum(["active", "disabled", "archived", "deleted"]);
@@ -68,6 +71,7 @@ const baseFields = z.object({
    price_cad: z.string().min(1, "Price is required"),
    requires_subscription: z.enum(["true", "false"]),
    is_scheduled: z.enum(["true", "false"]).optional(),
+   is_for_children: z.enum(["true", "false"]).optional(),
 });
 
 const ALLOWED_TRANSITIONS: Record<
@@ -83,6 +87,11 @@ const ALLOWED_TRANSITIONS: Record<
 function bustServicesCache() {
    updateTag(SERVICES_TAG);
    revalidatePath(SERVICES_PATH);
+}
+
+function bustFormsCache() {
+   updateTag(FORMS_TAG);
+   revalidatePath(FORMS_PATH);
 }
 
 function field(formData: FormData, name: string): string | undefined {
@@ -222,6 +231,24 @@ function parseCoordinatorId(formData: FormData): ParseResult<string> {
    return { ok: true, value: result.data };
 }
 
+function parseFormId(formData: FormData): ParseResult<string | null> {
+   const raw = field(formData, "form_id");
+   if (!raw) return { ok: true, value: null };
+   const result = z.string().uuid().safeParse(raw);
+   if (!result.success) {
+      return { ok: false, errors: { form_id: ["Invalid form"] } };
+   }
+   return { ok: true, value: result.data };
+}
+
+async function formExists(id: string): Promise<boolean> {
+   const found = await db
+      .select({ id: forms.id })
+      .from(forms)
+      .where(eq(forms.id, id));
+   return found.length > 0;
+}
+
 export async function createService(
    _prev: ServiceActionState,
    formData: FormData,
@@ -242,6 +269,7 @@ export async function createService(
       price_cad: formData.get("price_cad"),
       requires_subscription: formData.get("requires_subscription"),
       is_scheduled: field(formData, "is_scheduled") || undefined,
+      is_for_children: field(formData, "is_for_children") || undefined,
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -280,6 +308,14 @@ export async function createService(
       else coordinatorIdValue = coordinator.value;
    }
 
+   const isForChildren = field(formData, "is_for_children") === "true";
+   let formIdValue: string | null = null;
+   if (isForChildren) {
+      const form = parseFormId(formData);
+      if (!form.ok) Object.assign(errors, form.errors);
+      else formIdValue = form.value;
+   }
+
    if (
       Object.keys(errors).length === 0 &&
       (await missingCoordinators(coordinatorIdsValue))
@@ -292,6 +328,13 @@ export async function createService(
       (await missingCoordinators([coordinatorIdValue]))
    ) {
       errors.coordinator_id = ["The selected coordinator no longer exists"];
+   }
+   if (
+      Object.keys(errors).length === 0 &&
+      formIdValue &&
+      !(await formExists(formIdValue))
+   ) {
+      errors.form_id = ["The selected form no longer exists"];
    }
 
    if (Object.keys(errors).length > 0) {
@@ -328,6 +371,8 @@ export async function createService(
                status: "active",
                requiresSubscription: requires_subscription === "true",
                isScheduled: type === "private_lessons" && is_scheduled === "true",
+               isForChildren,
+               formId: formIdValue,
             })
             .returning({ id: services.id });
 
@@ -352,6 +397,7 @@ export async function createService(
    }
 
    bustServicesCache();
+   if (formIdValue) bustFormsCache();
    return { message: "Service created." };
 }
 
@@ -377,6 +423,7 @@ const updateFields = z.object({
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
    requires_subscription: z.enum(["true", "false"]).optional(),
    is_scheduled: z.enum(["true", "false"]).optional(),
+   is_for_children: z.enum(["true", "false"]).optional(),
 });
 
 export async function updateService(
@@ -400,6 +447,7 @@ export async function updateService(
       requires_subscription:
          field(formData, "requires_subscription") || undefined,
       is_scheduled: field(formData, "is_scheduled") || undefined,
+      is_for_children: field(formData, "is_for_children") || undefined,
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -468,6 +516,20 @@ export async function updateService(
       else coordinatorIdValue = coordinator.value;
    }
 
+   const isForChildrenRaw = field(formData, "is_for_children");
+   const isForChildren =
+      isForChildrenRaw === undefined
+         ? row.isForChildren
+         : isForChildrenRaw === "true";
+   let formIdValue: string | null | undefined;
+   if (!isForChildren) {
+      if (isForChildrenRaw !== undefined) formIdValue = null;
+   } else if (formData.has("form_id")) {
+      const form = parseFormId(formData);
+      if (!form.ok) Object.assign(errors, form.errors);
+      else formIdValue = form.value;
+   }
+
    if (
       Object.keys(errors).length === 0 &&
       coordinatorIdsValue &&
@@ -481,6 +543,13 @@ export async function updateService(
       (await missingCoordinators([coordinatorIdValue]))
    ) {
       errors.coordinator_id = ["The selected coordinator no longer exists"];
+   }
+   if (
+      Object.keys(errors).length === 0 &&
+      formIdValue &&
+      !(await formExists(formIdValue))
+   ) {
+      errors.form_id = ["The selected form no longer exists"];
    }
 
    if (Object.keys(errors).length > 0) {
@@ -526,6 +595,8 @@ export async function updateService(
       if (is_scheduled !== undefined && row.type === "private_lessons") {
          dbPatch.isScheduled = is_scheduled === "true";
       }
+      if (isForChildrenRaw !== undefined) dbPatch.isForChildren = isForChildren;
+      if (formIdValue !== undefined) dbPatch.formId = formIdValue;
 
       await db.transaction(async (tx) => {
          if (Object.keys(dbPatch).length > 0) {
@@ -552,6 +623,9 @@ export async function updateService(
    }
 
    bustServicesCache();
+   if (formIdValue !== undefined && formIdValue !== row.formId) {
+      bustFormsCache();
+   }
    return { message: "Service updated." };
 }
 

@@ -1,6 +1,7 @@
 /**
  * @jest-environment node
  */
+import { updateTag } from "next/cache";
 import {
    createService,
    updateService,
@@ -518,5 +519,178 @@ describe("coordinator writes", () => {
 
       expect(result?.errors?._form).toBeDefined();
       expect(updateProduct).toHaveBeenCalledWith("prod_1", { active: false });
+   });
+});
+
+describe("audience and form", () => {
+   const FORM_ID = "44444444-4444-4444-4444-444444444444";
+   const program = {
+      title: "Summer Program",
+      description: "Group program",
+      type: "programs",
+      duration_minutes: "60",
+      price_cad: "100.00",
+      start_date: "2026-01-01",
+      end_date: "2026-02-01",
+      slots: JSON.stringify([{ dayOfWeek: 1, time: "10:00" }]),
+      requires_subscription: "true",
+   };
+   const privateLesson = {
+      title: "1:1 Lesson",
+      description: "A private session",
+      type: "private_lessons",
+      duration_minutes: "60",
+      price_cad: "50.00",
+      requires_subscription: "true",
+      coordinator_id: COORDINATOR_A,
+   };
+
+   function existingService(fields: Record<string, unknown>) {
+      selectLimit.mockResolvedValue([
+         {
+            id: SERVICE_ID,
+            status: "active",
+            stripeProductId: "prod_1",
+            isForChildren: false,
+            formId: null,
+            ...fields,
+         },
+      ]);
+   }
+
+   it("creates a children's program with a form", async () => {
+      const result = await createService(
+         null,
+         fd({ ...program, is_for_children: "true", form_id: FORM_ID }),
+      );
+
+      expect(result).toEqual({ message: "Service created." });
+      expect(insertValues).toHaveBeenCalledWith(
+         expect.objectContaining({ isForChildren: true, formId: FORM_ID }),
+      );
+      expect(updateTag).toHaveBeenCalledWith("forms");
+   });
+
+   it("creates a children's private lesson without a form", async () => {
+      const result = await createService(
+         null,
+         fd({ ...privateLesson, is_for_children: "true", form_id: "" }),
+      );
+
+      expect(result).toEqual({ message: "Service created." });
+      expect(insertValues).toHaveBeenCalledWith(
+         expect.objectContaining({ isForChildren: true, formId: null }),
+      );
+   });
+
+   it("never attaches a form to an adults service", async () => {
+      await createService(
+         null,
+         fd({ ...program, is_for_children: "false", form_id: FORM_ID }),
+      );
+
+      expect(insertValues).toHaveBeenCalledWith(
+         expect.objectContaining({ isForChildren: false, formId: null }),
+      );
+   });
+
+   it("rejects a form that no longer exists", async () => {
+      coordinatorLookup.mockReturnValueOnce([]);
+
+      const result = await createService(
+         null,
+         fd({ ...program, is_for_children: "true", form_id: FORM_ID }),
+      );
+
+      expect(result?.errors?.form_id).toEqual([
+         "The selected form no longer exists",
+      ]);
+      expect(createProduct).not.toHaveBeenCalled();
+   });
+
+   it("rejects a malformed form id", async () => {
+      const result = await createService(
+         null,
+         fd({ ...program, is_for_children: "true", form_id: "not-a-form" }),
+      );
+
+      expect(result?.errors?.form_id).toEqual(["Invalid form"]);
+      expect(createProduct).not.toHaveBeenCalled();
+   });
+
+   it("clears the form when a service switches to adults", async () => {
+      existingService({
+         type: "programs",
+         isForChildren: true,
+         formId: FORM_ID,
+      });
+
+      const result = await updateService(
+         null,
+         fd({ service_id: SERVICE_ID, is_for_children: "false" }),
+      );
+
+      expect(result).toEqual({ message: "Service updated." });
+      expect(updateSet).toHaveBeenCalledWith(
+         expect.objectContaining({ isForChildren: false, formId: null }),
+      );
+      expect(updateTag).toHaveBeenCalledWith("forms");
+   });
+
+   it("saves the audience and form of a private lesson", async () => {
+      existingService({ type: "private_lessons" });
+
+      const result = await updateService(
+         null,
+         fd({
+            service_id: SERVICE_ID,
+            is_for_children: "true",
+            form_id: FORM_ID,
+         }),
+      );
+
+      expect(result).toEqual({ message: "Service updated." });
+      expect(updateSet).toHaveBeenCalledWith(
+         expect.objectContaining({ isForChildren: true, formId: FORM_ID }),
+      );
+   });
+
+   it("leaves the audience and form alone when they aren't sent", async () => {
+      existingService({
+         type: "programs",
+         isForChildren: true,
+         formId: FORM_ID,
+      });
+
+      await updateService(
+         null,
+         fd({ service_id: SERVICE_ID, duration_minutes: "90" }),
+      );
+
+      const [patch] = updateSet.mock.calls[0] as unknown as [
+         Record<string, unknown>,
+      ];
+      expect(patch).toMatchObject({ durationMinutes: 90 });
+      expect(patch).not.toHaveProperty("isForChildren");
+      expect(patch).not.toHaveProperty("formId");
+   });
+
+   it("rejects a form that no longer exists on update", async () => {
+      existingService({ type: "programs", isForChildren: true });
+      coordinatorLookup.mockReturnValueOnce([]);
+
+      const result = await updateService(
+         null,
+         fd({
+            service_id: SERVICE_ID,
+            is_for_children: "true",
+            form_id: FORM_ID,
+         }),
+      );
+
+      expect(result?.errors?.form_id).toEqual([
+         "The selected form no longer exists",
+      ]);
+      expect(updateSet).not.toHaveBeenCalled();
    });
 });

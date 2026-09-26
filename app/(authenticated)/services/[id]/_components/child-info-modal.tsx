@@ -31,8 +31,9 @@ export function ChildInfoModal({
    open: boolean;
    onOpenChange: (open: boolean) => void;
 }) {
-   if (!registration) return null;
-   const { child, formAnswers } = registration;
+   const child = registration?.child;
+   if (!registration || !child) return null;
+   const { formAnswers } = registration;
 
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
