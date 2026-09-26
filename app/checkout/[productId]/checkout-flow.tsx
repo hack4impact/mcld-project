@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/stepper";
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
 import type { ProductDiscountForUser } from "@/lib/stripe";
+import { serviceTypeLabel } from "@/lib/service-labels";
 
 import { checkoutServiceBooking, startPrivateLessonCheckout } from "../actions";
 import { AvailabilityCalendar } from "@/components/scheduling/availability-calendar";
@@ -44,10 +45,6 @@ function formatPrice(cents: number | null, currency: string | null) {
    if (cents === null) return "—";
    const symbol = currency?.toUpperCase() ?? "CAD";
    return `$${(cents / 100).toFixed(2)} ${symbol}`;
-}
-
-function serviceTypeLabel(type: ServiceView["type"]) {
-   return type === "private_lessons" ? "Private lesson" : "Program";
 }
 
 function applyDiscount(

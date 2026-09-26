@@ -48,6 +48,7 @@ import type {
    CoordinatorOption,
    ServiceView,
 } from "@/app/(authenticated)/services/queries";
+import { DAY_NAMES } from "@/lib/service-labels";
 
 type FormOption = { id: string; name: string };
 
@@ -60,16 +61,6 @@ type Props = { coordinators: CoordinatorOption[]; forms: FormOption[] } & (
         onOpenChange: (open: boolean) => void;
      }
 );
-
-const DAY_NAMES = [
-   "Sunday",
-   "Monday",
-   "Tuesday",
-   "Wednesday",
-   "Thursday",
-   "Friday",
-   "Saturday",
-] as const;
 
 function FieldError({ messages }: { messages?: string[] }) {
    if (!messages?.length) return null;
