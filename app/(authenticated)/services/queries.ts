@@ -1,5 +1,6 @@
 import { cacheTag } from "next/cache";
 import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
    children,
@@ -12,6 +13,13 @@ import {
    services,
 } from "@/lib/db/schema";
 import { getStripeServiceData } from "@/lib/stripe";
+import {
+   loadCashSessionRegistrations,
+   withoutInvoiceDuplicates,
+   cashSessionDetails,
+   type CashSessionDetails,
+} from "@/lib/cash-session-read-model";
+import { isCashSession } from "@/lib/private-lessons";
 import type { ProgramSchedule } from "@/app/(authenticated)/services/actions";
 
 const SERVICES_TAG = "services";
@@ -19,6 +27,12 @@ const SERVICES_TAG = "services";
 const UUID_RE =
    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COORDINATORS_TAG = "coordinators";
+
+const auth = pgSchema("auth");
+const authUsers = auth.table("users", {
+   id: uuid("id").primaryKey(),
+   email: text("email"),
+});
 
 export type ServiceStatus = "active" | "disabled" | "archived" | "deleted";
 export type ServiceType = "private_lessons" | "programs";
@@ -83,6 +97,31 @@ async function buildServiceView(
    };
 }
 
+// Each service costs 2 Stripe calls; fetching them all at once trips Stripe's
+// rate limit (25 req/s in test mode) as soon as there are a dozen services.
+const STRIPE_CONCURRENCY = 4;
+
+async function buildServiceViews(
+   rows: (typeof services.$inferSelect)[],
+   coordinatorMap: Map<string, string[]>,
+): Promise<ServiceView[]> {
+   const views: ServiceView[] = new Array(rows.length);
+   let next = 0;
+   async function worker() {
+      while (next < rows.length) {
+         const i = next++;
+         views[i] = await buildServiceView(
+            rows[i],
+            coordinatorMap.get(rows[i].id) ?? [],
+         );
+      }
+   }
+   await Promise.all(
+      Array.from({ length: Math.min(STRIPE_CONCURRENCY, rows.length) }, worker),
+   );
+   return views;
+}
+
 /**
  * Load program-coordinator assignments for the given service ids, grouped by
  * service id. Returns an empty map when there are no ids.
@@ -135,11 +174,7 @@ export async function listServices(opts?: {
       .orderBy(desc(services.createdAt));
 
    const coordinatorMap = await loadProgramCoordinators(rows.map((r) => r.id));
-   return Promise.all(
-      rows.map((row) =>
-         buildServiceView(row, coordinatorMap.get(row.id) ?? []),
-      ),
-   );
+   return buildServiceViews(rows, coordinatorMap);
 }
 
 /**
@@ -207,11 +242,7 @@ export async function listServicesForCoordinator(
       .orderBy(desc(services.createdAt));
 
    const coordinatorMap = await loadProgramCoordinators(rows.map((r) => r.id));
-   return Promise.all(
-      rows.map((row) =>
-         buildServiceView(row, coordinatorMap.get(row.id) ?? []),
-      ),
-   );
+   return buildServiceViews(rows, coordinatorMap);
 }
 
 /**
@@ -259,10 +290,17 @@ export type ServiceRegistration = {
    status: string;
    createdAt: Date;
    answers: RegistrationAnswer[];
+   /** Private lesson recorded after the fact and paid in cash. */
+   paidInCash: boolean;
+   cashDetails?: CashSessionDetails;
 };
 
 const REGISTERED_BOOKING_STATUSES = ["pending", "confirmed"] as const;
-const REGISTERED_LESSON_STATUSES = ["pending", "confirmed", "completed"] as const;
+const REGISTERED_LESSON_STATUSES = [
+   "pending",
+   "confirmed",
+   "completed",
+] as const;
 
 type RegistrantRow = {
    bookingId: string;
@@ -273,6 +311,8 @@ type RegistrantRow = {
    childLastName: string | null;
    userFirstName: string;
    userLastName: string;
+   stripeOrderId?: string | null;
+   cashDetails?: CashSessionDetails;
 };
 
 export async function listServiceRegistrations(
@@ -287,7 +327,7 @@ export async function listServiceRegistrations(
       .limit(1);
    if (!service) return [];
 
-   const rows: RegistrantRow[] =
+   let rows: RegistrantRow[] =
       service.type === "private_lessons"
          ? await db
               .select({
@@ -299,10 +339,17 @@ export async function listServiceRegistrations(
                  childLastName: children.lastName,
                  userFirstName: profiles.firstName,
                  userLastName: profiles.lastName,
+                 stripeOrderId: privateLessonSessions.stripeOrderId,
               })
               .from(privateLessonSessions)
-              .innerJoin(profiles, eq(profiles.id, privateLessonSessions.userId))
-              .leftJoin(children, eq(children.id, privateLessonSessions.childId))
+              .innerJoin(
+                 profiles,
+                 eq(profiles.id, privateLessonSessions.userId),
+              )
+              .leftJoin(
+                 children,
+                 eq(children.id, privateLessonSessions.childId),
+              )
               .where(
                  and(
                     eq(privateLessonSessions.serviceId, serviceId),
@@ -336,6 +383,27 @@ export async function listServiceRegistrations(
                  ),
               )
               .orderBy(desc(serviceBookings.createdAt));
+
+   if (service.type === "private_lessons") {
+      const cash = await loadCashSessionRegistrations({ serviceId });
+      rows = [
+         ...withoutInvoiceDuplicates(rows, cash),
+         ...cash.map(
+            (record): RegistrantRow => ({
+               bookingId: record.invoiceId,
+               status: "completed",
+               createdAt: record.createdAt,
+               childId: record.childId,
+               childFirstName: record.child?.firstName ?? null,
+               childLastName: record.child?.lastName ?? null,
+               userFirstName: record.profile.firstName,
+               userLastName: record.profile.lastName,
+               stripeOrderId: record.invoiceId,
+               cashDetails: cashSessionDetails(record),
+            }),
+         ),
+      ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+   }
 
    const childIds = [
       ...new Set(
@@ -380,7 +448,76 @@ export async function listServiceRegistrations(
       status: r.status,
       createdAt: r.createdAt,
       answers: r.childId ? (answersByChild.get(r.childId) ?? []) : [],
+      paidInCash: isCashSession(r.stripeOrderId ?? null),
+      cashDetails: r.cashDetails,
    }));
+}
+
+export type CashSessionClient = {
+   id: string;
+   firstName: string;
+   lastName: string;
+   email: string;
+   children: { id: string; firstName: string; lastName: string }[];
+};
+
+/**
+ * Registered clients (role `user`) with their children, for picking who a
+ * cash session was for. Pass `userId` to load a single client. Not cached: the list must include just-created
+ * accounts and children.
+ */
+export async function listCashSessionClients(opts?: {
+   userId?: string;
+}): Promise<CashSessionClient[]> {
+   if (opts?.userId !== undefined && !UUID_RE.test(opts.userId)) return [];
+
+   const rows = await db
+      .select({
+         id: profiles.id,
+         firstName: profiles.firstName,
+         lastName: profiles.lastName,
+         email: authUsers.email,
+         childId: children.id,
+         childFirstName: children.firstName,
+         childLastName: children.lastName,
+      })
+      .from(profiles)
+      .innerJoin(authUsers, eq(authUsers.id, profiles.id))
+      .leftJoin(children, eq(children.parentId, profiles.id))
+      .where(
+         and(
+            eq(profiles.role, "user"),
+            opts?.userId ? eq(profiles.id, opts.userId) : undefined,
+         ),
+      )
+      .orderBy(
+         asc(profiles.firstName),
+         asc(profiles.lastName),
+         asc(children.firstName),
+      );
+
+   const byId = new Map<string, CashSessionClient>();
+   for (const r of rows) {
+      let client = byId.get(r.id);
+      if (!client) {
+         client = {
+            id: r.id,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            email: r.email ?? "",
+            children: [],
+         };
+         byId.set(r.id, client);
+      }
+      if (r.childId) {
+         client.children.push({
+            id: r.childId,
+            firstName: r.childFirstName ?? "",
+            lastName: r.childLastName ?? "",
+         });
+      }
+   }
+   return [...byId.values()];
 }
 
 export type CoordinatorOption = {

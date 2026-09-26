@@ -1,3 +1,4 @@
+import { CashSessionDetails } from "../../cash-session-details";
 import { ColumnDef } from "@tanstack/react-table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,8 @@ const columns: ColumnDef<AdultRegistration>[] = [
       meta: { colWidth: "40%", tdClassName: "whitespace-normal align-middle" },
       cell: ({ row }) => {
          const p = row.original.profile;
-         const initials = `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase();
+         const initials =
+            `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase();
          return (
             <div className="flex min-w-0 items-center gap-3">
                <Avatar>
@@ -25,7 +27,9 @@ const columns: ColumnDef<AdultRegistration>[] = [
                   <span className="truncate font-semibold text-sm">
                      {p.firstName} {p.lastName}
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">{p.email}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                     {p.email}
+                  </span>
                </div>
             </div>
          );
@@ -36,9 +40,16 @@ const columns: ColumnDef<AdultRegistration>[] = [
       header: "Status",
       meta: { colWidth: "20%" },
       cell: ({ row }) => (
-         <Badge variant={STATUS_VARIANT[row.original.status] ?? "secondary"} className="capitalize">
-            {row.original.status.replace(/_/g, " ")}
-         </Badge>
+         <div className="space-y-1">
+            <Badge
+               variant={STATUS_VARIANT[row.original.status] ?? "secondary"}
+               className="capitalize"
+            >
+               {row.original.status.replace(/_/g, " ")}
+               {row.original.paidInCash && " · Paid in cash"}
+            </Badge>
+            <CashSessionDetails details={row.original.cashDetails} />
+         </div>
       ),
    },
    {
@@ -53,7 +64,11 @@ const columns: ColumnDef<AdultRegistration>[] = [
    },
 ];
 
-export function AdultTable({ registrations }: { registrations: AdultRegistration[] }) {
+export function AdultTable({
+   registrations,
+}: {
+   registrations: AdultRegistration[];
+}) {
    return (
       <UsersDataTable
          columns={columns}

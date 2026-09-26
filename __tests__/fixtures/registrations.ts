@@ -102,6 +102,7 @@ function session(
       status,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       createdAt: new Date(createdAt),
+      stripeOrderId: null,
       service: svc,
       child: forChild,
    };

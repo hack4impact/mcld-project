@@ -47,6 +47,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
    }
 
+   // Cash attendance is read directly from paid invoices and their metadata.
+   // There is no local cash-session row to synchronize, and these invoice
+   // events must not update membership/subscription state.
+   if (
+      event.type.startsWith("invoice.") &&
+      (event.data.object as Stripe.Invoice).metadata?.type ===
+         "cash_private_lesson"
+   ) {
+      return NextResponse.json({ received: true });
+   }
+
    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata ?? {};
