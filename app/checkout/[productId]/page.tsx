@@ -1,13 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CheckoutButton } from "@/components/subscribe-button";
+import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/server";
 import { getProductDiscountForUser, userHasActiveSubscription } from "@/lib/stripe";
 import { getService } from "@/app/(authenticated)/services/queries";
 
 import { CheckoutFlow } from "./checkout-flow";
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 export default async function CheckoutPage({
    params,
@@ -33,13 +36,7 @@ export default async function CheckoutPage({
       service.requiresSubscription &&
       !(await userHasActiveSubscription(user.id))
    ) {
-      return (
-         <NotAvailable message="This service requires an active membership.">
-            <Button asChild>
-               <Link href="/">Subscribe</Link>
-            </Button>
-         </NotAvailable>
-      );
+      return <MembershipRequired productId={productId} />;
    }
 
    const discount = await getProductDiscountForUser({
@@ -51,6 +48,41 @@ export default async function CheckoutPage({
       <div className="mx-auto w-full max-w-4xl">
          <CheckoutFlow service={service} discount={discount} />
       </div>
+   );
+}
+
+const MEMBERSHIP_PERKS = [
+   "Booking private lessons and programs",
+   "Member pricing on every service",
+   "Cancel anytime",
+];
+
+function MembershipRequired({ productId }: { productId: string }) {
+   return (
+      <Card className="mx-auto w-full max-w-sm">
+         <CardContent className="flex flex-col gap-4">
+            <Badge variant="secondary" className="self-start">
+               Membership needed
+            </Badge>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+               This is a members-only service. An active membership includes:
+            </p>
+            <ul className="flex flex-col gap-2">
+               {MEMBERSHIP_PERKS.map((perk) => (
+                  <li key={perk} className="flex items-center gap-2 text-sm">
+                     <Check className="size-3.5 shrink-0 text-ring" />
+                     {perk}
+                  </li>
+               ))}
+            </ul>
+            <CheckoutButton
+               priceId={process.env.STRIPE_PRICE_ID!}
+               mode="subscription"
+               label="Subscribe"
+               returnTo={`/checkout/${productId}`}
+            />
+         </CardContent>
+      </Card>
    );
 }
 
