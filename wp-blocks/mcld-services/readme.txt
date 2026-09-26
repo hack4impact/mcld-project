@@ -1,45 +1,51 @@
-=== Mcld Services ===
+=== MCLD Services ===
 Contributors:      MCLD
-Tags:              block
+Tags:              elementor, services
+Requires at least: 6.8
+Requires PHP:      7.4
 Tested up to:      6.8
-Stable tag:        0.1.0
+Stable tag:        0.2.0
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
-WordPress block that displays MCLD services pulled from the MCLD dashboard,
-with tabs for Services, Membership, and Donations.
-
-== Description ==
-
-Renders a tabbed interface on the ldmontreal.com homepage. The Services tab
-lists active services from the MCLD dashboard via its public API. Clicking a
-service shows its title, description, and price, and the Register button
-redirects the visitor to the dashboard's Stripe Checkout flow for that
-service. Membership and Donations are placeholder tabs.
+Elementor 3.24+ widget displaying services from Next.js, Supabase, and Stripe.
+Checkout uses a separate dashboard login. Membership and Donations are placeholders.
 
 == Installation ==
 
-1. Build the block:
+1. Build with Node.js 22+ from the repository root:
 
        cd wp-blocks/mcld-services
-       npm install
-       npm run build
+       npm ci
+       npm run plugin-zip
 
-   This generates the `build/` directory the plugin loads from.
+2. With Elementor active and permission to install plugins, upload
+   mcld-services.zip through Plugins > Add New > Upload Plugin and activate it.
+3. Add MCLD Services in Elementor. Set Dashboard API URL to your deployed Next.js
+   public HTTPS base URL, without /api/public/services. Save and preview the page.
 
-2. Copy or symlink `wp-blocks/mcld-services` into the LocalWP site's
-   `wp-content/plugins/` directory and activate "Mcld Services" from the
-   Plugins screen.
+== Local development ==
 
-3. Edit the homepage in the WordPress block editor, delete the existing
-   Amilia block, and insert the "Mcld Services" block in the same spot.
+Configure Next.js credentials as described in the root README; keep them out of
+WordPress. With Node.js 24.18+ and npm 11.16+, run from the repository root:
 
-4. In the block's Inspector sidebar, set "Dashboard API URL" to the base
-   URL of the MCLD Next.js dashboard (e.g. http://localhost:3000 when
-   running it locally alongside LocalWP).
+    pnpm dev                 # Terminal 1
+    pnpm wordpress:preview   # Terminal 2
 
-== Changelog ==
+Open http://127.0.0.1:9463. WordPress, Elementor, and the widget page are set up
+automatically using the real Next.js API. WordPress data resets on restart;
+refresh fetches current services. See the root README for ports and rebuilds.
 
-= 0.1.0 =
-* Initial release: Services tab with list/detail view, Register redirect to
-  dashboard Stripe Checkout, placeholder Membership and Donations tabs.
+For an existing local WordPress site, set this once in wp-config.php:
+
+    define( 'WP_ENVIRONMENT_TYPE', 'local' );
+
+Use http://localhost:3000 as Dashboard API URL. Both servers must share the host
+network; otherwise use a reachable public HTTPS Next.js URL.
+
+Run npm test and npm run build from the plugin directory for tests and assets.
+
+== Notes ==
+
+Installed copies cache services for five minutes; page/CDN caches may last longer.
+Existing Gutenberg blocks must be replaced manually with this Elementor widget.

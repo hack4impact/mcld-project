@@ -1,4 +1,4 @@
-.wp-block-mcld-mcld-services {
+.mcld-services {
 	--mcld-background: oklch(0.9825 0.0098 87.47);
 	--mcld-foreground: oklch(0.3211 0 0);
 	--mcld-muted-foreground: oklch(0.5510 0.0234 264.3637);
@@ -13,9 +13,20 @@
 
 	font-family: Poppins, "Helvetica", "Arial", sans-serif;
 	color: var(--mcld-foreground);
+	min-width: 0;
+	overflow-wrap: anywhere;
+
+	&, * {
+		box-sizing: border-box;
+	}
+
+	[hidden] {
+		display: none !important;
+	}
 
 	.mcld-tabs {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.25rem;
 		border-bottom: 1px solid var(--mcld-border);
 		margin-bottom: 1.5rem;
@@ -56,7 +67,7 @@
 
 	.mcld-services-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
 		gap: 1.5rem;
 	}
 
@@ -82,7 +93,8 @@
 			outline-offset: 2px;
 		}
 
-		h3 {
+		.mcld-service-title {
+			display: block;
 			margin: 0 0 0.5rem;
 			font-size: 1.1rem;
 			color: var(--mcld-foreground);
@@ -95,6 +107,7 @@
 		}
 
 		.mcld-service-price {
+			display: block;
 			font-weight: 600;
 			color: var(--mcld-ring);
 			font-size: 1rem;

@@ -59,6 +59,56 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000). You'll be redirected to `/login` if not authenticated.
 
+## WordPress and Elementor
+
+The **MCLD Services** Elementor widget uses the real Next.js `/api/public/services` endpoint, with services from Supabase and product details/prices from Stripe.
+
+Complete the setup above and add `STRIPE_SECRET_KEY` to `.env.local`. Use the Stripe account and test/live mode matching your service records. All credentials stay in Next.js.
+
+### Quick preview
+
+Requires **Node.js 24.18+ and npm 11.16+**. From the repository root, start Next.js:
+
+```bash
+pnpm dev
+```
+
+In a second terminal:
+
+```bash
+pnpm wordpress:preview
+```
+
+Open **[http://127.0.0.1:9463](http://127.0.0.1:9463)**. The command installs WordPress and Elementor and creates the widget page automatically—no Elementor UI setup needed. WordPress data resets on restart; services still come from your configured Next.js environment.
+
+For different ports:
+
+```bash
+pnpm wordpress:preview --api-url http://localhost:3001 --port 9464
+```
+
+While developing:
+
+- **PHP templates/includes:** edit and refresh.
+- **JS/SCSS:** run `npm run build` in `wp-blocks/mcld-services`, then refresh.
+- **Main plugin file or preview scripts:** restart the preview.
+
+Refresh fetches current services. Stop with **Ctrl+C**; use `pnpm wordpress:preview --help` for options.
+
+### Install on a WordPress site
+
+Requires **WordPress 6.8+, PHP 7.4+, Elementor 3.24+**, and permission to install plugins. Build the ZIP:
+
+```bash
+cd wp-blocks/mcld-services
+npm ci
+npm run plugin-zip
+```
+
+Upload `mcld-services.zip` through **Plugins > Add New > Upload Plugin** and activate it. In Elementor, add **MCLD Services** and set **Dashboard API URL** to your deployed Next.js public HTTPS base URL (without `/api/public/services`).
+
+See the [plugin readme](wp-blocks/mcld-services/readme.txt) for persistent local WordPress setup, caching, and testing.
+
 ## Adding shadcn/ui components
 
 ```bash
@@ -95,4 +145,6 @@ utils/supabase/
 proxy.ts              # Next.js 16 proxy (replaces middleware.ts)
 drizzle/              # Drizzle schema + migrations
 drizzle.config.ts     # Drizzle config
+wp-blocks/
+  mcld-services/      # Native Elementor services widget and its build scripts
 ```

@@ -14,6 +14,7 @@ build/
 
 # Dependency directories
 node_modules/
+.cache/
 
 # Optional npm cache directory
 .npm
@@ -24,7 +25,7 @@ node_modules/
 # Output of `npm pack`
 *.tgz
 
-# Output of `wp-scripts plugin-zip`
+# Output of `npm run plugin-zip`
 *.zip
 
 # dotenv environment variables file
