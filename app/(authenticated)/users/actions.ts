@@ -44,13 +44,17 @@ export async function updateUserAdmin(
       user_id: formData.get("user_id"),
       email: formData.get("email"),
       role: formData.get("role"),
+      address: formData.get("address"),
+      gender: formData.get("gender"),
+      dob: formData.get("dob"),
+      phone: formData.get("phone"),
    });
 
    if (!parsed.success) {
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const { user_id, email, role } = parsed.data;
+   const { user_id, email, role, address, gender, dob, phone } = parsed.data;
 
    const profile = await db.query.profiles.findFirst({
       where: eq(profiles.id, user_id),
@@ -79,7 +83,14 @@ export async function updateUserAdmin(
    try {
       await db
          .update(profiles)
-         .set({ role: role as Role, updatedAt: new Date() })
+         .set({
+            role: role as Role,
+            address,
+            gender,
+            dob,
+            phone,
+            updatedAt: new Date(),
+         })
          .where(eq(profiles.id, user_id));
    } catch {
       return {
@@ -109,14 +120,28 @@ export async function createUserAdmin(
       confirm_password: formData.get("confirm_password"),
       role: formData.get("role"),
       subscription_months: formData.get("subscription_months") ?? "0",
+      address: formData.get("address"),
+      gender: formData.get("gender"),
+      dob: formData.get("dob"),
+      phone: formData.get("phone"),
    });
 
    if (!parsed.success) {
       return { errors: parsed.error.flatten().fieldErrors };
    }
 
-   const { first_name, last_name, email, password, role, subscription_months } =
-      parsed.data;
+   const {
+      first_name,
+      last_name,
+      email,
+      password,
+      role,
+      subscription_months,
+      address,
+      gender,
+      dob,
+      phone,
+   } = parsed.data;
 
    const admin = createAdminClient();
    const { data: authData, error: authError } =
@@ -154,14 +179,24 @@ export async function createUserAdmin(
             firstName: first_name,
             lastName: last_name,
             role: role as Role,
+            address,
+            gender,
+            dob,
+            phone,
             lastLoginAt: new Date(),
          })
          .onConflictDoUpdate({
             target: profiles.id,
+            // The signup trigger usually creates the row first, so this is
+            // the path that normally runs.
             set: {
                firstName: first_name,
                lastName: last_name,
                role: role as Role,
+               address,
+               gender,
+               dob,
+               phone,
                updatedAt: new Date(),
             },
          });

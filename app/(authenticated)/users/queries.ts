@@ -58,7 +58,14 @@ export async function listReadOnlyUsers(): Promise<ReadOnlyUserRow[]> {
 
 export async function listUsersWithEmails(): Promise<UserRow[]> {
    const rows = await db
-      .select({ ...readOnlyColumns, stripeCustomerId: profiles.stripeCustomerId })
+      .select({
+         ...readOnlyColumns,
+         stripeCustomerId: profiles.stripeCustomerId,
+         address: profiles.address,
+         gender: profiles.gender,
+         dob: profiles.dob,
+         phone: profiles.phone,
+      })
       .from(profiles)
       .innerJoin(authUsers, eq(authUsers.id, profiles.id))
       .leftJoin(subscriptions, eq(subscriptions.userId, profiles.id));
@@ -66,6 +73,10 @@ export async function listUsersWithEmails(): Promise<UserRow[]> {
    return rows.map((row) => ({
       ...toReadOnlyUserRow(row),
       stripeCustomerId: row.stripeCustomerId ?? null,
+      address: row.address ?? null,
+      gender: row.gender ?? null,
+      dob: row.dob ?? null,
+      phone: row.phone ?? null,
    }));
 }
 

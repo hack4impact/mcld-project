@@ -1,5 +1,31 @@
 import {z} from "zod";
 import { ROLES } from "@/lib/roles";
+import { dobSchema, genderSchema } from "./children-schema";
+
+// Blank optional fields mean "not set" and are saved as null.
+function blankToNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+// Optional personal/contact details on `profiles`, set from the Add/Edit user dialogs.
+const profileDetailsFields = {
+  address: z.preprocess(
+    blankToNull,
+    z.string().max(500, "Address is too long").nullable(),
+  ),
+  gender: z.preprocess(blankToNull, genderSchema.nullable()),
+  dob: z.preprocess(blankToNull, dobSchema.nullable()),
+  // Stored as digits only, like emergency contact numbers.
+  phone: z.preprocess(
+    (value) => blankToNull(value)?.replace(/[\s().+-]/g, "") ?? null,
+    z
+      .string()
+      .regex(/^\d{10,15}$/, "Phone number must be 10–15 digits")
+      .nullable(),
+  ),
+};
 
 export const createUserAdminSchema = z
   .object({
@@ -10,6 +36,7 @@ export const createUserAdminSchema = z
     email: z.string().email(),
     role: z.enum(Object.values(ROLES) as [string, ...string[]]),
     subscription_months: z.coerce.number().int().min(0).max(24).default(0),
+    ...profileDetailsFields,
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "Passwords do not match",
@@ -20,6 +47,7 @@ export const updateUserAdminSchema = z.object({
     user_id: z.string().uuid(),
     email: z.string().email(),
     role: z.enum(Object.values(ROLES) as [string, ...string[]]),
+    ...profileDetailsFields,
 })
 
 export const getTransactionsSchema = z.object({
