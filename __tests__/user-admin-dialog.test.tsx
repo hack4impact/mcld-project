@@ -28,7 +28,6 @@ const user: UserRow = {
    invitePending: false,
 };
 
-// The server actions read these exact names from the submitted FormData.
 function submitted(name: string) {
    const inputs = document.querySelectorAll<HTMLInputElement>(
       `input[name="${name}"]`,

@@ -46,7 +46,6 @@ function FieldError({ errors }: { errors?: string[] }) {
    return <p className="text-sm text-destructive">{errors[0]}</p>;
 }
 
-// Radix Select doesn't allow "" as an item value, so "not set" gets its own.
 const GENDER_UNSET = "unset";
 
 type ContactDetails = {

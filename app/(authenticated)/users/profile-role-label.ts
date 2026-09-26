@@ -26,7 +26,6 @@ export type ReadOnlyUserRow = {
    invitePending: boolean;
 };
 
-// Admin-only: the rows sent to coordinators leave out the Stripe id.
 export type UserRow = ReadOnlyUserRow & {
    stripeCustomerId: string | null;
 };

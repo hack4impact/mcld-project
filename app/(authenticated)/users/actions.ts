@@ -403,8 +403,6 @@ export async function createUserAdmin(
          })
          .onConflictDoUpdate({
             target: profiles.id,
-            // The signup trigger usually creates the row first, so this is
-            // the path that normally runs.
             set: {
                firstName: first_name,
                lastName: last_name,

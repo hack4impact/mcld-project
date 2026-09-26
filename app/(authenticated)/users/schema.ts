@@ -2,14 +2,12 @@ import {z} from "zod";
 import { ROLES } from "@/lib/roles";
 import { dobSchema, genderSchema } from "./children-schema";
 
-// Blank optional fields mean "not set" and are saved as null.
 function blankToNull(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   const trimmed = String(value).trim();
   return trimmed === "" ? null : trimmed;
 }
 
-// Optional personal/contact details on `profiles`, set from the Add/Edit user dialogs.
 const profileDetailsFields = {
   address: z.preprocess(
     blankToNull,
@@ -17,7 +15,6 @@ const profileDetailsFields = {
   ),
   gender: z.preprocess(blankToNull, genderSchema.nullable()),
   dob: z.preprocess(blankToNull, dobSchema.nullable()),
-  // Stored as 10–15 digits, keeping a leading "+" for international numbers.
   phone: z.preprocess(
     (value) => blankToNull(value)?.replace(/(?!^\+)[\s().+-]/g, "") ?? null,
     z
