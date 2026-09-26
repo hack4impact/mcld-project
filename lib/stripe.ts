@@ -486,7 +486,6 @@ export async function grantComplimentarySubscription(
 
    const customerId = await getOrCreateStripeCustomer(userId, email);
 
-   // Retrying a failed user setup must not stack a second subscription.
    const existing = await stripe.subscriptions.list({
       customer: customerId,
       status: "all",

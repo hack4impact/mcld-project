@@ -16,14 +16,11 @@ export async function setInvitePassword(
    _prev: NewPasswordState,
    formData: FormData,
 ): Promise<NewPasswordState> {
-   // The account comes from the verified invite link's session, never from the form.
    const session = await getFreshLinkSession();
    if (!session) {
       return { errors: { _form: [EXPIRED] } };
    }
 
-   // Only right after accepting an invitation: anyone else changes their
-   // password through the reset flow, which signs out and notifies.
    const {
       data: { user },
    } = await session.supabase.auth.getUser();

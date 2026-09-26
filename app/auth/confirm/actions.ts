@@ -28,14 +28,10 @@ export async function confirmEmailLink(
 
    const supabase = await createClient();
 
-   // These links sign in the account they belong to, so end any other session
-   // on this browser first (e.g. an admin who opens someone's invite).
    if (type !== "email_change") {
       await supabase.auth.signOut({ scope: "local" });
    }
 
-   // A completed email change replaces the current address, so look up the
-   // account it belongs to before verifying.
    const currentEmail = formData.get("email");
    const account =
       type === "email_change" &&
@@ -49,9 +45,7 @@ export async function confirmEmailLink(
       token_hash: tokenHash,
    });
    if (error) {
-      // Expired, already used and unknown links all come back as otp_expired.
       if (error.code === "otp_expired") return { status: "expired", type };
-      // Rate limits and server errors leave the link unused, so it can be retried.
       const retryable =
          error.status === undefined ||
          error.status >= 500 ||
@@ -60,11 +54,8 @@ export async function confirmEmailLink(
    }
 
    if (type === "email_change") {
-      // With secure email change, the first link only records one approval.
       if (!data.session) return { status: "email_change_pending" };
 
-      // `email` comes from the link, so only trust it once the verified
-      // account matches.
       const newEmail = data.user?.email;
       if (
          account &&
@@ -85,8 +76,6 @@ export async function confirmEmailLink(
 
    if (type === "invite") redirect("/auth/set-password");
    if (type === "recovery") redirect("/auth/reset-password");
-   // Anyone can ask Supabase to resend a signup link for an invited address,
-   // which replaces the invitation. Such a person still needs a password.
    if (data.user?.invited_at) redirect("/auth/set-password");
    redirect(nextPathFromLink(formData.get("next")));
 }

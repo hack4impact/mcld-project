@@ -22,7 +22,6 @@ export type ReadOnlyUserRow = {
    gender: string | null;
    dob: string | null;
    phone: string | null;
-   // Invited, but hasn't accepted (so hasn't verified the address) yet.
    invitePending: boolean;
 };
 

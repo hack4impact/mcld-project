@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const PASSWORD_MIN_LENGTH = 8;
 
-/** Shared rule for every password a person chooses (signup, invite, reset). */
 export const passwordSchema = z
    .string()
    .min(
@@ -26,7 +25,6 @@ export type NewPasswordErrors = {
    _form?: string[];
 };
 
-/** Turns a Supabase `updateUser({ password })` error into form errors. */
 export function passwordUpdateErrors(error: {
    code?: string;
    message: string;

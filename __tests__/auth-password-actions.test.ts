@@ -70,7 +70,6 @@ beforeEach(() => {
    resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
    updateUser.mockResolvedValue({ data: {}, error: null });
    signOut.mockResolvedValue({ error: null });
-   // Accepted an invitation a minute ago.
    getUser.mockResolvedValue({
       data: {
          user: {
@@ -95,7 +94,6 @@ describe("requestPasswordReset", () => {
          form({ email: " ada@example.com " }),
       );
 
-      // Supabase's default template sends a ?code= link, which the callback exchanges.
       expect(resetPasswordForEmail).toHaveBeenCalledWith("ada@example.com", {
          redirectTo: expect.stringMatching(
             /\/auth\/callback\?next=\/auth\/reset-password$/,

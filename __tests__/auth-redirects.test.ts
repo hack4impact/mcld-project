@@ -43,7 +43,6 @@ describe("nextPathFromLink", () => {
       process.env.APP_URL = "https://app.mcld.example";
    });
    afterAll(() => {
-      // Assigning undefined would store the string "undefined".
       if (originalAppUrl === undefined) delete process.env.APP_URL;
       else process.env.APP_URL = originalAppUrl;
    });

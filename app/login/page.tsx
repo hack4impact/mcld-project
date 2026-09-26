@@ -31,7 +31,6 @@ function ResendConfirmationForm({
 }: {
   email: string;
   next: string;
-  // True right after signup sent a link, so the button starts on cooldown.
   justSent: boolean;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
@@ -115,7 +114,6 @@ function LoginForm() {
     signup,
     null
   );
-  // The signup result the person already dismissed with "Back to log in".
   const [dismissedSignup, setDismissedSignup] = useState<ActionState>(null);
 
   if (

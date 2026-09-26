@@ -61,7 +61,6 @@ async function renderEmail(
    return { subject, html, text };
 }
 
-/** Where account emails tell people to write. Falls back to the sender address. */
 export function supportEmail(): string {
    const configured = process.env.SUPPORT_EMAIL?.trim();
    if (configured) return configured;
@@ -69,7 +68,6 @@ export function supportEmail(): string {
    return from.match(/<([^>]+)>/)?.[1] ?? from.trim();
 }
 
-/** e.g. "Sat, Sep 26, 2026, 1:05 PM EDT" in EMAIL_TIMEZONE. */
 export function formatNoticeTime(date: Date): string {
    return date.toLocaleString("en-US", {
       weekday: "short",

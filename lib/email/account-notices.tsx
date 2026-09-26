@@ -100,7 +100,6 @@ export type EmailChangeApprovalEmailProps = {
    supportEmail: string;
 };
 
-/** Sent to the current address when an admin asks to change it. */
 export function EmailChangeApprovalEmail({
    firstName,
    newEmail,
@@ -138,7 +137,6 @@ export type EmailChangeConfirmEmailProps = {
    supportEmail: string;
 };
 
-/** Sent to the new address when an admin asks to change an account's email. */
 export function EmailChangeConfirmEmail({
    firstName,
    confirmUrl,
@@ -175,7 +173,6 @@ export type EmailChangedEmailProps = {
    supportEmail: string;
 };
 
-/** Sent to both the old and the new address once a change completes. */
 export function EmailChangedEmail({
    firstName,
    oldEmail,

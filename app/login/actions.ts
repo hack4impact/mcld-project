@@ -12,11 +12,8 @@ import { safeNextPath } from "@/lib/auth/redirects";
 
 export type ActionState = {
   errors: Partial<Record<string, string[]>>;
-  // Signup sent a confirmation link to this address.
   checkEmail?: string;
-  // Login was refused because this address isn't confirmed yet.
   unconfirmedEmail?: string;
-  // A new confirmation link was requested.
   resent?: boolean;
 } | null;
 
@@ -50,7 +47,6 @@ export async function login(
   const { error , data} = await supabase.auth.signInWithPassword(result.data);
 
   if (error) {
-    // Only reported once the password is right, so it doesn't reveal accounts.
     if (error.code === "email_not_confirmed") {
       return {
         errors: {
@@ -92,7 +88,6 @@ export async function signup(
     password,
     options: {
       data: { first_name: firstName, last_name: lastName },
-      // Where the confirmation link returns them, e.g. back to a checkout.
       emailRedirectTo: appUrl(next),
     },
   });
@@ -101,7 +96,6 @@ export async function signup(
     return { errors: { email: [signupErrorMessage(error)] } };
   }
 
-  // With "Confirm email" turned off, Supabase signs them straight in.
   if (data.session) {
     redirect(next);
   }
@@ -129,8 +123,6 @@ export async function resendConfirmation(
     console.error("[resendConfirmation] failed", error.code ?? error.status);
   }
 
-  // Same answer whatever happened, so it can't reveal which addresses have
-  // accounts waiting for confirmation.
   return { errors: {}, checkEmail: email, resent: true };
 }
 

@@ -2,11 +2,6 @@ import { appOrigin } from "@/lib/app-url";
 
 const PLACEHOLDER_ORIGIN = "http://localhost";
 
-/**
- * Returns `raw` when it's a path on this site (e.g. `/checkout/abc?x=1`), and
- * `fallback` otherwise. Blocks open redirects such as `//evil.com`,
- * `/\evil.com` (browsers read `\` as `/`) and absolute URLs.
- */
 export function safeNextPath(raw: unknown, fallback = "/"): string {
    if (
       typeof raw !== "string" ||
@@ -26,17 +21,11 @@ export function safeNextPath(raw: unknown, fallback = "/"): string {
    }
    if (url.origin !== PLACEHOLDER_ORIGIN) return fallback;
 
-   // Check the result too: resolving dot segments can turn "/.//evil.com"
-   // into "//evil.com".
    const path = `${url.pathname}${url.search}${url.hash}`;
    if (path.startsWith("//") || path.startsWith("/\\")) return fallback;
    return path;
 }
 
-/**
- * Like `safeNextPath`, but also accepts an absolute URL on this app. Email
- * templates pass `{{ .RedirectTo }}`, which Supabase always makes absolute.
- */
 export function nextPathFromLink(raw: unknown, fallback = "/"): string {
    if (typeof raw !== "string") return fallback;
    if (raw.startsWith("/")) return safeNextPath(raw, fallback);

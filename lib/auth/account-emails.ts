@@ -29,7 +29,6 @@ export type AccountByEmail = {
    firstName: string | null;
 };
 
-/** Finds an account by email address, ignoring case. */
 export async function findAccountByEmail(
    email: string,
 ): Promise<AccountByEmail | null> {
@@ -62,7 +61,6 @@ export async function sendInviteEmail(params: {
    await sendEmail({ to: params.to, ...email });
 }
 
-/** Asks the current address to approve, and the new address to confirm. */
 export async function sendEmailChangeRequest(params: {
    firstName: string | null;
    currentEmail: string;
@@ -92,7 +90,6 @@ export async function sendEmailChangeRequest(params: {
    await sendEmail({ to: params.newEmail, ...confirmation });
 }
 
-/** Tells both the old and the new address that a change went through. */
 export async function sendEmailChangedNotices(params: {
    firstName: string | null;
    oldEmail: string;
@@ -146,10 +143,6 @@ export async function sendAccountDeletedNotice(params: {
    await sendEmail({ to: params.to, ...email });
 }
 
-/**
- * Sends an informational notice after a change that already succeeded. A
- * delivery failure is logged and reported, never undoing the change.
- */
 export async function sendNotice(
    label: string,
    send: () => Promise<void>,

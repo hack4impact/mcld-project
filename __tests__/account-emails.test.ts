@@ -17,8 +17,6 @@ import {
 
 jest.mock("server-only", () => ({}));
 
-// @react-email/render loads its renderer with a dynamic import that Jest can't
-// run, so render the same components with React's own static renderer.
 jest.mock("@react-email/render", () => ({
    render: async (
       element: React.ReactElement,
@@ -58,8 +56,6 @@ beforeEach(() => {
 });
 
 function linkIn(html: string, label: string) {
-   // The href of the first link whose content includes `label` (buttons wrap
-   // their label in spans).
    const links = html.matchAll(/<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g);
    for (const [, href, content] of links) {
       if (content!.includes(label)) {
@@ -105,7 +101,6 @@ describe("sendEmailChangeRequest", () => {
       const approveUrl = linkIn(approval.html, "Approve the change");
       expect(approveUrl.searchParams.get("token_hash")).toBe("current-token");
       expect(approveUrl.searchParams.get("type")).toBe("email_change");
-      // The + must survive, so the completion notice finds the account.
       expect(approveUrl.searchParams.get("email")).toBe("ada+old@example.com");
 
       const confirmUrl = linkIn(confirmation.html, "Confirm this address");
@@ -189,7 +184,6 @@ describe("notice templates", () => {
          expect(email.subject).toMatch(/MCLD/);
          expect(email.html).toContain(expected);
          expect(email.text).toContain(expected);
-         // SUPPORT_EMAIL isn't set, so it falls back to the sender's address.
          expect(email.html).toContain("mailto:hello@mcld.example");
       },
    );

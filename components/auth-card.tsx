@@ -3,7 +3,6 @@ import { CircleAlert, CircleCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-/** The photo panel and logo shared by the login and /auth pages. */
 export function AuthShell({ children }: { children: React.ReactNode }) {
    return (
       <div className="grid min-h-screen lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">

@@ -24,7 +24,6 @@ const profileDetailsFields = {
   ),
 };
 
-// No password: the person chooses their own when they accept the invitation.
 export const createUserAdminSchema = z.object({
     first_name: z.string().min(1),
     last_name: z.string().min(1),

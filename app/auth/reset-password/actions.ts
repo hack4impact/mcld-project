@@ -17,7 +17,6 @@ export async function resetPassword(
    _prev: NewPasswordState,
    formData: FormData,
 ): Promise<NewPasswordState> {
-   // The account comes from the verified reset link's session, never from the form.
    const session = await getFreshLinkSession();
    if (!session) {
       return {
@@ -42,8 +41,6 @@ export async function resetPassword(
       return { errors: passwordUpdateErrors(error) };
    }
 
-   // Supabase already ended the account's other sessions; end this one too, so
-   // every device has to sign in again with the new password.
    await session.supabase.auth.signOut({ scope: "global" });
 
    const to = session.email;

@@ -42,12 +42,8 @@ const USERS_PATH = "/users";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-// How long Supabase email links work (its default "Email OTP Expiration").
 const EMAIL_CHANGE_LINK_LIFETIME_MS = 60 * 60 * 1000;
 
-// Supabase's generated link carries the token hash that is actually stored.
-// (For "email_change_new", `properties.hashed_token` is computed from the
-// current address and doesn't verify, so always read it from the link.)
 function tokenHashFromLink(actionLink: string): string | null {
    try {
       return new URL(actionLink).searchParams.get("token");
@@ -66,11 +62,6 @@ function emailChangeErrorMessage(error: { code?: string; message: string }) {
    return "Could not start the email change. Please try again.";
 }
 
-/**
- * Starts a verified email change: the current address must approve and the
- * new address must confirm. The email stays the same until both have.
- * Returns an error message, or null when both emails were sent.
- */
 async function requestEmailChange(
    admin: AdminClient,
    params: { firstName: string; currentEmail: string; newEmail: string },
@@ -110,11 +101,6 @@ async function requestEmailChange(
    return null;
 }
 
-/**
- * Deletes an account this request just created, unless something has used it
- * since (another request re-invited it, or it was accepted). The profile row
- * has no foreign key to auth.users, so it's removed too.
- */
 async function rollBackNewInvite(
    admin: AdminClient,
    userId: string,
@@ -177,17 +163,12 @@ export async function updateUserAdmin(
    const currentEmail = authUser.email ?? "";
    const confirmed = Boolean(authUser.email_confirmed_at);
    const emailChanged = email.toLowerCase() !== currentEmail.toLowerCase();
-   // A change to this address was already requested and its links still work.
-   // (No sent time parses to NaN, which is never "recent".)
    const changeSentAt = Date.parse(authUser.email_change_sent_at ?? "");
    const emailChangePending =
       emailChanged &&
       authUser.new_email?.toLowerCase() === email.toLowerCase() &&
       Date.now() - changeSentAt < EMAIL_CHANGE_LINK_LIFETIME_MS;
 
-   // Check what an email change needs before saving anything. The email is
-   // never switched directly: the current address approves and the new one
-   // confirms first.
    if (emailChanged) {
       if (!confirmed) {
          return {
@@ -222,7 +203,6 @@ export async function updateUserAdmin(
       }
    }
 
-   // Keep the role in Auth metadata in step with profiles.role.
    const { error: authError } = await admin.auth.admin.updateUserById(user_id, {
       app_metadata: { user_role: role },
    });
@@ -253,7 +233,6 @@ export async function updateUserAdmin(
    }
 
    const messages = ["User updated."];
-   // Only verified addresses get notices.
    if (profile.role !== role && confirmed && currentEmail) {
       const sent = await sendNotice("role changed", () =>
          sendRoleChangedNotice({
@@ -266,7 +245,6 @@ export async function updateUserAdmin(
       if (!sent) messages.push("The role-change email couldn't be sent.");
    }
 
-   // Last, so an edit that fails to save never emails both addresses.
    if (emailChanged) {
       if (emailChangePending) {
          messages.push(
@@ -336,8 +314,6 @@ export async function createUserAdmin(
       phone,
    } = parsed.data;
 
-   // An invitation that hasn't been accepted yet is set up and sent again, so
-   // retrying never creates a second account or subscription.
    const [existing] = await db
       .select({
          id: authUsers.id,
@@ -351,8 +327,6 @@ export async function createUserAdmin(
    if (existing?.emailConfirmedAt) {
       return { errors: { email: ["A user with this email already exists."] } };
    }
-   // Someone signed up with this address but never confirmed it. Inviting
-   // that account would keep the password they chose, so don't.
    if (existing && !existing.invitedAt) {
       return {
          errors: {
@@ -363,8 +337,6 @@ export async function createUserAdmin(
       };
    }
 
-   // Creates the account and an invitation token without emailing anything,
-   // so the account is fully set up before the person can accept.
    const admin = createAdminClient();
    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
       type: "invite",
@@ -422,7 +394,6 @@ export async function createUserAdmin(
       if (metadataError) throw metadataError;
    } catch (error) {
       console.error("[createUserAdmin] account setup failed", error);
-      // Undo only an account this request created.
       if (!existing) {
          await rollBackNewInvite(admin, userId, link.user.invited_at);
       }
@@ -456,7 +427,6 @@ export async function createUserAdmin(
       }
    }
 
-   // Delivery is reported separately: the account is ready and can be re-invited.
    try {
       await sendInviteEmail({
          to: email,
@@ -540,7 +510,6 @@ export async function resendInviteAdmin(
       };
    }
 
-   // A new link replaces the previous one, which stops working.
    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
       type: "invite",
       email: user.email,
@@ -621,8 +590,6 @@ export async function deleteUserAdmin(
 
    const admin = createAdminClient();
 
-   // Capture who to notify first: the address is gone once the account is.
-   // Only a verified address gets the notice.
    const { data: target } = await admin.auth.admin.getUserById(user_id);
    const recipient = target?.user?.email_confirmed_at
       ? (target.user.email ?? null)

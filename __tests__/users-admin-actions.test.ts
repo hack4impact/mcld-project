@@ -8,7 +8,6 @@ import {
    updateUserAdmin,
 } from "@/app/(authenticated)/users/actions";
 
-// Records the order of side effects across mocks.
 const calls: string[] = [];
 
 const requireAdmin = jest.fn();
@@ -52,7 +51,6 @@ jest.mock("@/lib/auth/account-emails", () => ({
       sendRoleChangedNotice(...args),
    sendAccountDeletedNotice: (...args: unknown[]) =>
       sendAccountDeletedNotice(...args),
-   // Same contract as the real helper: report, never throw.
    sendNotice: async (_label: string, send: () => Promise<void>) => {
       try {
          await send();

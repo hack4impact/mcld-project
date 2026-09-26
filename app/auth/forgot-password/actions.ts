@@ -24,11 +24,7 @@ export async function requestPasswordReset(
    }
    const { email } = parsed.data;
 
-   // This never creates an account. The answer is the same whether or not the
-   // address has one (or hit a rate limit), so it can't be used to find out.
    const supabase = await createClient();
-   // Our template links to /auth/confirm; this redirect is for Supabase's
-   // default template, whose ?code= link /auth/callback exchanges.
    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: appUrl("/auth/callback?next=/auth/reset-password"),
    });

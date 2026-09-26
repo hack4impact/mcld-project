@@ -57,7 +57,6 @@ beforeEach(() => {
    requireAdmin.mockResolvedValue(undefined);
    selectLimit.mockResolvedValue([]);
    deleteUser.mockResolvedValue({ error: null });
-   // Unverified address: no deletion notice (covered in users-admin-actions).
    getUserById.mockResolvedValue({
       data: { user: { email: "coord@example.com", email_confirmed_at: null } },
       error: null,

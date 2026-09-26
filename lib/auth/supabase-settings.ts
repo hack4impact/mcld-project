@@ -2,11 +2,6 @@ import "server-only";
 
 type AuthSettings = { mailer_autoconfirm?: boolean };
 
-/**
- * Whether Supabase's "Confirm email" setting is on. When it's off, Supabase
- * finishes an email change on the first link either address clicks, so the
- * current address couldn't stop it.
- */
 export async function emailConfirmationRequired(): Promise<boolean> {
    const url = new URL(
       "/auth/v1/settings",

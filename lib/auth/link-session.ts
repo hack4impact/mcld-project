@@ -4,9 +4,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createClient } from "@/utils/supabase/server";
 
-// Sessions created by an email link (verifyOtp) carry "otp" in the access
-// token's amr claim; the others are what older PKCE links produce. Only these
-// may set a new password without knowing the old one.
 const EMAIL_LINK_METHODS = new Set([
    "otp",
    "recovery",
@@ -18,7 +15,6 @@ const EMAIL_LINK_METHODS = new Set([
 
 export const LINK_SESSION_MAX_AGE_SECONDS = 30 * 60;
 
-/** Newest time (unix seconds) an email link was verified in this session. */
 export function latestEmailLinkVerification(amr: unknown): number | null {
    if (!Array.isArray(amr)) return null;
    let latest: number | null = null;
@@ -45,11 +41,6 @@ export type LinkSession = {
    email: string | null;
 };
 
-/**
- * The signed-in session, if it came from an email link in the last 30
- * minutes. The account always comes from the verified token, never from
- * anything the browser submits.
- */
 export async function getFreshLinkSession(): Promise<LinkSession | null> {
    const supabase = await createClient();
    const { data } = await supabase.auth.getClaims();
@@ -69,11 +60,6 @@ export async function getFreshLinkSession(): Promise<LinkSession | null> {
    };
 }
 
-/**
- * The person accepted an invitation (confirming their address) in the last 30
- * minutes. Only then may /auth/set-password set a password without the usual
- * reset flow.
- */
 export function acceptedInviteRecently(
    user: { invited_at?: string; email_confirmed_at?: string } | null,
    now = Date.now(),

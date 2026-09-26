@@ -45,8 +45,6 @@ function first(value: string | string[] | undefined): string | undefined {
    return Array.isArray(value) ? value[0] : value;
 }
 
-// Verifying happens only when the button is clicked, so email scanners that
-// open links ahead of the user can't use them up.
 export default function ConfirmPage({
    searchParams,
 }: {

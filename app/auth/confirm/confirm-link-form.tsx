@@ -14,7 +14,6 @@ const SIGNUP_HELP = {
    label: "Go to log in",
 };
 
-// What to do when a link has expired, was already used, or isn't valid.
 const DEAD_LINK_HELP: Record<
    EmailLinkType,
    { text: string; href: string; label: string }

@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 
-/**
- * Seconds left before an action (e.g. resending an email) may run again.
- * Starts counting down right away unless `startActive` is false.
- */
 export function useCooldown(seconds: number, startActive = true) {
    const [remaining, setRemaining] = useState(startActive ? seconds : 0);
 

@@ -1,6 +1,3 @@
-// Pages read `?error=` / `?notice=` codes and show these fixed messages, so a
-// crafted URL can't put arbitrary text on the login page.
-
 const ERRORS = {
    link_expired:
       "That link has expired or was already used. To get a new one, log in (for a confirmation email) or use “Forgot password?” (for a reset link).",
