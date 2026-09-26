@@ -6,6 +6,7 @@ import { ROLES } from "@/lib/roles";
 
 import { listUpcomingLessons } from "./queries";
 import { ScheduledLessonsTable } from "./scheduled-lessons-table";
+import { PageHeader, PageShell } from "@/components/page-shell";
 
 export default async function ScheduledLessonsPage() {
    const role = await getUserRole();
@@ -25,14 +26,16 @@ export default async function ScheduledLessonsPage() {
    );
 
    return (
-      <main className="flex min-h-screen flex-col gap-6 p-8">
-         <h1 className="text-3xl font-bold">Scheduled lessons</h1>
-         <p className="text-sm text-muted-foreground">
-            {isAdmin
-               ? "Upcoming private lessons across all coordinators."
-               : "Upcoming private lessons you coordinate."}
-         </p>
+      <PageShell>
+         <PageHeader
+            title="Scheduled lessons"
+            description={
+               isAdmin
+                  ? "Upcoming private lessons across all coordinators."
+                  : "Upcoming private lessons you coordinate."
+            }
+         />
          <ScheduledLessonsTable lessons={lessons} showCoordinator={isAdmin} />
-      </main>
+      </PageShell>
    );
 }

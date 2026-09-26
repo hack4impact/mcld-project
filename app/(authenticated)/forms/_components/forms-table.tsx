@@ -10,7 +10,7 @@ export function FormsTable({ forms }: { forms: FormListItem[] }) {
 
    return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-         <div className="flex w-full min-w-0 shrink-0 justify-end p-0.5 pb-2">
+         <div className="flex w-full min-w-0 shrink-0 justify-end pb-4">
             <FormDialog mode="add" />
          </div>
          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

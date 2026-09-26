@@ -8,6 +8,8 @@ import {
    useReactTable,
 } from "@tanstack/react-table";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
    Table,
@@ -39,10 +41,10 @@ export function DataTable<TData, TValue>({
    });
 
    return (
-      <div>
-         <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-hidden rounded-2xl border border-primary/40 bg-card">
+         <div>
             <Table>
-               <TableHeader className="bg-primary/30">
+               <TableHeader className="bg-primary [&_th]:text-primary-foreground [&_tr]:border-primary [&_tr]:hover:bg-primary">
                   {table.getHeaderGroups().map((hg) => (
                      <TableRow key={hg.id}>
                         {hg.headers.map((h) => (
@@ -76,7 +78,7 @@ export function DataTable<TData, TValue>({
                      <TableRow>
                         <TableCell
                            colSpan={columns.length}
-                           className="h-24 border-r-0! text-center text-muted-foreground"
+                           className="h-32 border-r-0! text-center text-muted-foreground"
                         >
                            {emptyMessage}
                         </TableCell>
@@ -85,7 +87,7 @@ export function DataTable<TData, TValue>({
                </TableBody>
             </Table>
          </div>
-          <div className="flex items-center justify-between py-4">
+          <div className="flex flex-col gap-3 border-t border-primary/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
              <div className="text-sm text-muted-foreground">
                 {(() => {
                    const pageRows = table.getRowModel().rows.length;
@@ -102,6 +104,7 @@ export function DataTable<TData, TValue>({
                    onClick={() => table.previousPage()}
                    disabled={!table.getCanPreviousPage()}
                 >
+                   <ChevronLeft />
                    Previous
                 </Button>
                 {Array.from({ length: table.getPageCount() }, (_, i) => i).map(
@@ -110,11 +113,10 @@ export function DataTable<TData, TValue>({
                          key={pageIndex}
                          variant={
                             table.getState().pagination.pageIndex === pageIndex
-                               ? "outline"
+                               ? "secondary"
                                : "ghost"
                          }
-                         size="sm"
-                         className="w-8"
+                         size="icon-sm"
                          onClick={() => table.setPageIndex(pageIndex)}
                       >
                          {pageIndex + 1}
@@ -128,6 +130,7 @@ export function DataTable<TData, TValue>({
                    disabled={!table.getCanNextPage()}
                 >
                    Next
+                   <ChevronRight />
                 </Button>
              </div>
           </div>

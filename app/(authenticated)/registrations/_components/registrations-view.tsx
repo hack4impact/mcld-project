@@ -22,6 +22,7 @@ import {
    CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/page-shell";
 import { formatDate } from "@/lib/format";
 import {
    dayOfWeekLabel,
@@ -58,7 +59,14 @@ export function RegistrationsView({
 }) {
    const [filter, setFilter] = useState<FilterKey>("all");
 
-   if (upcoming.length === 0 && past.length === 0) return <EmptyState />;
+   if (upcoming.length === 0 && past.length === 0)
+      return (
+         <EmptyState
+            icon={<Inbox />}
+            title="No registrations yet"
+            description="Services you register for will appear here."
+         />
+      );
 
    const upcomingFor = (key: FilterKey) =>
       key === "all" ? upcoming : upcoming.filter((r) => r.type === key);
@@ -69,7 +77,7 @@ export function RegistrationsView({
          onValueChange={(v) => setFilter(v as FilterKey)}
          className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden"
       >
-         <TabsList className="shrink-0 justify-start border border-border">
+         <TabsList className="shrink-0 justify-start">
             {FILTERS.map(({ value, label }) => (
                <TabsTrigger key={value} value={value}>
                   {label} ({upcomingFor(value).length})
@@ -84,12 +92,15 @@ export function RegistrationsView({
                   <TabsContent
                      key={value}
                      value={value}
-                     className="flex flex-col gap-4"
+                     className="grid gap-4 xl:grid-cols-2"
                   >
                      {items.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                           Nothing upcoming in this category.
-                        </p>
+                        <EmptyState
+                           className="py-10 xl:col-span-2"
+                           icon={<CalendarClock />}
+                           title="Nothing upcoming"
+                           description="There's nothing scheduled in this category yet."
+                        />
                      ) : (
                         items.map((r) => (
                            <RegistrationCard key={r.id} registration={r} />
@@ -106,33 +117,19 @@ export function RegistrationsView({
                >
                   <h2
                      id="past-registrations"
-                     className="font-heading text-lg font-semibold"
+                     className="text-lg font-semibold"
                   >
                      Past ({past.length})
                   </h2>
-                  {past.map((r) => (
-                     <RegistrationCard key={r.id} registration={r} />
-                  ))}
+                  <div className="grid gap-4 xl:grid-cols-2">
+                     {past.map((r) => (
+                        <RegistrationCard key={r.id} registration={r} />
+                     ))}
+                  </div>
                </section>
             )}
          </div>
       </Tabs>
-   );
-}
-
-function EmptyState() {
-   return (
-      <div className="flex flex-1 items-center justify-center">
-         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-10 text-center">
-            <Inbox className="size-10 text-muted-foreground" />
-            <div className="space-y-1">
-               <p className="text-base font-medium">No registrations yet</p>
-               <p className="text-sm text-muted-foreground">
-                  Services you register for will appear here.
-               </p>
-            </div>
-         </div>
-      </div>
    );
 }
 
@@ -145,7 +142,7 @@ function RegistrationCard({
    const isProgram = registration.type === "programs";
 
    return (
-      <Card size="sm">
+      <Card size="sm" className={timing === "past" ? "opacity-80" : undefined}>
          <CardHeader>
             <CardTitle>{title ?? serviceTypeLabel(type)}</CardTitle>
             <CardDescription>
@@ -154,10 +151,10 @@ function RegistrationCard({
                   : lessonScheduleLabel(registration)}
             </CardDescription>
             <CardAction className="flex flex-wrap justify-end gap-1.5">
-               <Badge variant={isProgram ? "default" : "secondary"}>
+               <Badge variant={isProgram ? "info" : "secondary"}>
                   {serviceTypeLabel(type)}
                </Badge>
-               <Badge variant="outline">
+               <Badge variant={timing === "upcoming" ? "success" : "muted"}>
                   {timing === "upcoming" ? (
                      <CalendarClock data-icon="inline-start" />
                   ) : (
@@ -166,7 +163,7 @@ function RegistrationCard({
                   {timing === "upcoming" ? "Upcoming" : "Past"}
                </Badge>
                {serviceStatus !== "active" && (
-                  <Badge variant="destructive">
+                  <Badge variant="warning">
                      {serviceStatusLabel(serviceStatus)}
                   </Badge>
                )}
@@ -189,9 +186,9 @@ function RegistrationCard({
                   <Users className="size-3.5" />
                   For
                </span>
-               {participants.self && <Badge variant="outline">You</Badge>}
+               {participants.self && <Badge variant="secondary">You</Badge>}
                {participants.children.map((c) => (
-                  <Badge key={c.id} variant="outline">
+                  <Badge key={c.id} variant="secondary">
                      {c.firstName} {c.lastName}
                   </Badge>
                ))}

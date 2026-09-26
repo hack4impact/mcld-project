@@ -16,6 +16,8 @@ import {
    useReactTable,
 } from "@tanstack/react-table";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
    Table,
@@ -146,10 +148,10 @@ export function UsersDataTable<TData, TValue>({
    const pageButtons = pageWindowIndices(pageIndex, pageCount);
 
    return (
-      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-primary/40 bg-card">
          <div ref={scrollRef} className="min-h-0 w-full min-w-0 flex-1">
-            <div className="overflow-hidden rounded-lg border border-border">
-               <div className="w-full min-w-0 overflow-auto">
+            <div className="h-full">
+               <div className="h-full w-full min-w-0 overflow-auto">
                <Table className="table-fixed">
                   {headerGroup ? (
                      <colgroup>
@@ -169,7 +171,7 @@ export function UsersDataTable<TData, TValue>({
                         })}
                      </colgroup>
                   ) : null}
-                  <TableHeader className="sticky top-0 z-10 bg-primary/30">
+                  <TableHeader className="sticky top-0 z-10 bg-primary [&_th]:text-primary-foreground [&_tr]:border-primary [&_tr]:hover:bg-primary">
                      {table.getHeaderGroups().map((hg) => (
                         <TableRow key={hg.id}>
                            {hg.headers.map((h) => {
@@ -220,7 +222,7 @@ export function UsersDataTable<TData, TValue>({
                         <TableRow>
                            <TableCell
                               colSpan={columns.length}
-                              className="h-24 whitespace-normal border-r-0! text-center text-muted-foreground"
+                              className="h-32 whitespace-normal border-r-0! text-center text-muted-foreground"
                            >
                               {emptyMessage}
                            </TableCell>
@@ -231,7 +233,7 @@ export function UsersDataTable<TData, TValue>({
                </div>
             </div>
          </div>
-         <div className="flex shrink-0 min-w-0 flex-col gap-3 border-t border-border bg-background py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+         <div className="flex shrink-0 min-w-0 flex-col gap-3 border-t border-primary/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <div className="text-sm text-muted-foreground">{rangeLabel}</div>
             <div className="flex min-w-0 flex-wrap items-center justify-center gap-1 sm:justify-end">
                <Button
@@ -240,14 +242,15 @@ export function UsersDataTable<TData, TValue>({
                   onClick={() => table.previousPage()}
                   disabled={!table.getCanPreviousPage()}
                >
+                  <ChevronLeft />
                   Previous
                </Button>
                {pageButtons.map((i) => (
                   <Button
                      key={i}
-                     variant={pageIndex === i ? "outline" : "ghost"}
-                     size="sm"
-                     className="w-8 hover:bg-primary/20 hover:text-primary"
+                     variant={pageIndex === i ? "secondary" : "ghost"}
+                     size="icon-sm"
+                     className={cn(pageIndex === i && "text-primary")}
                      onClick={() => table.setPageIndex(i)}
                   >
                      {i + 1}
@@ -260,6 +263,7 @@ export function UsersDataTable<TData, TValue>({
                   disabled={!table.getCanNextPage()}
                >
                   Next
+                  <ChevronRight />
                </Button>
             </div>
          </div>

@@ -139,28 +139,22 @@ export function UsersClient(props: UsersClientProps) {
          <Tabs
             value={tab}
             onValueChange={(v) => setTab(v as UserSubscriptionViewTab)}
-            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2 overflow-hidden"
+            className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden"
          >
-         {canManage && (
-            <div className="flex w-full min-w-0 shrink-0 justify-end">
-               <CreateUserDialog />
-            </div>
-         )}
-
          <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
                <div className="relative p-0.5 min-w-[min(100%,10rem)] max-w-full grow sm:max-w-xs sm:grow-0 sm:basis-56">
-                  <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <Search className="absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <Input
                      id="users-search"
                      placeholder="Search by name or email..."
                      value={nameQuery}
                      onChange={(e) => setNameQuery(e.target.value)}
-                     className="w-full min-w-0 pl-9"
+                     className="h-9 w-full min-w-0 pl-10"
                   />
                </div>
 
-               <TabsList className="h-auto min-h-8 max-w-full min-w-0 flex-wrap justify-start border border-border">
+               <TabsList className="h-auto min-h-9 max-w-full min-w-0 flex-wrap justify-start">
                   {USER_SUBSCRIPTION_VIEW_TABS.map(({ value, label }) => (
                      <TabsTrigger key={value} value={value}>
                         {label}
@@ -173,7 +167,7 @@ export function UsersClient(props: UsersClientProps) {
                <Select value={roleFilter} onValueChange={setRoleFilter}>
                   <SelectTrigger
                      id="users-role-filter"
-                     className="w-[min(100%,11rem)] min-w-[8.5rem] sm:w-[140px]"
+                     className="h-9! w-[min(100%,11rem)] min-w-[8.5rem] sm:w-[150px]"
                   >
                      <SelectValue placeholder="All Roles" />
                   </SelectTrigger>
@@ -190,7 +184,7 @@ export function UsersClient(props: UsersClientProps) {
                   id="users-sort-toggle"
                   variant="outline"
                   size="icon"
-                  className="shrink-0"
+                  className="size-9 shrink-0"
                   onClick={() =>
                      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
                   }
@@ -204,6 +198,8 @@ export function UsersClient(props: UsersClientProps) {
                      <ArrowUpZA className="h-4 w-4" />
                   )}
                </Button>
+
+               {canManage && <CreateUserDialog />}
             </div>
          </div>
 

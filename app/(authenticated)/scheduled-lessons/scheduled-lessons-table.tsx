@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
+import { Video } from "lucide-react";
 
 import { DataTable } from "@/components/data-table";
 import type { ScheduledLessonView } from "./queries";
@@ -64,8 +65,9 @@ export function ScheduledLessonsTable({
                      href={url}
                      target="_blank"
                      rel="noopener noreferrer"
-                     className="text-primary underline underline-offset-2"
+                     className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-secondary/70"
                   >
+                     <Video className="size-3.5" />
                      Join
                   </a>
                ) : (

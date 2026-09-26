@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { CreditCard } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { EmptyState, PageHeader, PageShell } from "@/components/page-shell";
 
 export default async function FinancePage() {
    try {
@@ -9,8 +11,16 @@ export default async function FinancePage() {
    }
 
    return (
-      <main className="flex min-h-screen flex-col p-8">
-         <h1 className="text-3xl font-bold">Finance</h1>
-      </main>
+      <PageShell>
+         <PageHeader
+            title="Finance"
+            description="Payments, payouts and revenue across all services."
+         />
+         <EmptyState
+            icon={<CreditCard />}
+            title="Coming soon"
+            description="Financial reports will show up here once they're ready."
+         />
+      </PageShell>
    );
 }

@@ -67,7 +67,7 @@ export function ChildrenClient({ childList }: { childList: ChildView[] }) {
                return (
                   <div className="flex min-w-0 items-center gap-3">
                      <Avatar>
-                        <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+                        <AvatarFallback className="bg-secondary text-xs font-semibold text-secondary-foreground">
                            {initials}
                         </AvatarFallback>
                      </Avatar>
@@ -226,13 +226,12 @@ export function ChildrenClient({ childList }: { childList: ChildView[] }) {
             </AlertDialogContent>
          </AlertDialog>
 
-         <div className="flex w-full min-w-0 shrink-0 items-center justify-between gap-3 pb-2">
+         <div className="flex w-full min-w-0 shrink-0 items-center justify-between gap-3 pb-4">
             <p className="text-sm text-muted-foreground">
                {childList.length} child{childList.length === 1 ? "" : "ren"}
             </p>
             <Button
                type="button"
-               className="border-primary bg-clip-border hover:border-primary/80 hover:bg-primary/80 active:translate-y-0"
                onClick={() => setCreateOpen(true)}
             >
                <Plus />

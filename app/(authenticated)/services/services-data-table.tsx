@@ -50,7 +50,7 @@ export function ServicesDataTable({
             header: "Program",
             meta: { colWidth: "42%" },
             cell: ({ row }) => (
-               <span className="font-medium">{row.original.title ?? "—"}</span>
+               <span className="font-semibold text-foreground">{row.original.title ?? "—"}</span>
             ),
          },
          {
@@ -60,10 +60,11 @@ export function ServicesDataTable({
             cell: ({ row }) => (
                <span
                   className={
-                     "inline-flex rounded-full px-2 py-0.5 text-xs capitalize " +
+                     "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize " +
                      statusBadgeClass(row.original.status)
                   }
                >
+                  <span className="size-1.5 rounded-full bg-current" />
                   {row.original.status}
                </span>
             ),
@@ -74,7 +75,7 @@ export function ServicesDataTable({
             cell: ({ row }) => (
                <span
                   className={
-                     "inline-flex rounded-full px-2 py-0.5 text-xs capitalize " +
+                     "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold " +
                      subscriptionBadgeClass(row.original.requiresSubscription)
                   }
                >

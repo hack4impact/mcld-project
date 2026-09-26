@@ -237,7 +237,7 @@ export function CheckoutFlow({ service, discount }: CheckoutFlowProps) {
                                  {pricing.discount.subtotalLabel}
                               </dd>
                            </div>
-                           <div className="flex items-center justify-between text-emerald-600">
+                           <div className="flex items-center justify-between text-success">
                               <dt>Discount</dt>
                               <dd className="font-medium">
                                  −{pricing.discount.savingsLabel}
