@@ -218,6 +218,17 @@ Some `jsonb` columns store typed structures defined in `lib/db/schema.ts`:
 | `coaching_sessions.selected_time_slots` | `{ start: string; end: string }[]` | ISO 8601 windows the user offered when requesting a session. Not `$type`-annotated in the schema. |
 | `form_questions.options` | `FormQuestionOption[]` — `{ id: string; title: string; description?: string }` | Choices for `multiple_choices` / `checkboxes` questions; null for other types. |
 
+## Row Level Security
+
+RLS is enabled on every table. The app reads and writes through Drizzle (`lib/db`),
+which connects as `postgres` and bypasses RLS, so RLS only affects the Supabase Data
+API (the `anon` / `authenticated` roles behind the publishable key). Those roles
+have no policies, so the Data API returns no rows and rejects writes on every table.
+
+| Table | Policy | Rule |
+|---|---|---|
+| `profiles` | `auth_admin_can_read_profiles` | `supabase_auth_admin` can `SELECT`. `custom_access_token_hook` runs as this role to copy `role` into the `user_role` JWT claim; without the policy every user's claim would be `user`. |
+
 ## Working with the schema
 
 - **`lib/db/schema.ts` is the single source of truth.** The Drizzle config
@@ -234,6 +245,10 @@ Some `jsonb` columns store typed structures defined in `lib/db/schema.ts`:
     environments.
   - Pick one workflow per change; don't run `db:push` and `db:migrate` against the
     same environment expecting them to reconcile.
+- **Every table enables RLS:** end each `pgTable(...)` with `.enableRLS()`. Drizzle
+  tracks RLS per table, so turning it on only in the Supabase dashboard gets undone
+  by the next `db:push`. Only add `anon` / `authenticated` policies if the browser
+  starts querying tables through `supabase-js`.
 - `pnpm db:studio` opens Drizzle Studio to inspect data.
 - **Keep the docs in sync:** the ER diagram and enum/constraint tables above are
   hand-maintained. Update them (and the relevant per-table doc) in the same PR as
