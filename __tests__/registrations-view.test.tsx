@@ -51,6 +51,9 @@ describe("RegistrationsView", () => {
       expect(
          tabPanel.getByText(/^Lesson 3 · Sat, Oct 10, 2026, 10:00\sAM$/),
       ).toBeInTheDocument();
+      expect(
+         cardFor(/^Lesson 2 · /).getByText("Confirmed"),
+      ).toBeInTheDocument();
 
       const unscheduled = cardFor(
          "Lesson 4 · Time to be confirmed by your coach",

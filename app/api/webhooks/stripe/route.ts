@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { deleteCouponIfExhausted, stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
       if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
          const updated = await db
             .update(coachingSessions)
-            .set({ status: "pending", stripeOrderId: session.id })
+            .set({ status: "confirmed", stripeOrderId: session.id })
             .where(
                and(
                   eq(coachingSessions.id, metadata.coachingSessionId),
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
             .returning({ id: coachingSessions.id });
 
          const transitioned = updated[0];
+         revalidateTag("services", { expire: 0 });
          if (transitioned) {
             await sendCoordinatorBookingEmail(transitioned.id);
          }

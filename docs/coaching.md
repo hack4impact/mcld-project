@@ -34,6 +34,9 @@ erDiagram
   of a child (null for adult registrations).
 - `scheduled_at` is null by default — it is set once a specific slot is confirmed from
   `selected_time_slots`.
+- Checkout creates the session as `awaiting_payment`. Completed Stripe checkout
+  changes it to `confirmed` and notifies the coordinator. This confirms the booking;
+  `scheduled_at` can remain null while the coach arranges the actual time.
 - `selected_time_slots` is a **required** JSON array of `{ start, end }` objects (ISO 8601
   strings) representing the availability windows the user offered when requesting the
   session, e.g. `[{ "start": "2026-04-14T14:00:00Z", "end": "2026-04-14T17:00:00Z" }]`.

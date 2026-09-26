@@ -5,6 +5,7 @@ import { pgSchema, uuid, text } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
    children,
+   coachingSessions,
    emergencyContacts,
    formQuestionAnswers,
    formQuestions,
@@ -63,28 +64,35 @@ export async function getServiceRegistrations(
    cacheTag(SERVICES_TAG);
 
    const [service] = await db
-      .select({ isForChildren: services.isForChildren, formId: services.formId })
+      .select({
+         type: services.type,
+         isForChildren: services.isForChildren,
+         formId: services.formId,
+      })
       .from(services)
       .where(eq(services.id, serviceId))
       .limit(1);
 
    if (!service) return { kind: "adult", registrations: [] };
 
+   const bookings =
+      service.type === "private_lessons" ? coachingSessions : serviceBookings;
+
    if (!service.isForChildren) {
       const rows = await db
          .select({
-            bookingId: serviceBookings.id,
-            status: serviceBookings.status,
-            registeredAt: serviceBookings.createdAt,
+            bookingId: bookings.id,
+            status: bookings.status,
+            registeredAt: bookings.createdAt,
             profileId: profiles.id,
             firstName: profiles.firstName,
             lastName: profiles.lastName,
             email: authUsers.email,
          })
-         .from(serviceBookings)
-         .innerJoin(profiles, eq(profiles.id, serviceBookings.userId))
-         .innerJoin(authUsers, eq(authUsers.id, serviceBookings.userId))
-         .where(eq(serviceBookings.serviceId, serviceId));
+         .from(bookings)
+         .innerJoin(profiles, eq(profiles.id, bookings.userId))
+         .innerJoin(authUsers, eq(authUsers.id, bookings.userId))
+         .where(eq(bookings.serviceId, serviceId));
 
       return {
          kind: "adult",
@@ -105,9 +113,9 @@ export async function getServiceRegistrations(
    // Kid service: bookings link to a child via childId
    const bookingRows = await db
       .select({
-         bookingId: serviceBookings.id,
-         status: serviceBookings.status,
-         registeredAt: serviceBookings.createdAt,
+         bookingId: bookings.id,
+         status: bookings.status,
+         registeredAt: bookings.createdAt,
          childId: children.id,
          childFirstName: children.firstName,
          childLastName: children.lastName,
@@ -120,11 +128,11 @@ export async function getServiceRegistrations(
          parentLastName: profiles.lastName,
          parentEmail: authUsers.email,
       })
-      .from(serviceBookings)
-      .innerJoin(children, eq(children.id, serviceBookings.childId))
+      .from(bookings)
+      .innerJoin(children, eq(children.id, bookings.childId))
       .innerJoin(profiles, eq(profiles.id, children.parentId))
       .innerJoin(authUsers, eq(authUsers.id, children.parentId))
-      .where(eq(serviceBookings.serviceId, serviceId));
+      .where(eq(bookings.serviceId, serviceId));
 
    if (bookingRows.length === 0) return { kind: "kid", registrations: [] };
 
