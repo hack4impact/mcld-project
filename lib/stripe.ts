@@ -118,6 +118,19 @@ export async function userHasActiveSubscription(
    );
 }
 
+/**
+ * Whether a user is blocked from booking a service because it requires an
+ * active membership and they don't have one. Centralizes the gate so a
+ * future policy change (grace period, comped memberships, admin override)
+ * only needs to change here instead of at every call site.
+ */
+export async function userNeedsSubscriptionFor(
+   service: { requiresSubscription: boolean },
+   userId: string,
+): Promise<boolean> {
+   return service.requiresSubscription && !(await userHasActiveSubscription(userId));
+}
+
 export async function getSubscriptionDetails(
    userId: string,
 ): Promise<SubscriptionDetails> {

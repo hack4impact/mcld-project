@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckoutButton } from "@/components/subscribe-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/server";
-import { getProductDiscountForUser, userHasActiveSubscription } from "@/lib/stripe";
+import { getProductDiscountForUser, userNeedsSubscriptionFor } from "@/lib/stripe";
 import { getService } from "@/app/(authenticated)/services/queries";
 
 import { CheckoutFlow } from "./checkout-flow";
@@ -32,10 +32,7 @@ export default async function CheckoutPage({
       return <NotAvailable message="This product isn't available." />;
    }
 
-   if (
-      service.requiresSubscription &&
-      !(await userHasActiveSubscription(user.id))
-   ) {
+   if (await userNeedsSubscriptionFor(service, user.id)) {
       return <MembershipRequired productId={productId} />;
    }
 

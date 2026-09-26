@@ -4,7 +4,6 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { coachingSessions, services } from "@/lib/db/schema";
-import { userHasActiveSubscription } from "@/lib/stripe";
 import { createClient } from "@/utils/supabase/server";
 
 export type Availability = { start: string; end: string };
@@ -39,11 +38,11 @@ export async function submitAvailabilities({
       return { error: "Service is not a private lesson" };
    if (!service.coordinatorId)
       return { error: "Service has no coordinator assigned" };
-   if (
-      service.requiresSubscription &&
-      !(await userHasActiveSubscription(user.id))
-   )
-      return { error: "An active membership is required to book this service." };
+   // Not checked here: this session is always immediately paid for via
+   // checkoutCoachingSession (see startPrivateLessonCheckout), which
+   // re-fetches this same service and enforces the subscription
+   // requirement before creating a Stripe session or leaving this row
+   // in place.
 
    const [row] = await db
       .insert(coachingSessions)
