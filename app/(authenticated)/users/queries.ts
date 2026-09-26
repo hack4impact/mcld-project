@@ -1,18 +1,11 @@
 import { db } from "@/lib/db";
+import { authUsers } from "@/lib/db/auth-users";
 import { profiles, subscriptions } from "@/lib/db/schema";
 import { eq} from "drizzle-orm";
 import type { ReadOnlyUserRow, UserRow } from "./profile-role-label";
-import { pgSchema, uuid, text } from "drizzle-orm/pg-core";
 
 const USERS_SUBSCRIPTION_STATUS_ACTIVE = "active" as const;
 const USERS_SUBSCRIPTION_STATUS_TRIAL = "trialing" as const;
-
-const auth = pgSchema("auth");
-
- const authUsers = auth.table("users", {
-   id: uuid("id").primaryKey(),
-   email: text("email"),
-});
 
 const readOnlyColumns = {
    id: profiles.id,
@@ -26,6 +19,8 @@ const readOnlyColumns = {
    gender: profiles.gender,
    dob: profiles.dob,
    phone: profiles.phone,
+   emailConfirmedAt: authUsers.emailConfirmedAt,
+   invitedAt: authUsers.invitedAt,
 };
 
 type ReadOnlyColumnsRow = {
@@ -40,6 +35,8 @@ type ReadOnlyColumnsRow = {
    gender: string | null;
    dob: string | null;
    phone: string | null;
+   emailConfirmedAt: Date | null;
+   invitedAt: Date | null;
 };
 
 function toReadOnlyUserRow(row: ReadOnlyColumnsRow): ReadOnlyUserRow {
@@ -55,6 +52,7 @@ function toReadOnlyUserRow(row: ReadOnlyColumnsRow): ReadOnlyUserRow {
       gender: row.gender ?? null,
       dob: row.dob ?? null,
       phone: row.phone ?? null,
+      invitePending: !row.emailConfirmedAt && Boolean(row.invitedAt),
    };
 }
 

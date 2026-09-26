@@ -11,7 +11,8 @@ import {
    Text,
 } from "@react-email/components";
 
-const LOGO_URL = "https://upload.storylife.fr/i/01KT1V0H9B80F2GP3WE2BG3SAN.png";
+export const LOGO_URL =
+   "https://upload.storylife.fr/i/01KT1V0H9B80F2GP3WE2BG3SAN.png";
 
 export type EmergencyContactInfo = {
    fullName: string;

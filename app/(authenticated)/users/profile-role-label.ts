@@ -22,6 +22,7 @@ export type ReadOnlyUserRow = {
    gender: string | null;
    dob: string | null;
    phone: string | null;
+   invitePending: boolean;
 };
 
 export type UserRow = ReadOnlyUserRow & {

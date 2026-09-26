@@ -25,6 +25,7 @@ const user: UserRow = {
    gender: "female",
    dob: "1990-04-12",
    phone: "5145550100",
+   invitePending: false,
 };
 
 function isSubmitted(name: string) {
@@ -138,6 +139,21 @@ describe("EditUserDialog", () => {
 });
 
 describe("CreateUserDialog", () => {
+   it("invites instead of asking the admin for a password", () => {
+      render(<CreateUserDialog />);
+      fireEvent.click(screen.getByRole("button", { name: "Add user" }));
+
+      expect(
+         screen.getByText(
+            /email them an invitation to choose their own password/,
+         ),
+      ).toBeInTheDocument();
+      expect(
+         screen.getByRole("button", { name: "Send invitation" }),
+      ).toBeInTheDocument();
+      expect(document.querySelector('input[type="password"]')).toBeNull();
+   });
+
    it("shows empty, optional contact details", () => {
       render(<CreateUserDialog />);
       fireEvent.click(screen.getByRole("button", { name: "Add user" }));

@@ -39,9 +39,12 @@ only on `.env`:
 In your Supabase dashboard under **Authentication > URL Configuration**:
 
 - **Site URL**: `http://localhost:PORT`
-- **Redirect URLs**: add `http://localhost:PORT/auth/callback`
+- **Redirect URLs**: add `http://localhost:PORT/**` (email links return to `/auth/callback`, `/auth/confirm` and the page someone started from)
 
 Make sure **Email** provider is enabled under **Authentication > Sign In/Providers**.
+
+Signup confirmation, invitations and password resets also need SMTP, redirect
+URLs and email templates set up in Supabase. See [docs/auth-emails.md](docs/auth-emails.md).
 
 ### 4. Set up the database
 
