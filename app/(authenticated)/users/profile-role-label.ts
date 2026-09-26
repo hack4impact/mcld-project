@@ -24,7 +24,6 @@ export type ReadOnlyUserRow = {
    phone: string | null;
 };
 
-// Admin-only: the rows sent to coordinators leave out the Stripe id.
 export type UserRow = ReadOnlyUserRow & {
    stripeCustomerId: string | null;
 };
