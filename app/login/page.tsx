@@ -80,15 +80,18 @@ function CheckEmail({
         title="Check your email"
         description={
           <>
-            We sent a confirmation link to <strong>{email}</strong>. Open it on
-            any device to finish creating your account. It works once and
-            expires after about an hour.
+            If <strong>{email}</strong> doesn&apos;t already have an account,
+            we sent it a confirmation link. Open it on any device to finish
+            creating your account. It works once and expires after about an
+            hour.
           </>
         }
       />
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Can&apos;t find it? Check your spam folder, or send it again.
+          Can&apos;t find it? Check your spam folder, or send it again. If you
+          already have an account, go back and log in, or use &ldquo;Forgot
+          password?&rdquo;.
         </p>
         <ResendConfirmationForm email={email} next={next} justSent />
         <Button variant="ghost" size="lg" className="w-full" onClick={onBack}>
