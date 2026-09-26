@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Clock, Inbox, User, Users } from "lucide-react";
+import {
+   CalendarClock,
+   CalendarDays,
+   CircleCheck,
+   Clock,
+   History,
+   Hourglass,
+   Inbox,
+   Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
    Card,
@@ -14,32 +23,45 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/format";
-import { dayOfWeekLabel, serviceTypeLabel } from "@/lib/service-labels";
-import type { RegistrationView } from "../queries";
+import {
+   dayOfWeekLabel,
+   serviceStatusLabel,
+   serviceTypeLabel,
+} from "@/lib/service-labels";
+import type {
+   LessonStatus,
+   PrivateLessonRegistration,
+   ProgramRegistration,
+   RegistrationView,
+} from "../build-registrations";
 
-type FilterKey = "all" | "programs" | "private_lessons";
+const FILTERS = [
+   { value: "all", label: "All" },
+   { value: "programs", label: "Programs" },
+   { value: "private_lessons", label: "Private lessons" },
+] as const;
+
+type FilterKey = (typeof FILTERS)[number]["value"];
+
+const LESSON_STATUS = {
+   pending: { icon: Hourglass, label: "Awaiting coach confirmation" },
+   confirmed: { icon: CircleCheck, label: "Confirmed" },
+   completed: { icon: CircleCheck, label: "Completed" },
+} satisfies Record<LessonStatus, { icon: typeof Clock; label: string }>;
 
 export function RegistrationsView({
-   registrations,
+   upcoming,
+   past,
 }: {
-   registrations: RegistrationView[];
+   upcoming: RegistrationView[];
+   past: RegistrationView[];
 }) {
    const [filter, setFilter] = useState<FilterKey>("all");
 
-   const counts = {
-      all: registrations.length,
-      programs: registrations.filter((r) => r.type === "programs").length,
-      private_lessons: registrations.filter(
-         (r) => r.type === "private_lessons",
-      ).length,
-   };
+   if (upcoming.length === 0 && past.length === 0) return <EmptyState />;
 
-   const visible =
-      filter === "all"
-         ? registrations
-         : registrations.filter((r) => r.type === filter);
-
-   if (registrations.length === 0) return <EmptyState />;
+   const upcomingFor = (key: FilterKey) =>
+      key === "all" ? upcoming : upcoming.filter((r) => r.type === key);
 
    return (
       <Tabs
@@ -47,30 +69,53 @@ export function RegistrationsView({
          onValueChange={(v) => setFilter(v as FilterKey)}
          className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden"
       >
-         <TabsList className="h-auto min-h-8 shrink-0 justify-start border border-border">
-            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-            <TabsTrigger value="programs">
-               Programs ({counts.programs})
-            </TabsTrigger>
-            <TabsTrigger value="private_lessons">
-               Private lessons ({counts.private_lessons})
-            </TabsTrigger>
+         <TabsList className="shrink-0 justify-start border border-border">
+            {FILTERS.map(({ value, label }) => (
+               <TabsTrigger key={value} value={value}>
+                  {label} ({upcomingFor(value).length})
+               </TabsTrigger>
+            ))}
          </TabsList>
 
-         <TabsContent
-            value={filter}
-            className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto pr-1 focus-visible:outline-none"
-         >
-            {visible.length === 0 ? (
-               <p className="text-sm text-muted-foreground">
-                  Nothing in this category.
-               </p>
-            ) : (
-               visible.map((r) => (
-                  <RegistrationCard key={r.serviceId} registration={r} />
-               ))
+         <div className="min-h-0 min-w-0 flex-1 space-y-8 overflow-y-auto pr-1">
+            {FILTERS.map(({ value }) => {
+               const items = upcomingFor(value);
+               return (
+                  <TabsContent
+                     key={value}
+                     value={value}
+                     className="flex flex-col gap-4"
+                  >
+                     {items.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                           Nothing upcoming in this category.
+                        </p>
+                     ) : (
+                        items.map((r) => (
+                           <RegistrationCard key={r.id} registration={r} />
+                        ))
+                     )}
+                  </TabsContent>
+               );
+            })}
+
+            {past.length > 0 && (
+               <section
+                  aria-labelledby="past-registrations"
+                  className="flex flex-col gap-4"
+               >
+                  <h2
+                     id="past-registrations"
+                     className="font-heading text-lg font-semibold"
+                  >
+                     Past ({past.length})
+                  </h2>
+                  {past.map((r) => (
+                     <RegistrationCard key={r.id} registration={r} />
+                  ))}
+               </section>
             )}
-         </TabsContent>
+         </div>
       </Tabs>
    );
 }
@@ -96,11 +141,86 @@ function RegistrationCard({
 }: {
    registration: RegistrationView;
 }) {
-   const { title, type, schedule, durationMinutes, isForChildren, children } =
-      registration;
-   const scheduleLabel = schedule
+   const { title, type, timing, serviceStatus, participants } = registration;
+   const isProgram = registration.type === "programs";
+
+   return (
+      <Card size="sm">
+         <CardHeader>
+            <CardTitle>{title ?? serviceTypeLabel(type)}</CardTitle>
+            <CardDescription>
+               {isProgram
+                  ? programScheduleLabel(registration)
+                  : lessonScheduleLabel(registration)}
+            </CardDescription>
+            <CardAction className="flex flex-wrap justify-end gap-1.5">
+               <Badge variant={isProgram ? "default" : "secondary"}>
+                  {serviceTypeLabel(type)}
+               </Badge>
+               <Badge variant="outline">
+                  {timing === "upcoming" ? (
+                     <CalendarClock data-icon="inline-start" />
+                  ) : (
+                     <History data-icon="inline-start" />
+                  )}
+                  {timing === "upcoming" ? "Upcoming" : "Past"}
+               </Badge>
+               {serviceStatus !== "active" && (
+                  <Badge variant="destructive">
+                     {serviceStatusLabel(serviceStatus)}
+                  </Badge>
+               )}
+            </CardAction>
+         </CardHeader>
+
+         <CardContent>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+               {isProgram ? (
+                  <ProgramDetails registration={registration} />
+               ) : (
+                  <LessonDetails registration={registration} />
+               )}
+            </div>
+         </CardContent>
+
+         <CardFooter>
+            <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
+               <span className="inline-flex items-center gap-1.5 font-medium">
+                  <Users className="size-3.5" />
+                  For
+               </span>
+               {participants.self && <Badge variant="outline">You</Badge>}
+               {participants.children.map((c) => (
+                  <Badge key={c.id} variant="outline">
+                     {c.firstName} {c.lastName}
+                  </Badge>
+               ))}
+            </div>
+         </CardFooter>
+      </Card>
+   );
+}
+
+function programScheduleLabel({ schedule }: ProgramRegistration): string {
+   return schedule
       ? `${formatDate(schedule.startDate)} – ${formatDate(schedule.endDate)}`
-      : "Scheduled after booking";
+      : "Dates to be announced";
+}
+
+function lessonScheduleLabel({
+   lessonNumber,
+   scheduledLabel,
+}: PrivateLessonRegistration): string {
+   const when = scheduledLabel ?? "Time to be confirmed by your coach";
+   return lessonNumber ? `Lesson ${lessonNumber} · ${when}` : when;
+}
+
+function ProgramDetails({
+   registration,
+}: {
+   registration: ProgramRegistration;
+}) {
+   const { schedule, durationMinutes } = registration;
    const slotsLabel =
       schedule && schedule.slots.length > 0
          ? schedule.slots
@@ -109,50 +229,43 @@ function RegistrationCard({
          : null;
 
    return (
-      <Card size="sm">
-         <CardHeader>
-            <CardTitle>{title ?? "Untitled service"}</CardTitle>
-            <CardDescription>{scheduleLabel}</CardDescription>
-            <CardAction>
-               <Badge variant="secondary">{serviceTypeLabel(type)}</Badge>
-            </CardAction>
-         </CardHeader>
+      <>
+         {slotsLabel && (
+            <span className="inline-flex items-center gap-1.5">
+               <CalendarDays className="size-3.5" />
+               {slotsLabel}
+            </span>
+         )}
+         <span className="inline-flex items-center gap-1.5">
+            <Clock className="size-3.5" />
+            {durationMinutes} min
+         </span>
+      </>
+   );
+}
 
-         <CardContent>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-               {slotsLabel && (
-                  <span className="inline-flex items-center gap-1.5">
-                     <CalendarDays className="size-3.5" />
-                     {slotsLabel}
-                  </span>
-               )}
-               <span className="inline-flex items-center gap-1.5">
-                  <Clock className="size-3.5" />
-                  {durationMinutes} min
-               </span>
-            </div>
-         </CardContent>
+function LessonDetails({
+   registration,
+}: {
+   registration: PrivateLessonRegistration;
+}) {
+   const { lessonStatus, durationMinutes, bookedAtLabel } = registration;
+   const status = LESSON_STATUS[lessonStatus];
 
-         <CardFooter>
-            {isForChildren && children.length > 0 ? (
-               <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
-                  <span className="inline-flex items-center gap-1.5 font-medium">
-                     <Users className="size-3.5" />
-                     {children.length === 1 ? "Child" : "Children"}
-                  </span>
-                  {children.map((c) => (
-                     <Badge key={c.id} variant="outline">
-                        {c.firstName} {c.lastName}
-                     </Badge>
-                  ))}
-               </div>
-            ) : (
-               <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <User className="size-3.5" />
-                  Registered as yourself
-               </span>
-            )}
-         </CardFooter>
-      </Card>
+   return (
+      <>
+         <span className="inline-flex items-center gap-1.5">
+            <status.icon className="size-3.5" />
+            {status.label}
+         </span>
+         <span className="inline-flex items-center gap-1.5">
+            <Clock className="size-3.5" />
+            {durationMinutes} min
+         </span>
+         <span className="inline-flex items-center gap-1.5">
+            <CalendarDays className="size-3.5" />
+            Booked {bookedAtLabel}
+         </span>
+      </>
    );
 }

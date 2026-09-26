@@ -7,59 +7,27 @@ import {
    services,
 } from "@/lib/db/schema";
 import { getStripeServiceData } from "@/lib/stripe";
-import type { ProgramSchedule } from "@/app/(authenticated)/services/actions";
+import {
+   buildRegistrations,
+   type Registrations,
+} from "./build-registrations";
 
-export type RegisteredChild = {
-   id: string;
-   firstName: string;
-   lastName: string;
-};
-
-export type RegistrationView = {
-   serviceId: string;
-   type: "programs" | "private_lessons";
-   isForChildren: boolean;
-   title: string | null;
-   schedule: ProgramSchedule | null;
-   durationMinutes: number;
-   children: RegisteredChild[];
-};
-
-type ServiceGroup = {
-   service: typeof services.$inferSelect;
-   childRows: (typeof children.$inferSelect)[];
-};
-
-function scheduleFromService(
-   row: typeof services.$inferSelect,
-): ProgramSchedule | null {
-   if (!row.startDate || !row.endDate) return null;
-   return {
-      startDate: row.startDate,
-      endDate: row.endDate,
-      slots: row.slots ?? [],
-   };
-}
-
-function upsertGroup(
-   groups: Map<string, ServiceGroup>,
-   service: typeof services.$inferSelect,
-   child: typeof children.$inferSelect | null,
-) {
-   let group = groups.get(service.id);
-   if (!group) {
-      group = { service, childRows: [] };
-      groups.set(service.id, group);
-   }
-   if (child && !group.childRows.some((c) => c.id === child.id)) {
-      group.childRows.push(child);
+async function fetchServiceTitle(productId: string): Promise<string | null> {
+   try {
+      return (await getStripeServiceData(productId))?.title ?? null;
+   } catch (error) {
+      console.error("[listRegistrationsForUser] Stripe lookup failed", {
+         productId,
+         error,
+      });
+      return null;
    }
 }
 
 export async function listRegistrationsForUser(
    userId: string,
-): Promise<RegistrationView[]> {
-   const [bookingRows, coachingRows] = await Promise.all([
+): Promise<Registrations> {
+   const [bookings, sessions] = await Promise.all([
       db
          .select({ service: services, child: children })
          .from(serviceBookings)
@@ -73,7 +41,14 @@ export async function listRegistrationsForUser(
             ),
          ),
       db
-         .select({ service: services, child: children })
+         .select({
+            id: coachingSessions.id,
+            status: coachingSessions.status,
+            scheduledAt: coachingSessions.scheduledAt,
+            createdAt: coachingSessions.createdAt,
+            service: services,
+            child: children,
+         })
          .from(coachingSessions)
          .innerJoin(services, eq(services.id, coachingSessions.serviceId))
          .leftJoin(children, eq(children.id, coachingSessions.childId))
@@ -89,36 +64,17 @@ export async function listRegistrationsForUser(
          ),
    ]);
 
-   const groups = new Map<string, ServiceGroup>();
-   for (const row of bookingRows) upsertGroup(groups, row.service, row.child);
-   for (const row of coachingRows) upsertGroup(groups, row.service, row.child);
-
-   const views = await Promise.all(
-      Array.from(groups.values()).map(async ({ service, childRows }) => {
-         const stripe = await getStripeServiceData(service.stripeProductId);
-         return {
-            serviceId: service.id,
-            type: service.type,
-            isForChildren: service.isForChildren,
-            title: stripe?.title ?? null,
-            schedule: scheduleFromService(service),
-            durationMinutes: service.durationMinutes,
-            children: childRows.map((c) => ({
-               id: c.id,
-               firstName: c.firstName,
-               lastName: c.lastName,
-            })),
-         } satisfies RegistrationView;
-      }),
+   const productIds = new Map<string, string>();
+   for (const { service } of [...bookings, ...sessions]) {
+      productIds.set(service.id, service.stripeProductId);
+   }
+   const titles = new Map(
+      await Promise.all(
+         Array.from(productIds, async ([serviceId, productId]) => {
+            return [serviceId, await fetchServiceTitle(productId)] as const;
+         }),
+      ),
    );
 
-   return views.sort((a, b) => {
-      const aStart = a.schedule?.startDate ?? "";
-      const bStart = b.schedule?.startDate ?? "";
-      if (aStart && bStart && aStart !== bStart)
-         return bStart.localeCompare(aStart);
-      if (aStart && !bStart) return -1;
-      if (!aStart && bStart) return 1;
-      return (a.title ?? "").localeCompare(b.title ?? "");
-   });
+   return buildRegistrations({ bookings, sessions, titles, now: new Date() });
 }

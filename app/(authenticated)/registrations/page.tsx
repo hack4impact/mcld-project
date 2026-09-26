@@ -28,7 +28,7 @@ async function RegistrationsContent() {
       redirect("/");
    }
 
-   const registrations = await listRegistrationsForUser(userId);
+   const { upcoming, past } = await listRegistrationsForUser(userId);
 
    return (
       <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-6 overflow-hidden p-8">
@@ -37,16 +37,14 @@ async function RegistrationsContent() {
                <h1 className="font-heading text-3xl font-bold">
                   My Registrations
                </h1>
-               <Badge variant="secondary">
-                  {registrations.length} registered
-               </Badge>
+               <Badge variant="outline">{upcoming.length} upcoming</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
                Services you&apos;re registered for.
             </p>
          </div>
 
-         <RegistrationsView registrations={registrations} />
+         <RegistrationsView upcoming={upcoming} past={past} />
       </main>
    );
 }
