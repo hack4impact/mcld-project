@@ -248,11 +248,13 @@ export async function updateUserAdmin(
       });
       if (emailError) {
          revalidatePath(USERS_PATH);
+         const warnings = messages.slice(1);
          return {
             errors: {
                email: [
                   `Your other changes were saved, but the email wasn't changed: ${emailError}`,
                ],
+               ...(warnings.length > 0 ? { _form: warnings } : {}),
             },
          };
       }

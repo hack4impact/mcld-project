@@ -590,6 +590,24 @@ describe("updateUserAdmin role notice", () => {
          "User updated. The role-change email couldn't be sent.",
       );
    });
+
+   it("still warns about the notice when the email change fails too", async () => {
+      sendRoleChangedNotice.mockRejectedValue(new Error("SMTP down"));
+      generateLink.mockResolvedValue({
+         data: null,
+         error: { message: "boom" },
+      });
+
+      const result = await updateUserAdmin(
+         null,
+         editForm({ role: "coordinator", email: "ada@new.example.com" }),
+      );
+
+      expect(result?.errors?.email?.[0]).toMatch(/email wasn't changed/);
+      expect(result?.errors?._form).toEqual([
+         "The role-change email couldn't be sent.",
+      ]);
+   });
 });
 
 describe("createUserAdmin invitation", () => {
