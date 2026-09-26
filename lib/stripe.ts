@@ -486,11 +486,16 @@ export async function grantComplimentarySubscription(
 
    const customerId = await getOrCreateStripeCustomer(userId, email);
 
+   // Retrying a failed user setup must not stack a second subscription.
    const existing = await stripe.subscriptions.list({
       customer: customerId,
       status: "all",
-      limit: 1,
+      limit: 10,
    });
+   const hasLiveSubscription = existing.data.some(
+      (s) => s.status !== "canceled" && s.status !== "incomplete_expired",
+   );
+   if (hasLiveSubscription) return;
 
    const trialEndDate = new Date();
    trialEndDate.setMonth(trialEndDate.getMonth() + months);
