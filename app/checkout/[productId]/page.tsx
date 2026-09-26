@@ -79,7 +79,7 @@ function MembershipRequired({ productId }: { productId: string }) {
                priceId={process.env.STRIPE_PRICE_ID!}
                mode="subscription"
                label="Subscribe"
-               returnTo={`/checkout/${productId}`}
+               returnTo={`/checkout/${productId}/subscribed`}
             />
          </CardContent>
       </Card>
