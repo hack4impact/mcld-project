@@ -45,16 +45,16 @@ export async function resetPassword(
 
    const to = session.email;
    if (to) {
-      const profile = await db.query.profiles.findFirst({
-         where: eq(profiles.id, session.userId),
-         columns: { firstName: true },
-      });
-      await sendNotice("password changed", () =>
-         sendPasswordChangedNotice({
+      await sendNotice("password changed", async () => {
+         const profile = await db.query.profiles.findFirst({
+            where: eq(profiles.id, session.userId),
+            columns: { firstName: true },
+         });
+         await sendPasswordChangedNotice({
             to,
             firstName: profile?.firstName ?? null,
-         }),
-      );
+         });
+      });
    }
 
    redirect("/login?notice=password_updated");

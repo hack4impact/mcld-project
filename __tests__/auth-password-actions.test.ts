@@ -39,11 +39,12 @@ jest.mock("@/lib/auth/account-emails", () => ({
    },
 }));
 
+const findProfile = jest.fn();
 jest.mock("@/lib/db", () => ({
    db: {
       query: {
          profiles: {
-            findFirst: jest.fn().mockResolvedValue({ firstName: "Ada" }),
+            findFirst: (...args: unknown[]) => findProfile(...args),
          },
       },
    },
@@ -69,6 +70,7 @@ const passwords = (password = "brand-new-pass", confirm = password) =>
 beforeEach(() => {
    jest.clearAllMocks();
    resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+   findProfile.mockResolvedValue({ firstName: "Ada" });
    updateUser.mockResolvedValue({ data: {}, error: null });
    signOut.mockResolvedValue({ error: null });
    getUser.mockResolvedValue({
@@ -208,6 +210,15 @@ describe("resetPassword", () => {
       await expect(resetPassword(null, passwords())).rejects.toThrow(
          "REDIRECT:/login?notice=password_updated",
       );
+   });
+
+   it("still finishes when the profile can't be read", async () => {
+      findProfile.mockRejectedValue(new Error("db down"));
+
+      await expect(resetPassword(null, passwords())).rejects.toThrow(
+         "REDIRECT:/login?notice=password_updated",
+      );
+      expect(sendPasswordChangedNotice).not.toHaveBeenCalled();
    });
 });
 
