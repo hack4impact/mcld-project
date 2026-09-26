@@ -1,22 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import {
-   LayoutGrid,
-   BookOpen,
-   Users,
-   CreditCard,
-   MonitorSmartphone,
-   Settings,
-   Form,
-   CalendarClock,
-   Baby,
-   CalendarRange,
-   LogOut,
-   type LucideIcon,
-} from "lucide-react";
+import { Settings, LogOut } from "lucide-react";
 import {
    Sidebar,
    SidebarContent,
@@ -39,33 +25,9 @@ import {
 } from "@/components/ui/tooltip";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { canViewUsers, ROLES, type Role } from "@/lib/roles";
+import { ROLES, type Role } from "@/lib/roles";
+import { getNavItems, isNavItemActive } from "@/lib/navigation";
 import { signout } from "@/app/login/actions";
-
-type NavItem = {
-   title: string;
-   href: string;
-   icon: LucideIcon;
-};
-
-const baseNavItems: NavItem[] = [
-   { title: "Overview", href: "/", icon: LayoutGrid },
-   { title: "Services", href: "/services", icon: BookOpen },
-   { title: "Users", href: "/users", icon: Users },
-   { title: "Finance", href: "/finance", icon: CreditCard },
-   { title: "Memberships", href: "/memberships", icon: MonitorSmartphone },
-   { title: "Forms", href: "/forms", icon: Form },
-];
-
-const coordinatorNavItems: NavItem[] = [
-   { title: "Overview", href: "/", icon: LayoutGrid },
-   { title: "Services", href: "/services", icon: BookOpen },
-   {
-      title: "Scheduled lessons",
-      href: "/scheduled-lessons",
-      icon: CalendarClock,
-   },
-];
 
 const ACTIVE_ITEM_CLASS =
    "data-active:bg-primary data-active:text-primary-foreground data-active:shadow-sm data-active:shadow-primary/20 data-active:hover:bg-primary/90 data-active:hover:text-primary-foreground";
@@ -100,32 +62,8 @@ export function AppSidebar({
 }) {
    const pathname = usePathname();
 
-   const navItems = useMemo(() => {
-      const showUsers = canViewUsers(role);
-      const items = baseNavItems.filter(
-         (item) => showUsers || item.href !== "/users",
-      );
-      if (role === ROLES.USER) {
-         items.push({
-            title: "My children",
-            href: "/children",
-            icon: Baby,
-         });
-      }
-      if (role === ROLES.COORDINATOR) {
-         items.push({
-            title: "Availability",
-            href: "/availability",
-            icon: CalendarRange,
-         });
-      }
-      return items;
-   }, [role]);
-
-   const isActive = (href: string) =>
-      href === "/"
-         ? pathname === "/"
-         : pathname === href || pathname.startsWith(`${href}/`);
+   const navItems = getNavItems(role);
+   const isActive = (href: string) => isNavItemActive(pathname, href);
 
    return (
       <Sidebar
@@ -235,7 +173,7 @@ export function AppSidebar({
                            {viewer.name || viewer.email}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                           {role ? ROLE_LABELS[role] : viewer.email}
+                           {(role && ROLE_LABELS[role]) || viewer.email}
                         </p>
                      </div>
                      <form className="group-data-[collapsible=icon]:hidden">

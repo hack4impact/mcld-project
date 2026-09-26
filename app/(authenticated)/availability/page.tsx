@@ -1,6 +1,9 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CalendarClock } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import { CoordinatorAvailabilityEditor } from "@/components/availability/coordinator-availability-editor";
@@ -70,7 +73,15 @@ async function AvailabilityContent() {
       <PageShell>
          <PageHeader
             title="Availability"
-            description="Set when you're available for private lessons. Families pick one of these times at checkout."
+            description="Set your weekly hours and date overrides for private lessons."
+            actions={
+               <Button asChild variant="outline">
+                  <Link href="/scheduled-lessons">
+                     <CalendarClock />
+                     View scheduled lessons
+                  </Link>
+               </Button>
+            }
          />
          <CoordinatorAvailabilityEditor
             coordinatorId={coordinatorId}
