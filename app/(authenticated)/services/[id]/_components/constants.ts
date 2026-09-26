@@ -1,7 +1,10 @@
-export const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-   confirmed: "default",
-   pending: "secondary",
-   awaiting_payment: "outline",
+export const STATUS_VARIANT: Record<
+   string,
+   "success" | "warning" | "info" | "destructive" | "secondary"
+> = {
+   confirmed: "success",
+   pending: "warning",
+   awaiting_payment: "info",
    cancelled: "destructive",
 };
 

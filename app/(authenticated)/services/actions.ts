@@ -1,11 +1,26 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { services, type ProgramSlot as DbProgramSlot } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/auth/require-admin";
+import {
+   profiles,
+   programCoordinators,
+   services,
+   type ProgramSlot as DbProgramSlot,
+} from "@/lib/db/schema";
+import {
+   getUserRole,
+   requireAdmin,
+} from "@/lib/auth/require-admin";
+import { ROLES } from "@/lib/roles";
+import { createClient } from "@/utils/supabase/server";
+import {
+   isServiceCoordinator,
+   listServiceRegistrations,
+   type ServiceRegistration,
+} from "@/app/(authenticated)/services/queries";
 import { cadStringToCents } from "@/lib/money";
 import {
    createPrice,
@@ -52,6 +67,7 @@ const baseFields = z.object({
       .max(24 * 60),
    price_cad: z.string().min(1, "Price is required"),
    requires_subscription: z.enum(["true", "false"]),
+   is_scheduled: z.enum(["true", "false"]).optional(),
 });
 
 const ALLOWED_TRANSITIONS: Record<
@@ -125,6 +141,71 @@ function parseProgramSchedule(
    };
 }
 
+/**
+ * Parse the optional `coordinator_ids` field for programs: a JSON array of
+ * coordinator UUIDs. Programs may have zero or more coordinators, so an empty
+ * or missing value is valid and yields an empty list.
+ */
+function parseCoordinatorIds(formData: FormData): ParseResult<string[]> {
+   const raw = field(formData, "coordinator_ids");
+   if (!raw) return { ok: true, value: [] };
+
+   let parsed: unknown;
+   try {
+      parsed = JSON.parse(raw);
+   } catch {
+      return {
+         ok: false,
+         errors: { coordinator_ids: ["Invalid coordinator selection"] },
+      };
+   }
+
+   const result = z.array(z.string().uuid()).safeParse(parsed);
+   if (!result.success) {
+      return {
+         ok: false,
+         errors: { coordinator_ids: ["Invalid coordinator selection"] },
+      };
+   }
+   // De-duplicate so the unique index never rejects a double-selection.
+   return { ok: true, value: [...new Set(result.data)] };
+}
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function missingCoordinators(ids: string[]): Promise<boolean> {
+   if (ids.length === 0) return false;
+   const found = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(and(inArray(profiles.id, ids), eq(profiles.role, "coordinator")));
+   const foundIds = new Set(found.map((row) => row.id));
+   return ids.some((id) => !foundIds.has(id));
+}
+
+async function setProgramCoordinators(
+   tx: DbTransaction,
+   serviceId: string,
+   coordinatorIds: string[],
+): Promise<void> {
+   await tx
+      .select({ id: services.id })
+      .from(services)
+      .where(eq(services.id, serviceId))
+      .for("update");
+   await tx
+      .delete(programCoordinators)
+      .where(eq(programCoordinators.serviceId, serviceId));
+   if (coordinatorIds.length > 0) {
+      await tx.insert(programCoordinators).values(
+         coordinatorIds.map((coordinatorId) => ({
+            serviceId,
+            coordinatorId,
+         })),
+      );
+   }
+}
+
 function parseCoordinatorId(formData: FormData): ParseResult<string> {
    const raw = field(formData, "coordinator_id");
    if (!raw)
@@ -160,6 +241,7 @@ export async function createService(
       duration_minutes: formData.get("duration_minutes"),
       price_cad: formData.get("price_cad"),
       requires_subscription: formData.get("requires_subscription"),
+      is_scheduled: field(formData, "is_scheduled") || undefined,
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -181,6 +263,7 @@ export async function createService(
    const typeRaw = formData.get("type")?.toString();
    let scheduledAtValue: ProgramSchedule | null = null;
    let coordinatorIdValue: string | null = null;
+   let coordinatorIdsValue: string[] = [];
    if (typeRaw === "programs") {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -188,10 +271,27 @@ export async function createService(
       } else {
          scheduledAtValue = result.value;
       }
+      const coordinators = parseCoordinatorIds(formData);
+      if (!coordinators.ok) Object.assign(errors, coordinators.errors);
+      else coordinatorIdsValue = coordinators.value;
    } else if (typeRaw === "private_lessons") {
       const coordinator = parseCoordinatorId(formData);
       if (!coordinator.ok) Object.assign(errors, coordinator.errors);
       else coordinatorIdValue = coordinator.value;
+   }
+
+   if (
+      Object.keys(errors).length === 0 &&
+      (await missingCoordinators(coordinatorIdsValue))
+   ) {
+      errors.coordinator_ids = ["One or more selected coordinators no longer exist"];
+   }
+   if (
+      Object.keys(errors).length === 0 &&
+      coordinatorIdValue &&
+      (await missingCoordinators([coordinatorIdValue]))
+   ) {
+      errors.coordinator_id = ["The selected coordinator no longer exists"];
    }
 
    if (Object.keys(errors).length > 0) {
@@ -199,7 +299,7 @@ export async function createService(
    }
 
    // Safe: we only reach here if baseFields parsed AND price validated.
-   const { title, type, duration_minutes, requires_subscription } =
+   const { title, type, duration_minutes, requires_subscription, is_scheduled } =
       parsed.data!;
    const description = parsed.data!.description.trim();
    const priceCents = cents as number;
@@ -214,16 +314,26 @@ export async function createService(
 
       await createPrice(productId, priceCents);
 
-      await db.insert(services).values({
-         type,
-         startDate: scheduledAtValue?.startDate ?? null,
-         endDate: scheduledAtValue?.endDate ?? null,
-         slots: scheduledAtValue?.slots ?? null,
-         durationMinutes: duration_minutes,
-         stripeProductId: productId,
-         coordinatorId: coordinatorIdValue,
-         status: "active",
-         requiresSubscription: requires_subscription === "true",
+      await db.transaction(async (tx) => {
+         const [created] = await tx
+            .insert(services)
+            .values({
+               type,
+               startDate: scheduledAtValue?.startDate ?? null,
+               endDate: scheduledAtValue?.endDate ?? null,
+               slots: scheduledAtValue?.slots ?? null,
+               durationMinutes: duration_minutes,
+               stripeProductId: productId,
+               coordinatorId: coordinatorIdValue,
+               status: "active",
+               requiresSubscription: requires_subscription === "true",
+               isScheduled: type === "private_lessons" && is_scheduled === "true",
+            })
+            .returning({ id: services.id });
+
+         if (type === "programs") {
+            await setProgramCoordinators(tx, created.id, coordinatorIdsValue);
+         }
       });
    } catch (e) {
       if (createdProductId) {
@@ -266,6 +376,7 @@ const updateFields = z.object({
       .optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
    requires_subscription: z.enum(["true", "false"]).optional(),
+   is_scheduled: z.enum(["true", "false"]).optional(),
 });
 
 export async function updateService(
@@ -288,6 +399,7 @@ export async function updateService(
       price_cad: field(formData, "price_cad") || undefined,
       requires_subscription:
          field(formData, "requires_subscription") || undefined,
+      is_scheduled: field(formData, "is_scheduled") || undefined,
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -331,6 +443,7 @@ export async function updateService(
 
    let scheduledAtValue: ProgramSchedule | undefined;
    let coordinatorIdValue: string | undefined;
+   let coordinatorIdsValue: string[] | undefined;
    if (row.type === "programs" && formData.has("start_date")) {
       const result = parseProgramSchedule(formData);
       if (!result.ok) {
@@ -338,7 +451,13 @@ export async function updateService(
       } else {
          scheduledAtValue = result.value;
       }
-   } else if (
+   }
+   if (row.type === "programs" && formData.has("coordinator_ids")) {
+      const coordinators = parseCoordinatorIds(formData);
+      if (!coordinators.ok) Object.assign(errors, coordinators.errors);
+      else coordinatorIdsValue = coordinators.value;
+   }
+   if (
       row.type === "private_lessons" &&
       formData.has("coordinator_id")
    ) {
@@ -349,12 +468,32 @@ export async function updateService(
       else coordinatorIdValue = coordinator.value;
    }
 
+   if (
+      Object.keys(errors).length === 0 &&
+      coordinatorIdsValue &&
+      (await missingCoordinators(coordinatorIdsValue))
+   ) {
+      errors.coordinator_ids = ["One or more selected coordinators no longer exist"];
+   }
+   if (
+      Object.keys(errors).length === 0 &&
+      coordinatorIdValue &&
+      (await missingCoordinators([coordinatorIdValue]))
+   ) {
+      errors.coordinator_id = ["The selected coordinator no longer exists"];
+   }
+
    if (Object.keys(errors).length > 0) {
       return { errors };
    }
 
-   const { title, description, duration_minutes, requires_subscription } =
-      parsed.data!;
+   const {
+      title,
+      description,
+      duration_minutes,
+      requires_subscription,
+      is_scheduled,
+   } = parsed.data!;
    const service_id = serviceId;
 
    try {
@@ -383,14 +522,24 @@ export async function updateService(
       if (requires_subscription !== undefined) {
          dbPatch.requiresSubscription = requires_subscription === "true";
       }
-
-      if (Object.keys(dbPatch).length > 0) {
-         dbPatch.updatedAt = new Date();
-         await db
-            .update(services)
-            .set(dbPatch)
-            .where(eq(services.id, service_id));
+      // Scheduling only means something for private lessons.
+      if (is_scheduled !== undefined && row.type === "private_lessons") {
+         dbPatch.isScheduled = is_scheduled === "true";
       }
+
+      await db.transaction(async (tx) => {
+         if (Object.keys(dbPatch).length > 0) {
+            dbPatch.updatedAt = new Date();
+            await tx
+               .update(services)
+               .set(dbPatch)
+               .where(eq(services.id, service_id));
+         }
+
+         if (coordinatorIdsValue !== undefined) {
+            await setProgramCoordinators(tx, service_id, coordinatorIdsValue);
+         }
+      });
    } catch (e) {
       console.error(e);
       return {
@@ -476,4 +625,27 @@ export async function setServiceStatus(
 
    bustServicesCache();
    return { message: "Service status updated." };
+}
+
+/**
+ * On-demand fetch of a service's registrations for the read-only view.
+ * Admins may view any service; coordinators only services they coordinate.
+ */
+export async function fetchServiceRegistrations(
+   serviceId: string,
+): Promise<ServiceRegistration[]> {
+   const role = await getUserRole();
+   if (role === ROLES.ADMIN) {
+      return listServiceRegistrations(serviceId);
+   }
+   if (role === ROLES.COORDINATOR) {
+      const supabase = await createClient();
+      const {
+         data: { user },
+      } = await supabase.auth.getUser();
+      if (user && (await isServiceCoordinator(user.id, serviceId))) {
+         return listServiceRegistrations(serviceId);
+      }
+   }
+   throw new Error("Forbidden");
 }

@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteCouponIfExhausted, stripe, syncStripeData } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import {
-   coachingSessions,
+   privateLessonSessions,
    profiles,
    purchases,
    serviceBookings,
 } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import Stripe from "stripe";
-import { sendCoordinatorBookingEmail } from "@/app/coaching/notifications";
+import { sendCoordinatorBookingEmail } from "@/app/private-lessons/notifications";
 
 const allowedEvents: Stripe.Event.Type[] = [
    "checkout.session.completed",
+   "checkout.session.expired",
    "customer.subscription.created",
    "customer.subscription.updated",
    "customer.subscription.deleted",
@@ -51,17 +52,23 @@ export async function POST(request: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata ?? {};
 
-      if (metadata.type === "private_lesson" && metadata.coachingSessionId) {
+      const privateLessonSessionId =
+         metadata.privateLessonSessionId ?? metadata.coachingSessionId;
+
+      if (metadata.type === "private_lesson" && privateLessonSessionId) {
          const updated = await db
-            .update(coachingSessions)
-            .set({ status: "pending", stripeOrderId: session.id })
+            .update(privateLessonSessions)
+            .set({
+               status: sql`CASE WHEN ${privateLessonSessions.scheduledAt} IS NOT NULL THEN 'confirmed'::session_status ELSE 'pending'::session_status END`,
+               stripeOrderId: session.id,
+            })
             .where(
                and(
-                  eq(coachingSessions.id, metadata.coachingSessionId),
-                  eq(coachingSessions.status, "awaiting_payment"),
+                  eq(privateLessonSessions.id, privateLessonSessionId),
+                  eq(privateLessonSessions.status, "awaiting_payment"),
                ),
             )
-            .returning({ id: coachingSessions.id });
+            .returning({ id: privateLessonSessions.id });
 
          const transitioned = updated[0];
          if (transitioned) {
@@ -118,6 +125,26 @@ export async function POST(request: NextRequest) {
 
          return NextResponse.json({ received: true });
       }
+   }
+
+   if (event.type === "checkout.session.expired") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata ?? {};
+      if (
+         metadata.type === "private_lesson" &&
+         metadata.privateLessonSessionId
+      ) {
+         await db
+            .update(privateLessonSessions)
+            .set({ status: "cancelled", updatedAt: new Date() })
+            .where(
+               and(
+                  eq(privateLessonSessions.id, metadata.privateLessonSessionId),
+                  eq(privateLessonSessions.status, "awaiting_payment"),
+               ),
+            );
+      }
+      return NextResponse.json({ received: true });
    }
 
    const { customer: customerId } = event.data.object as {

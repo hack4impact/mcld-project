@@ -5,7 +5,11 @@ import { and, eq } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
-import { coachingSessions, serviceBookings, services } from "@/lib/db/schema";
+import {
+   privateLessonSessions,
+   serviceBookings,
+   services,
+} from "@/lib/db/schema";
 import {
    getActiveCouponForCustomerProduct,
    getOrCreateStripeCustomer,
@@ -13,12 +17,21 @@ import {
    userNeedsSubscriptionFor,
 } from "@/lib/stripe";
 import {
-   submitAvailabilities,
-   type Availability,
-} from "@/app/coaching/actions";
+   reservePrivateLessonSession,
+   type ReservePrivateLessonSessionResult,
+} from "@/app/private-lessons/actions";
+import { CHECKOUT_EXPIRY_MINUTES, isStaleHold } from "@/lib/booking-slots";
 import { createClient } from "@/utils/supabase/server";
 
-export type CheckoutResult = { url: string } | { error: string };
+export type CheckoutResult =
+   | { url: string }
+   | {
+        error: string;
+        code?: Extract<
+           ReservePrivateLessonSessionResult,
+           { error: string }
+        >["code"];
+     };
 
 async function getDefaultPriceId(stripeProductId: string): Promise<string> {
    const product = await stripe.products.retrieve(stripeProductId);
@@ -56,6 +69,7 @@ async function createStripeCheckoutSession(params: {
    email: string;
    stripeProductId: string;
    metadata: Record<string, string>;
+   expiresAt?: number;
 }): Promise<CreateSessionResult> {
    const priceId = await getDefaultPriceId(params.stripeProductId);
 
@@ -78,6 +92,7 @@ async function createStripeCheckoutSession(params: {
       success_url: `${origin}/checkout/success`,
       cancel_url: `${origin}/checkout/cancel`,
       metadata: params.metadata,
+      ...(params.expiresAt ? { expires_at: params.expiresAt } : {}),
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
    });
 
@@ -138,10 +153,10 @@ export async function checkoutServiceBooking({
    return { url: result.session.url! };
 }
 
-export async function checkoutCoachingSession({
-   coachingSessionId,
+export async function checkoutPrivateLessonSession({
+   privateLessonSessionId,
 }: {
-   coachingSessionId: string;
+   privateLessonSessionId: string;
 }): Promise<CheckoutResult> {
    const supabase = await createClient();
    const {
@@ -149,15 +164,21 @@ export async function checkoutCoachingSession({
    } = await supabase.auth.getUser();
    if (!user) return { error: "Not authenticated" };
 
-   const row = await db.query.coachingSessions.findFirst({
+   const row = await db.query.privateLessonSessions.findFirst({
       where: and(
-         eq(coachingSessions.id, coachingSessionId),
-         eq(coachingSessions.userId, user.id),
+         eq(privateLessonSessions.id, privateLessonSessionId),
+         eq(privateLessonSessions.userId, user.id),
       ),
    });
-   if (!row) return { error: "Coaching session not found" };
+   if (!row) return { error: "Private lesson session not found" };
    if (row.status !== "awaiting_payment")
-      return { error: "Coaching session is not awaiting payment" };
+      return { error: "Private lesson session is not awaiting payment" };
+   if (row.scheduledAt && isStaleHold(row.createdAt, new Date())) {
+      return {
+         error: "Your hold on this time has expired. Please pick a time again.",
+         code: "slot_taken",
+      };
+   }
 
    const service = await db.query.services.findFirst({
       where: eq(services.id, row.serviceId),
@@ -172,33 +193,41 @@ export async function checkoutCoachingSession({
       stripeProductId: service.stripeProductId,
       metadata: {
          type: "private_lesson",
-         coachingSessionId: row.id,
+         privateLessonSessionId: row.id,
       },
+      ...(row.scheduledAt
+         ? {
+              expiresAt:
+                 Math.floor(Date.now() / 1000) + CHECKOUT_EXPIRY_MINUTES * 60,
+           }
+         : {}),
    });
    if ("error" in result) {
-      await db.delete(coachingSessions).where(eq(coachingSessions.id, row.id));
+      await db
+         .delete(privateLessonSessions)
+         .where(eq(privateLessonSessions.id, row.id));
       return { error: result.error };
    }
 
    await db
-      .update(coachingSessions)
+      .update(privateLessonSessions)
       .set({ stripeOrderId: result.session.id })
-      .where(eq(coachingSessions.id, row.id));
+      .where(eq(privateLessonSessions.id, row.id));
 
    return { url: result.session.url! };
 }
 
 export async function startPrivateLessonCheckout({
    serviceId,
-   availabilities,
+   slotStart,
 }: {
    serviceId: string;
-   availabilities: Availability[];
+   slotStart?: string;
 }): Promise<CheckoutResult> {
-   const created = await submitAvailabilities({ serviceId, availabilities });
-   if ("error" in created) return { error: created.error };
+   const created = await reservePrivateLessonSession({ serviceId, slotStart });
+   if ("error" in created) return created;
 
-   return checkoutCoachingSession({
-      coachingSessionId: created.coachingSessionId,
+   return checkoutPrivateLessonSession({
+      privateLessonSessionId: created.privateLessonSessionId,
    });
 }

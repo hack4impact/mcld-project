@@ -16,6 +16,7 @@ export async function GET() {
          endDate: services.endDate,
          slots: services.slots,
          requiresSubscription: services.requiresSubscription,
+         isScheduled: services.isScheduled,
       })
       .from(services)
       .where(eq(services.status, "active"));
@@ -61,6 +62,8 @@ export async function GET() {
             endDate: row.endDate,
             slots: row.slots,
             requiresSubscription: row.requiresSubscription,
+            isScheduled:
+               row.type === "private_lessons" && row.isScheduled,
          };
       });
 

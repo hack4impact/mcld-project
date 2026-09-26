@@ -1,16 +1,24 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
-import { requireAdmin } from "@/lib/auth/require-admin";
+import { PageHeader, PageShell } from "@/components/page-shell";
+import { getUserRole } from "@/lib/auth/require-admin";
+import { canViewUsers, ROLES, type Role } from "@/lib/roles";
 import { UsersClient } from "./_components/users-client";
 import { profileRoleLabel } from "./profile-role-label";
-import { listDistinctProfileRoles, listUsersWithEmails } from "./queries";
+import {
+   listDistinctProfileRoles,
+   listReadOnlyUsers,
+   listUsersWithEmails,
+} from "./queries";
 
 export default function UsersPage() {
    return (
       <Suspense
          fallback={
-            <Spinner className="size-8 text-muted-foreground" />
+            <div className="flex flex-1 items-center justify-center">
+               <Spinner className="size-8 text-muted-foreground" />
+            </div>
          }
       >
          <UsersContent />
@@ -19,14 +27,29 @@ export default function UsersPage() {
 }
 
 async function UsersContent() {
+   let role: Role | null = null;
    try {
-      await requireAdmin();
-   } catch {
+      role = await getUserRole();
+   } catch (error) {
+      console.error("[UsersPage] failed to read role claim", error);
+   }
+
+   if (!canViewUsers(role)) {
       redirect("/");
    }
 
-   const users = await listUsersWithEmails();
-   const distinctRoles = await listDistinctProfileRoles();
+   const [userData, distinctRoles] = await Promise.all([
+      role === ROLES.ADMIN
+         ? listUsersWithEmails().then((users) => ({
+              canManage: true as const,
+              users,
+           }))
+         : listReadOnlyUsers().then((users) => ({
+              canManage: false as const,
+              users,
+           })),
+      listDistinctProfileRoles(),
+   ]);
 
    const roleFilterOptions: { value: string; label: string }[] = [
       { value: "all", label: "All Roles" },
@@ -37,11 +60,14 @@ async function UsersContent() {
    ];
 
    return (
-      <main className="flex h-full max-h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
-         <h1 className="shrink-0 text-3xl font-bold">Users</h1>
+      <PageShell fill>
+         <PageHeader
+            title="Users"
+            description="Everyone with an account — parents, members, coordinators and admins."
+         />
          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <UsersClient users={users} roleFilterOptions={roleFilterOptions} />
+            <UsersClient {...userData} roleFilterOptions={roleFilterOptions} />
          </div>
-      </main>
+      </PageShell>
    );
 }

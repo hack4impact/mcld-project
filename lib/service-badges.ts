@@ -3,11 +3,11 @@ import type { ServiceStatus } from "@/app/(authenticated)/services/queries";
 export function statusBadgeClass(status: ServiceStatus) {
    switch (status) {
       case "active":
-         return "bg-green-700/80 text-white";
+         return "bg-success-soft text-success";
       case "disabled":
-         return "bg-amber-700/80 text-white";
+         return "bg-warning-soft text-warning";
       case "archived":
-         return "bg-secondary/80 text-secondary-foreground";
+         return "bg-muted text-muted-foreground ring-1 ring-inset ring-border";
       default:
          return "bg-muted text-muted-foreground";
    }
@@ -15,6 +15,12 @@ export function statusBadgeClass(status: ServiceStatus) {
 
 export function subscriptionBadgeClass(requiresSubscription: boolean) {
    return requiresSubscription
-      ? "bg-blue-700/80 text-white"
-      : "bg-secondary/80 text-secondary-foreground";
+      ? "bg-info-soft text-info"
+      : "bg-muted text-muted-foreground ring-1 ring-inset ring-border";
+}
+
+export function schedulingBadgeClass(isScheduled: boolean) {
+   return isScheduled
+      ? "bg-primary/10 text-primary"
+      : "bg-muted text-muted-foreground ring-1 ring-inset ring-border";
 }

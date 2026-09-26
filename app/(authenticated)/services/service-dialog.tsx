@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useActionState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, DollarSign, Plus, X } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, DollarSign, Plus, X } from "lucide-react";
 import { type DateRange } from "react-day-picker";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
@@ -48,6 +49,7 @@ import type {
    CoordinatorOption,
    ServiceView,
 } from "@/app/(authenticated)/services/queries";
+import { DAY_NAMES } from "@/lib/service-labels";
 
 type FormOption = { id: string; name: string };
 
@@ -60,16 +62,6 @@ type Props = { coordinators: CoordinatorOption[]; forms: FormOption[] } & (
         onOpenChange: (open: boolean) => void;
      }
 );
-
-const DAY_NAMES = [
-   "Sunday",
-   "Monday",
-   "Tuesday",
-   "Wednesday",
-   "Thursday",
-   "Friday",
-   "Saturday",
-] as const;
 
 function FieldError({ messages }: { messages?: string[] }) {
    if (!messages?.length) return null;
@@ -243,6 +235,90 @@ function ProgramScheduleFields({
    );
 }
 
+function CoordinatorMultiSelect({
+   coordinators,
+   value,
+   onChange,
+}: {
+   coordinators: CoordinatorOption[];
+   value: string[];
+   onChange: (ids: string[]) => void;
+}) {
+   const [open, setOpen] = React.useState(false);
+   const selected = coordinators.filter((c) => value.includes(c.id));
+   const toggle = (id: string) =>
+      onChange(
+         value.includes(id) ? value.filter((v) => v !== id) : [...value, id],
+      );
+
+   return (
+      <div className="flex flex-col gap-1.5">
+         <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+               <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="justify-between font-normal"
+                  disabled={coordinators.length === 0}
+               >
+                  <span className="truncate">
+                     {selected.length === 0
+                        ? coordinators.length === 0
+                           ? "No coordinators available"
+                           : "Select coordinators"
+                        : `${selected.length} selected`}
+                  </span>
+                  <ChevronsUpDown className="size-4 opacity-50" />
+               </Button>
+            </PopoverTrigger>
+            <PopoverContent
+               className="w-[var(--radix-popover-trigger-width)] p-1"
+               align="start"
+            >
+               <div className="max-h-52 overflow-y-auto">
+                  {coordinators.map((c) => {
+                     const isSelected = value.includes(c.id);
+                     return (
+                        <button
+                           key={c.id}
+                           type="button"
+                           onClick={() => toggle(c.id)}
+                           className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                        >
+                           <span className="flex size-4 items-center justify-center">
+                              {isSelected && <Check className="size-4" />}
+                           </span>
+                           <span className="truncate">
+                              {c.firstName} {c.lastName}
+                           </span>
+                        </button>
+                     );
+                  })}
+               </div>
+            </PopoverContent>
+         </Popover>
+         {selected.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+               {selected.map((c) => (
+                  <Badge key={c.id} variant="secondary" className="gap-1">
+                     {c.firstName} {c.lastName}
+                     <button
+                        type="button"
+                        onClick={() => toggle(c.id)}
+                        aria-label={`Remove ${c.firstName} ${c.lastName}`}
+                     >
+                        <X className="size-3" />
+                     </button>
+                  </Badge>
+               ))}
+            </div>
+         )}
+      </div>
+   );
+}
+
 export function ServiceDialog(props: Props) {
    const isEdit = props.mode === "edit";
    const service = isEdit ? props.service : null;
@@ -253,6 +329,9 @@ export function ServiceDialog(props: Props) {
    );
    const [coordinatorId, setCoordinatorId] = React.useState<string>(
       service?.coordinatorId ?? "",
+   );
+   const [coordinatorIds, setCoordinatorIds] = React.useState<string[]>(
+      service?.coordinatorIds ?? [],
    );
    const [isForChildren, setIsForChildren] = React.useState<boolean>(
       service?.isForChildren ?? false,
@@ -270,6 +349,9 @@ export function ServiceDialog(props: Props) {
    );
    const [requiresSubscription, setRequiresSubscription] =
       React.useState<boolean>(service?.requiresSubscription ?? true);
+   const [isScheduled, setIsScheduled] = React.useState<boolean>(
+      service?.isScheduled ?? false,
+   );
    const [state, formAction, pending] = useActionState<
       ServiceActionState,
       FormData
@@ -279,6 +361,7 @@ export function ServiceDialog(props: Props) {
       if (service) {
          setType(service.type);
          setCoordinatorId(service.coordinatorId ?? "");
+         setCoordinatorIds(service.coordinatorIds ?? []);
          setIsForChildren(service.isForChildren ?? false);
          setFormId(service.formId ?? "");
          setTitle(service.title ?? "");
@@ -286,6 +369,7 @@ export function ServiceDialog(props: Props) {
          setDurationMinutes(String(service.durationMinutes ?? 60));
          setPriceCad(centsToMoneyString(service.priceCents));
          setRequiresSubscription(service.requiresSubscription);
+         setIsScheduled(service.isScheduled);
       }
    }, [service]);
 
@@ -301,6 +385,7 @@ export function ServiceDialog(props: Props) {
             closeRef.current?.click();
             setType("programs");
             setCoordinatorId("");
+            setCoordinatorIds([]);
             setIsForChildren(false);
             setFormId("");
             setTitle("");
@@ -308,6 +393,7 @@ export function ServiceDialog(props: Props) {
             setDurationMinutes("60");
             setPriceCad("");
             setRequiresSubscription(true);
+            setIsScheduled(false);
          }
       }
    }, [state, isEdit, props]);
@@ -340,7 +426,7 @@ export function ServiceDialog(props: Props) {
                <DialogDescription>
                   {isEdit
                      ? "Update fields below. Only changed fields are saved."
-                     : "Create a coaching session or bookable service. Pricing is stored in Stripe."}
+                     : "Create a program or private lesson. Pricing is stored in Stripe."}
                </DialogDescription>
             </DialogHeader>
 
@@ -510,10 +596,26 @@ export function ServiceDialog(props: Props) {
                   </div>
 
                   {type === "programs" && (
-                     <ProgramScheduleFields
-                        initial={initialSchedule}
-                        errors={errors}
-                     />
+                     <>
+                        <ProgramScheduleFields
+                           initial={initialSchedule}
+                           errors={errors}
+                        />
+                        <div className="flex flex-col gap-1.5">
+                           <Label>Coordinators</Label>
+                           <input
+                              type="hidden"
+                              name="coordinator_ids"
+                              value={JSON.stringify(coordinatorIds)}
+                           />
+                           <CoordinatorMultiSelect
+                              coordinators={coordinators}
+                              value={coordinatorIds}
+                              onChange={setCoordinatorIds}
+                           />
+                           <FieldError messages={errors?.coordinator_ids} />
+                        </div>
+                     </>
                   )}
 
                   {type === "private_lessons" && (
@@ -549,6 +651,41 @@ export function ServiceDialog(props: Props) {
                            </SelectContent>
                         </Select>
                         <FieldError messages={errors?.coordinator_id} />
+                     </div>
+                  )}
+
+                  {type === "private_lessons" && (
+                     <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="is_scheduled">Scheduling</Label>
+                        <input
+                           type="hidden"
+                           name="is_scheduled"
+                           value={isScheduled ? "true" : "false"}
+                        />
+                        <Select
+                           value={isScheduled ? "scheduled" : "non_scheduled"}
+                           onValueChange={(v) =>
+                              setIsScheduled(v === "scheduled")
+                           }
+                        >
+                           <SelectTrigger id="is_scheduled" className="w-full">
+                              <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent>
+                              <SelectItem value="scheduled">
+                                 Scheduled
+                              </SelectItem>
+                              <SelectItem value="non_scheduled">
+                                 Non-scheduled
+                              </SelectItem>
+                           </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                           {isScheduled
+                              ? "The customer picks a time in a calendar before paying."
+                              : "Bought like a regular product. The coordinator arranges a time with the customer."}
+                        </p>
+                        <FieldError messages={errors?.is_scheduled} />
                      </div>
                   )}
 
