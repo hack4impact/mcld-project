@@ -53,6 +53,10 @@ code.
    | Change email address | `change-email.html` | `Confirm your MCLD email change` |
 4. **Sign In / Providers → Email**
    - Turn **Confirm email** on. Unconfirmed accounts then can't sign in.
+     **Admin email changes need this too:** while it's off, Supabase finishes
+     an email change on the first link either address clicks. The app checks
+     `mailer_autoconfirm` in Supabase's public auth settings and refuses to
+     start an email change until it's on.
    - Keep **Secure email change** on (the default). Admin email changes refuse
      to start without it, because the current address must approve.
    - Set the **Minimum password length** to 8, matching the app.
@@ -86,7 +90,7 @@ templates changed.
 `signup` (`app/login/actions.ts`) passes `emailRedirectTo: APP_URL + next`.
 The template sends it back as `next={{ .RedirectTo }}`, and `/auth/confirm` only
 follows it if it's a path on this app. Public signup always creates a `user`:
-the `handle_new_user` trigger ignores anything else.
+the `handle_new_user` database trigger sets that role whatever the signup sends.
 
 - The login page then shows **Check your email**, with a resend button that has
   a 60-second cooldown.
@@ -94,6 +98,8 @@ the `handle_new_user` trigger ignores anything else.
 - The resend answer is the same whether or not the address has an account.
 - If "Confirm email" is off, Supabase signs people straight in and the app skips
   the check-email screen.
+- Before the templates are pasted in, Supabase's default link confirms the
+  email and returns to the page without signing in, so the person logs in.
 
 ### Admin invitation
 
@@ -107,7 +113,7 @@ the `handle_new_user` trigger ignores anything else.
 
 Failures are reported separately:
 
-- **Setup fails:** a newly created account is deleted again and nothing is sent.
+- **Setup fails:** a newly created account is deleted again (unless another request re-invited it meanwhile) and nothing is sent.
 - **Subscription fails:** nothing is sent. Submit the form again to retry.
 - **Email fails:** the account stays and the row gets a **Resend invitation**
   button.
@@ -119,16 +125,27 @@ Retrying never duplicates anything:
   subscription.
 - Every resend creates a new link, and the previous one stops working.
 - An address that already has a confirmed account is refused.
+- An address someone signed up with but never confirmed is refused too.
+  Inviting that account would keep the password they chose, so delete it from
+  the Users list first.
 
 The invitee opens the link, lands on `/auth/set-password`, chooses a password,
-and is signed in.
+and is signed in. That page only works in the 30 minutes after accepting. After
+that (or once the invitation was accepted), people set their password with
+**Forgot password?**, which the expired-link screens point to.
+
+Anyone can ask Supabase to resend a signup confirmation for a pending address,
+which replaces the invitation link. If the invitee confirms through that email
+instead, `/auth/confirm` still sends them to `/auth/set-password`.
 
 ### Forgot password
 
 1. **Log in → Forgot password?** (`/auth/forgot-password`) calls
    `resetPasswordForEmail`. It always gives the same answer and never creates
    an account.
-2. The link leads to `/auth/reset-password`.
+2. The link leads to `/auth/reset-password`. Before the templates are pasted
+   in, Supabase's default link goes through `/auth/callback` instead, which
+   only works in the browser that asked for the reset.
 3. That page only accepts a session that came from an email link in the last
    30 minutes. The access token's `amr` claim says `otp`, so the account comes
    from the verified token, never from anything the browser submits.
@@ -156,6 +173,14 @@ Changing the email in **Edit user** doesn't change it straight away.
 
 The old address keeps working until both are clicked, in any order. Then Supabase
 switches the email and the app emails both addresses.
+
+- Nothing is saved if **Confirm email** is off or the settings can't be read
+  (see the setup section).
+- The role and profile are saved first, and the two links go out last, so an
+  edit that fails to save never emails anyone. If the links can't be sent, the
+  admin is told the other changes were saved.
+- Saving the same new address again while its links still work (1 hour) doesn't
+  send a second pair.
 
 - The `?email=` in these links only picks who gets that completion notice, and
   it's ignored unless it matches the account that was verified.
