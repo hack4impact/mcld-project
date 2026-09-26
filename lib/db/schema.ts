@@ -10,8 +10,10 @@ import {
    date,
    uniqueIndex,
    check,
+   pgPolicy,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { supabaseAuthAdminRole } from "drizzle-orm/supabase";
 
 export type ProgramSlot = { dayOfWeek: number; time: string };
 
@@ -58,27 +60,39 @@ export const formQuestionTypeEnum = pgEnum("form_question_type", [
    "user_agreement",
 ]);
 
-export const profiles = pgTable("profiles", {
-   id: uuid("id").primaryKey(),
-   firstName: text("first_name").notNull(),
-   lastName: text("last_name").notNull(),
-   role: roleEnum("role").notNull().default("user"),
-   address: text("address"),
-   gender: genderEnum("gender"),
-   dob: date("dob", { mode: "string" }),
-   phone: text("phone"),
-   stripeCustomerId: text("stripe_customer_id").unique(),
-   createdAt: timestamp("created_at").defaultNow().notNull(),
-   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-   lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
-});
+export const profiles = pgTable(
+   "profiles",
+   {
+      id: uuid("id").primaryKey(),
+      firstName: text("first_name").notNull(),
+      lastName: text("last_name").notNull(),
+      role: roleEnum("role").notNull().default("user"),
+      address: text("address"),
+      gender: genderEnum("gender"),
+      dob: date("dob", { mode: "string" }),
+      phone: text("phone"),
+      stripeCustomerId: text("stripe_customer_id").unique(),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull(),
+      lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
+   },
+   () => [
+      // custom_access_token_hook reads `role` as supabase_auth_admin, which
+      // doesn't bypass RLS. Without this every user's user_role claim is "user".
+      pgPolicy("auth_admin_can_read_profiles", {
+         for: "select",
+         to: supabaseAuthAdminRole,
+         using: sql`true`,
+      }),
+   ],
+).enableRLS();
 
 export const forms = pgTable("forms", {
    id: uuid("id").primaryKey().defaultRandom(),
    name: text("name").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const services = pgTable(
    "services",
@@ -110,7 +124,7 @@ export const services = pgTable(
          sql`${t.type} <> 'private_lessons' OR ${t.coordinatorId} IS NOT NULL`,
       ),
    ],
-);
+).enableRLS();
 
 export const serviceBookings = pgTable(
    "service_bookings",
@@ -137,7 +151,7 @@ export const serviceBookings = pgTable(
          .on(t.serviceId, t.childId)
          .where(sql`${t.childId} is not null`),
    ],
-);
+).enableRLS();
 
 export const webinars = pgTable("webinars", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -149,7 +163,7 @@ export const webinars = pgTable("webinars", {
    isActive: boolean("is_active").notNull().default(true),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const coachingSessions = pgTable("coaching_sessions", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -173,7 +187,7 @@ export const coachingSessions = pgTable("coaching_sessions", {
    stripeOrderId: text("stripe_order_id").unique(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const subscriptions = pgTable("subscriptions", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -189,7 +203,7 @@ export const subscriptions = pgTable("subscriptions", {
    paymentMethodLast4: text("payment_method_last4"),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const purchases = pgTable("purchases", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -203,7 +217,7 @@ export const purchases = pgTable("purchases", {
    currency: text("currency").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const children = pgTable("children", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -219,7 +233,7 @@ export const children = pgTable("children", {
    medications: text("medications"),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const emergencyContacts = pgTable("emergency_contacts", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -232,7 +246,7 @@ export const emergencyContacts = pgTable("emergency_contacts", {
    relationship: text("relationship").notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const formQuestions = pgTable("form_questions", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -245,7 +259,7 @@ export const formQuestions = pgTable("form_questions", {
    sortOrder: integer("sort_order").notNull().default(0),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const formQuestionAnswers = pgTable("form_question_answers", {
    id: uuid("id").primaryKey().defaultRandom(),
@@ -258,7 +272,7 @@ export const formQuestionAnswers = pgTable("form_question_answers", {
    answer: text("answer").array().notNull(),
    createdAt: timestamp("created_at").defaultNow().notNull(),
    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export type AvailabilityWindow = {
    start: string;
@@ -295,7 +309,7 @@ export const coordinatorAvailabilityHours = pgTable(
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().notNull(),
    },
-);
+).enableRLS();
 
 export const coordinatorAvailabilityOverrides = pgTable(
    "coordinator_availability_overrides",
@@ -314,4 +328,4 @@ export const coordinatorAvailabilityOverrides = pgTable(
          "coordinator_availability_overrides_coordinator_id_date_idx",
       ).on(t.coordinatorId, t.date),
    ],
-);
+).enableRLS();
