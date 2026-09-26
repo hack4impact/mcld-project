@@ -52,6 +52,7 @@ const baseFields = z.object({
       .max(24 * 60),
    price_cad: z.string().min(1, "Price is required"),
    requires_subscription: z.enum(["true", "false"]),
+   is_scheduled: z.enum(["true", "false"]).optional(),
 });
 
 const ALLOWED_TRANSITIONS: Record<
@@ -160,6 +161,7 @@ export async function createService(
       duration_minutes: formData.get("duration_minutes"),
       price_cad: formData.get("price_cad"),
       requires_subscription: formData.get("requires_subscription"),
+      is_scheduled: field(formData, "is_scheduled"),
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -192,6 +194,9 @@ export async function createService(
       const coordinator = parseCoordinatorId(formData);
       if (!coordinator.ok) Object.assign(errors, coordinator.errors);
       else coordinatorIdValue = coordinator.value;
+      if (!formData.has("is_scheduled")) {
+         errors.is_scheduled = ["Choose a scheduling type"];
+      }
    }
 
    if (Object.keys(errors).length > 0) {
@@ -199,7 +204,7 @@ export async function createService(
    }
 
    // Safe: we only reach here if baseFields parsed AND price validated.
-   const { title, type, duration_minutes, requires_subscription } =
+   const { title, type, duration_minutes, requires_subscription, is_scheduled } =
       parsed.data!;
    const description = parsed.data!.description.trim();
    const priceCents = cents as number;
@@ -224,6 +229,7 @@ export async function createService(
          coordinatorId: coordinatorIdValue,
          status: "active",
          requiresSubscription: requires_subscription === "true",
+         isScheduled: type === "private_lessons" && is_scheduled === "true",
       });
    } catch (e) {
       if (createdProductId) {
@@ -266,6 +272,7 @@ const updateFields = z.object({
       .optional(),
    price_cad: z.string().min(1, "Price cannot be empty").optional(),
    requires_subscription: z.enum(["true", "false"]).optional(),
+   is_scheduled: z.enum(["true", "false"]).optional(),
 });
 
 export async function updateService(
@@ -288,6 +295,7 @@ export async function updateService(
       price_cad: field(formData, "price_cad") || undefined,
       requires_subscription:
          field(formData, "requires_subscription") || undefined,
+      is_scheduled: field(formData, "is_scheduled") || undefined,
    });
    if (!parsed.success) {
       Object.assign(errors, parsed.error.flatten().fieldErrors);
@@ -353,8 +361,13 @@ export async function updateService(
       return { errors };
    }
 
-   const { title, description, duration_minutes, requires_subscription } =
-      parsed.data!;
+   const {
+      title,
+      description,
+      duration_minutes,
+      requires_subscription,
+      is_scheduled,
+   } = parsed.data!;
    const service_id = serviceId;
 
    try {
@@ -382,6 +395,9 @@ export async function updateService(
       }
       if (requires_subscription !== undefined) {
          dbPatch.requiresSubscription = requires_subscription === "true";
+      }
+      if (is_scheduled !== undefined && row.type === "private_lessons") {
+         dbPatch.isScheduled = is_scheduled === "true";
       }
 
       if (Object.keys(dbPatch).length > 0) {

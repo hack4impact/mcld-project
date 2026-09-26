@@ -270,6 +270,9 @@ export function ServiceDialog(props: Props) {
    );
    const [requiresSubscription, setRequiresSubscription] =
       React.useState<boolean>(service?.requiresSubscription ?? true);
+   const [isScheduled, setIsScheduled] = React.useState<boolean>(
+      service?.isScheduled ?? false,
+   );
    const [state, formAction, pending] = useActionState<
       ServiceActionState,
       FormData
@@ -286,6 +289,7 @@ export function ServiceDialog(props: Props) {
          setDurationMinutes(String(service.durationMinutes ?? 60));
          setPriceCad(centsToMoneyString(service.priceCents));
          setRequiresSubscription(service.requiresSubscription);
+         setIsScheduled(service.isScheduled);
       }
    }, [service]);
 
@@ -308,6 +312,7 @@ export function ServiceDialog(props: Props) {
             setDurationMinutes("60");
             setPriceCad("");
             setRequiresSubscription(true);
+            setIsScheduled(false);
          }
       }
    }, [state, isEdit, props]);
@@ -549,6 +554,35 @@ export function ServiceDialog(props: Props) {
                            </SelectContent>
                         </Select>
                         <FieldError messages={errors?.coordinator_id} />
+                     </div>
+                  )}
+
+                  {type === "private_lessons" && (
+                     <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="is_scheduled">Scheduling</Label>
+                        <input
+                           type="hidden"
+                           name="is_scheduled"
+                           value={String(isScheduled)}
+                        />
+                        <Select
+                           value={String(isScheduled)}
+                           onValueChange={(v) => setIsScheduled(v === "true")}
+                        >
+                           <SelectTrigger id="is_scheduled" className="w-full">
+                              <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent>
+                              <SelectItem value="true">Scheduled</SelectItem>
+                              <SelectItem value="false">Non-scheduled</SelectItem>
+                           </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                           {isScheduled
+                              ? "The customer picks times in a calendar before paying."
+                              : "No calendar. The coordinator arranges a time with the customer after payment."}
+                        </p>
+                        <FieldError messages={errors?.is_scheduled} />
                      </div>
                   )}
 

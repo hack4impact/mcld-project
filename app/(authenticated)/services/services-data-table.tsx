@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/tooltip";
 import { UsersDataTable } from "@/app/(authenticated)/users/_components/users-data-table";
 import { formatDate } from "@/lib/format";
-import { statusBadgeClass, subscriptionBadgeClass } from "@/lib/service-badges";
+import {
+   schedulingBadgeClass,
+   statusBadgeClass,
+   subscriptionBadgeClass,
+} from "@/lib/service-badges";
 
 import { setServiceStatus } from "@/app/(authenticated)/services/actions";
 import type { ServiceView } from "@/app/(authenticated)/services/queries";
@@ -46,7 +50,21 @@ export function ServicesDataTable({
             header: "Program",
             meta: { colWidth: "42%" },
             cell: ({ row }) => (
-               <span className="font-medium">{row.original.title ?? "—"}</span>
+               <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-medium">
+                     {row.original.title ?? "—"}
+                  </span>
+                  {row.original.type === "private_lessons" && (
+                     <span
+                        className={
+                           "inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs " +
+                           schedulingBadgeClass(row.original.isScheduled)
+                        }
+                     >
+                        {row.original.isScheduled ? "Scheduled" : "Non-scheduled"}
+                     </span>
+                  )}
+               </div>
             ),
          },
          {

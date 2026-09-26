@@ -18,3 +18,9 @@ export function subscriptionBadgeClass(requiresSubscription: boolean) {
       ? "bg-blue-700/80 text-white"
       : "bg-secondary/80 text-secondary-foreground";
 }
+
+export function schedulingBadgeClass(isScheduled: boolean) {
+   return isScheduled
+      ? "bg-violet-700/80 text-white"
+      : "bg-secondary/80 text-secondary-foreground";
+}

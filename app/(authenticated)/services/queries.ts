@@ -31,6 +31,7 @@ export type ServiceView = {
    priceCents: number | null;
    priceCurrency: string | null;
    requiresSubscription: boolean;
+   isScheduled: boolean;
 };
 
 function rowToSchedule(
@@ -65,6 +66,7 @@ async function buildServiceView(
       priceCents: stripeData?.priceCents ?? null,
       priceCurrency: stripeData?.priceCurrency ?? null,
       requiresSubscription: row.requiresSubscription,
+      isScheduled: row.isScheduled,
    };
 }
 
