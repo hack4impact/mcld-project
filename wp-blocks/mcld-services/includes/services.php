@@ -3,6 +3,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** Permit loopback development servers only on explicitly local/development sites. */
+function mcld_services_is_local_url( $url ) {
+	$parts = wp_parse_url( $url );
+	return in_array( wp_get_environment_type(), array( 'local', 'development' ), true )
+		&& is_array( $parts ) && isset( $parts['scheme'], $parts['host'] )
+		&& in_array( strtolower( $parts['scheme'] ), array( 'http', 'https' ), true )
+		&& in_array( strtolower( $parts['host'] ), array( 'localhost', '127.0.0.1', '[::1]' ), true )
+		&& ! isset( $parts['user'] ) && ! isset( $parts['pass'] )
+		&& ! isset( $parts['query'] ) && ! isset( $parts['fragment'] );
+}
+
 /** Validate the base URL before WordPress makes a server-side request. */
 function mcld_services_base_url( $value ) {
 	if ( ! is_string( $value ) || '' === trim( $value ) ) {
@@ -10,11 +21,15 @@ function mcld_services_base_url( $value ) {
 	}
 	$url   = rtrim( trim( $value ), '/' );
 	$parts = wp_parse_url( $url );
+	$local = mcld_services_is_local_url( $url );
 	if ( ! $parts || empty( $parts['host'] ) || ! isset( $parts['scheme'] )
 		|| isset( $parts['user'] ) || isset( $parts['pass'] ) || isset( $parts['query'] ) || isset( $parts['fragment'] )
 		|| preg_match( '#/api/public/services$#i', $url )
-		|| 'https' !== strtolower( $parts['scheme'] ) || ! wp_http_validate_url( $url ) ) {
-		return new WP_Error( 'invalid_url', __( 'Enter a dashboard base URL without credentials, query parameters, or /api/public/services. Use a public HTTPS URL.', 'mcld-services' ) );
+		|| ( ! $local && ( 'https' !== strtolower( $parts['scheme'] ) || ! wp_http_validate_url( $url ) ) ) ) {
+		return new WP_Error( 'invalid_url', __( 'Enter a dashboard base URL without credentials, query parameters, or /api/public/services. Use public HTTPS, or localhost on a local/development WordPress site.', 'mcld-services' ) );
+	}
+	if ( $local ) {
+		return esc_url_raw( $url, array( 'http', 'https' ) );
 	}
 	// WordPress permits its own host even on a private network; this setting is public-only.
 	$address = gethostbyname( $parts['host'] );
@@ -36,14 +51,16 @@ function mcld_services_fetch( $base_url ) {
 		return $cached;
 	}
 	$error = new WP_Error( 'services_unavailable', __( 'Services could not be loaded. Please try again later.', 'mcld-services' ) );
+	$local = mcld_services_is_local_url( $base_url );
 	$args = array(
 		'timeout'             => 10,
-		'redirection'         => 3,
+		// A loopback exception must never follow redirects to other internal hosts.
+		'redirection'         => $local ? 0 : 3,
 		'limit_response_size' => 1024 * 1024,
 		'headers'            => array( 'Accept' => 'application/json' ),
 	);
 	$endpoint = $base_url . '/api/public/services';
-	$response = wp_safe_remote_get( $endpoint, $args );
+	$response = $local ? wp_remote_get( $endpoint, $args ) : wp_safe_remote_get( $endpoint, $args );
 	if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
 		return $error;
 	}
