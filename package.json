@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.15.3",
   "scripts": {
     "dev": "next dev",
+    "wordpress:preview": "node wp-blocks/mcld-services/preview/start.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

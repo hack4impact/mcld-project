@@ -1,0 +1,13 @@
+{
+	"name": "mcld-wordpress-preview",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=24.18.0"
+	},
+	"dependencies": {
+		"@php-wasm/node": "3.1.55",
+		"@wp-playground/common": "3.1.55",
+		"@wp-playground/wordpress": "3.1.55"
+	}
+}
